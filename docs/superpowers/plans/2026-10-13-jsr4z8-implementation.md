@@ -23,7 +23,7 @@
 6. 后端在 output 目录建 `<prefix>_V15_3_5_K7_<时间戳>_<序号>/` 目录：内含同名 `.dng` + `辅助文件/`（npy 中间产物、run.log、result.json、support.png）。失败/中断残留同名 `.partial` 目录；成功后目录无后缀。
 7. 样例实跑：4GB 预算在 45.7MP 对齐阶段即 MemoryError（驱动已用 4.086GB）；**12GB 全链成功，state="complete"、exit_code=0，全程约 5.5 分钟（RX 7900 XTX）**。UI 默认预算 4GB 保留，但错误文案须引导调高。
 8. 样例 EXIF：Make=`NIKON CORPORATION`，Model=`NIKON Z 8`（注意空格），ISO=3200，黑电平 1008 / 声明白电平 16383（14-bit DN）。LibRaw cam_mul → AsShotNeutral=[0.560175, 1.0, 0.557734]（探针日志值）。
-9. **后端成功产物 DNG 实测结构**（`tmp_run1/out/probe1_.../probe1_....dng`）：IFD0 = 256×171 未压缩缩略图 + Make=Nikon/Model="Z 8" + Software="Transformer-JSR V15.3.4" + Artist="2026 姜少耕 y-g-jiang.github.io"（**再分发保留署名**）+ XMP 511B + ColorMatrix1 + AsShotNeutral + 21 字节最小 OpcodeList2，无 EXIF/GPS/预览 IFD；唯一 raw SubIFD = **16560×11040、3 通道 16-bit、Photometric=34892（LinearRaw，已去马赛克线性 RGB，无 gamma 无白平衡）**、Compression=7（tifffile LJ）、BlackLevel=0/WhiteLevel=65535、归一化公式 `round(clip(linear*1.001,0,1)*65535)`；实际条带数据仅 ~31MB，文件预分配 341MB（**紧凑重写可减 90% 体积**）。几何 = 输入 raw 的 2 倍线性超分。
+9. **后端成功产物 DNG 实测结构**（`tmp_run1/out/probe1_.../probe1_....dng`）：IFD0 = 256×171 未压缩缩略图 + Make=Nikon/Model="Z 8" + Software="Transformer-JSR V15.3.4" + Artist="2026 姜少耕 y-g-jiang.github.io"（**最终 DNG 不保留这两个署名标签，法律署名随载荷内 THIRD_PARTY_NOTICES.md 分发，2026-10-13 用户决定**）+ XMP 511B + ColorMatrix1 + AsShotNeutral + 21 字节最小 OpcodeList2，无 EXIF/GPS/预览 IFD；唯一 raw SubIFD = **16560×11040、3 通道 16-bit、Photometric=34892（LinearRaw，已去马赛克线性 RGB，无 gamma 无白平衡）**、Compression=7（tifffile LJ）、BlackLevel=0/WhiteLevel=65535、归一化公式 `round(clip(linear*1.001,0,1)*65535)`；实际条带数据仅 ~31MB，文件预分配 341MB（**紧凑重写可减 90% 体积**）。几何 = 输入 raw 的 2 倍线性超分。
 10. 进度行两种：`SRHQ_V12_PROGRESS|<int 0-100>|<阶段>` 与导出期 `SRHQ_ETA_PROGRESS|dng|<已完行>|<总行>`。
 11. 探针日志原件：`tmp_run1/stdout2.log`（失败链）、`tmp_run1/stdout3.log`（完整成功链）——Task 6 夹具来源；成功产物与 `辅助文件/result.json`（含 shape/whitepoint 编码描述）留在原处供 Task 9 参考。
 
@@ -197,10 +197,10 @@ JSR_for_Z8/
 
 **Interfaces:**
 - Consumes: Task 8 的 `DngComposer`（LinearRaw RGB 模式，事实 #9：后端产物为 16560×11040×3×16bit LinearRaw、BL=0/WL=65535、Compression=7 LJ 条带）、Task 3 资产提取。
-- Produces: `static string JsrDngFinalizer.Finalize(string backendDngPath, string referenceNefPath, string destDir)` → 返回写出的 `JSR_<基准帧名>.dng` 绝对路径。行为：解 LJ 条带读像素 → 紧凑重写（体积 -90%）；几何 ×2 适配：ActiveArea/DefaultCrop 按 2 倍缩放成对写入，WarpRectilinear/FixVignetteRadial 为归一化系数直接沿用；EXIF/GPS/Interop/XMP/预览来自基准帧 NEF；AsShotNeutral/ColorMatrix 沿用后端值（与 LibRaw cam_mul 交叉校验，偏差>1e-4 记日志）；保留后端 Software/Artist 署名（事实 #9）。
+- Produces: `static string JsrDngFinalizer.Finalize(string backendDngPath, string referenceNefPath, string destDir)` → 返回写出的 `JSR_<基准帧名>.dng` 绝对路径。行为：解 LJ 条带读像素 → 紧凑重写（体积 -90%）；几何 ×2 适配：ActiveArea/DefaultCrop 按 2 倍缩放成对写入，WarpRectilinear/FixVignetteRadial 为归一化系数直接沿用；EXIF/GPS/Interop/XMP/预览来自基准帧 NEF；AsShotNeutral/ColorMatrix 沿用后端值（与 LibRaw cam_mul 交叉校验，偏差>1e-4 记日志）；**不写入后端 Software/Artist，Software 写 "JSR for Z8"**（事实 #9）。
 
 - [ ] **Step 0: 生成 fixture**：以 `mode:"roi", roi:[512,512,1024,768]`（SDK 语法 `roi=@(x,y,w,h)` → JSON 数组）跑一次真实后端（Task 7 未就绪前可手动，复用 tmp_run1 流程），产物小 DNG 存 fixtures/backend-dng/；同时记录其 raw IFD 标签值写进本文件注释。
-- [ ] **Step 1: 失败测试**：Finalize(小 fixture DNG, samples/DSC_7576.NEF, tempdir) → 文件名 `JSR_DSC_7576.dng`；结构断言：raw SubIFD Compression=7、Samples=3、Photometric=34892、宽高与输入一致；IFD0 含 EXIF（ISO 3200）与≥2 预览；OpcodeList2/3 非空；Artist 含原作者署名；像素往返：LJ 解码回读均值与输入偏差<0.01%（无损验证）；体积 < 输入的 20%。
+- [ ] **Step 1: 失败测试**：Finalize(小 fixture DNG, samples/DSC_7576.NEF, tempdir) → 文件名 `JSR_DSC_7576.dng`；结构断言：raw SubIFD Compression=7、Samples=3、Photometric=34892、宽高与输入一致；IFD0 含 EXIF（ISO 3200）与≥2 预览；OpcodeList2/3 非空；**无 Artist 标签且 Software=="JSR for Z8"**；像素往返：LJ 解码回读均值与输入偏差<0.01%（无损验证）；体积 < 输入的 20%。
 - [ ] **Step 2: 确认失败 → 实现 → 确认通过。**
 - [ ] **Step 3: Commit** `feat: JSR finalizer fuses backend pixels + reference NEF metadata`
 
