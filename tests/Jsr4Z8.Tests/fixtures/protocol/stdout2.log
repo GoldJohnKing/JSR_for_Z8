@@ -1,0 +1,382 @@
+ASSISTANT_JSR_START|{"compressor":"D:\\GitRepos\\JSR_for_Z8\\reference\\Jiangtherapee-Bridge-2.3.25-Windows-x64\\resources\\jsr_backend.exe","dng":true,"engine":"stormer7","job_id":"jsr-1791893248588920000","mode":"full","output":"D:\\GitRepos\\JSR_for_Z8\\tmp_run1\\out","pid":6608,"stage":"reconstruction","started":1791893248.5889251,"state":"running"}
+ASSISTANT_JSR_LOG|PTC {"selection": "manual_fullwell", "shot": 0.0009072763563781527, "prnu": 0.0, "effective_fullwell_e": 1102.2, "fullwell_scope": "effective electrons at RAW white level for the actual ISO/readout mode", "prnu_source": "not supplied; zero, no camera catalog substitution", "read_source": "matched dark; manual fullwell only", "metadata_warnings": [], "exposure_policy": "capture_metadata"}
+SRHQ_V12_FRAME|0|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7576.NEF
+SRHQ_V12_FRAME|1|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7577.NEF
+SRHQ_V12_FRAME|2|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7578.NEF
+SRHQ_V12_FRAME|3|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7579.NEF
+SRHQ_V12_FRAME|4|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7580.NEF
+SRHQ_V12_FRAME|5|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7581.NEF
+SRHQ_V12_FRAME|6|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7582.NEF
+ColorMatrix cross-check: selected vs 'Nikon Z 8' max_abs=1.8405914e-08
+camera profile: Nikon Z 8 -> 'Z 8'; source=joraw2-native LibRaw 0.22.2-Release libraw cam_xyz; AsShotNeutral=[0.560175, 1.0, 0.557734]; embedded=none; fallback=['ColorMatrix1', 'CalibrationIlluminant1', 'AsShotNeutral']
+SRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|V15.3.5 Transformer / matched dark
+SRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，读噪由黑场提供
+
+ASSISTANT_JSR_LOG|PTC {"selection": "manual_fullwell", "shot": 0.0009072763563781527, "prnu": 0.0, "effective_fullwell_e": 1102.2, "fullwell_scope": "effective electrons at RAW white level for the actual ISO/readout mode", "prnu_source": "not supplied; zero, no camera catalog substitution", "read_source": "matched dark; manual fullwell only", "metadata_warnings": [], "exposure_policy": "capture_metadata"}
+SRHQ_V12_FRAME|0|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7576.NEF
+SRHQ_V12_FRAME|1|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7577.NEF
+SRHQ_V12_FRAME|2|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7578.NEF
+SRHQ_V12_FRAME|3|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7579.NEF
+SRHQ_V12_FRAME|4|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7580.NEF
+SRHQ_V12_FRAME|5|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7581.NEF
+SRHQ_V12_FRAME|6|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7582.NEF
+ColorMatrix cross-check: selected vs 'Nikon Z 8' max_abs=1.8405914e-08
+camera profile: Nikon Z 8 -> 'Z 8'; source=joraw2-native LibRaw 0.22.2-Release libraw cam_xyz; AsShotNeutral=[0.560175, 1.0, 0.557734]; embedded=none; fallback=['ColorMatrix1', 'CalibrationIlluminant1', 'AsShotNeutral']
+SRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|V15.3.5 Transformer / matched dark
+SRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，读噪由黑场提供
+Decoded RAW 1/7: DSC_7576.NEF
+
+ASSISTANT_JSR_LOG|PTC {"selection": "manual_fullwell", "shot": 0.0009072763563781527, "prnu": 0.0, "effective_fullwell_e": 1102.2, "fullwell_scope": "effective electrons at RAW white level for the actual ISO/readout mode", "prnu_source": "not supplied; zero, no camera catalog substitution", "read_source": "matched dark; manual fullwell only", "metadata_warnings": [], "exposure_policy": "capture_metadata"}
+SRHQ_V12_FRAME|0|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7576.NEF
+SRHQ_V12_FRAME|1|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7577.NEF
+SRHQ_V12_FRAME|2|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7578.NEF
+SRHQ_V12_FRAME|3|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7579.NEF
+SRHQ_V12_FRAME|4|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7580.NEF
+SRHQ_V12_FRAME|5|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7581.NEF
+SRHQ_V12_FRAME|6|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7582.NEF
+ColorMatrix cross-check: selected vs 'Nikon Z 8' max_abs=1.8405914e-08
+camera profile: Nikon Z 8 -> 'Z 8'; source=joraw2-native LibRaw 0.22.2-Release libraw cam_xyz; AsShotNeutral=[0.560175, 1.0, 0.557734]; embedded=none; fallback=['ColorMatrix1', 'CalibrationIlluminant1', 'AsShotNeutral']
+SRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|V15.3.5 Transformer / matched dark
+SRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，读噪由黑场提供
+Decoded RAW 1/7: DSC_7576.NEF
+Decoded RAW 2/7: DSC_7577.NEF
+
+ASSISTANT_JSR_LOG|PTC {"selection": "manual_fullwell", "shot": 0.0009072763563781527, "prnu": 0.0, "effective_fullwell_e": 1102.2, "fullwell_scope": "effective electrons at RAW white level for the actual ISO/readout mode", "prnu_source": "not supplied; zero, no camera catalog substitution", "read_source": "matched dark; manual fullwell only", "metadata_warnings": [], "exposure_policy": "capture_metadata"}
+SRHQ_V12_FRAME|0|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7576.NEF
+SRHQ_V12_FRAME|1|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7577.NEF
+SRHQ_V12_FRAME|2|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7578.NEF
+SRHQ_V12_FRAME|3|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7579.NEF
+SRHQ_V12_FRAME|4|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7580.NEF
+SRHQ_V12_FRAME|5|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7581.NEF
+SRHQ_V12_FRAME|6|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7582.NEF
+ColorMatrix cross-check: selected vs 'Nikon Z 8' max_abs=1.8405914e-08
+camera profile: Nikon Z 8 -> 'Z 8'; source=joraw2-native LibRaw 0.22.2-Release libraw cam_xyz; AsShotNeutral=[0.560175, 1.0, 0.557734]; embedded=none; fallback=['ColorMatrix1', 'CalibrationIlluminant1', 'AsShotNeutral']
+SRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|V15.3.5 Transformer / matched dark
+SRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，读噪由黑场提供
+Decoded RAW 1/7: DSC_7576.NEF
+Decoded RAW 2/7: DSC_7577.NEF
+Decoded RAW 3/7: DSC_7578.NEF
+Decoded RAW 4/7: DSC_7579.NEF
+
+ASSISTANT_JSR_LOG|PTC {"selection": "manual_fullwell", "shot": 0.0009072763563781527, "prnu": 0.0, "effective_fullwell_e": 1102.2, "fullwell_scope": "effective electrons at RAW white level for the actual ISO/readout mode", "prnu_source": "not supplied; zero, no camera catalog substitution", "read_source": "matched dark; manual fullwell only", "metadata_warnings": [], "exposure_policy": "capture_metadata"}
+SRHQ_V12_FRAME|0|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7576.NEF
+SRHQ_V12_FRAME|1|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7577.NEF
+SRHQ_V12_FRAME|2|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7578.NEF
+SRHQ_V12_FRAME|3|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7579.NEF
+SRHQ_V12_FRAME|4|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7580.NEF
+SRHQ_V12_FRAME|5|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7581.NEF
+SRHQ_V12_FRAME|6|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7582.NEF
+ColorMatrix cross-check: selected vs 'Nikon Z 8' max_abs=1.8405914e-08
+camera profile: Nikon Z 8 -> 'Z 8'; source=joraw2-native LibRaw 0.22.2-Release libraw cam_xyz; AsShotNeutral=[0.560175, 1.0, 0.557734]; embedded=none; fallback=['ColorMatrix1', 'CalibrationIlluminant1', 'AsShotNeutral']
+SRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|V15.3.5 Transformer / matched dark
+SRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，读噪由黑场提供
+Decoded RAW 1/7: DSC_7576.NEF
+Decoded RAW 2/7: DSC_7577.NEF
+Decoded RAW 3/7: DSC_7578.NEF
+Decoded RAW 4/7: DSC_7579.NEF
+Decoded RAW 5/7: DSC_7580.NEF
+
+ASSISTANT_JSR_LOG|PTC {"selection": "manual_fullwell", "shot": 0.0009072763563781527, "prnu": 0.0, "effective_fullwell_e": 1102.2, "fullwell_scope": "effective electrons at RAW white level for the actual ISO/readout mode", "prnu_source": "not supplied; zero, no camera catalog substitution", "read_source": "matched dark; manual fullwell only", "metadata_warnings": [], "exposure_policy": "capture_metadata"}
+SRHQ_V12_FRAME|0|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7576.NEF
+SRHQ_V12_FRAME|1|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7577.NEF
+SRHQ_V12_FRAME|2|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7578.NEF
+SRHQ_V12_FRAME|3|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7579.NEF
+SRHQ_V12_FRAME|4|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7580.NEF
+SRHQ_V12_FRAME|5|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7581.NEF
+SRHQ_V12_FRAME|6|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7582.NEF
+ColorMatrix cross-check: selected vs 'Nikon Z 8' max_abs=1.8405914e-08
+camera profile: Nikon Z 8 -> 'Z 8'; source=joraw2-native LibRaw 0.22.2-Release libraw cam_xyz; AsShotNeutral=[0.560175, 1.0, 0.557734]; embedded=none; fallback=['ColorMatrix1', 'CalibrationIlluminant1', 'AsShotNeutral']
+SRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|V15.3.5 Transformer / matched dark
+SRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，读噪由黑场提供
+Decoded RAW 1/7: DSC_7576.NEF
+Decoded RAW 2/7: DSC_7577.NEF
+Decoded RAW 3/7: DSC_7578.NEF
+Decoded RAW 4/7: DSC_7579.NEF
+Decoded RAW 5/7: DSC_7580.NEF
+Decoded RAW 6/7: DSC_7581.NEF
+
+ASSISTANT_JSR_LOG|PTC {"selection": "manual_fullwell", "shot": 0.0009072763563781527, "prnu": 0.0, "effective_fullwell_e": 1102.2, "fullwell_scope": "effective electrons at RAW white level for the actual ISO/readout mode", "prnu_source": "not supplied; zero, no camera catalog substitution", "read_source": "matched dark; manual fullwell only", "metadata_warnings": [], "exposure_policy": "capture_metadata"}
+SRHQ_V12_FRAME|0|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7576.NEF
+SRHQ_V12_FRAME|1|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7577.NEF
+SRHQ_V12_FRAME|2|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7578.NEF
+SRHQ_V12_FRAME|3|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7579.NEF
+SRHQ_V12_FRAME|4|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7580.NEF
+SRHQ_V12_FRAME|5|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7581.NEF
+SRHQ_V12_FRAME|6|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7582.NEF
+ColorMatrix cross-check: selected vs 'Nikon Z 8' max_abs=1.8405914e-08
+camera profile: Nikon Z 8 -> 'Z 8'; source=joraw2-native LibRaw 0.22.2-Release libraw cam_xyz; AsShotNeutral=[0.560175, 1.0, 0.557734]; embedded=none; fallback=['ColorMatrix1', 'CalibrationIlluminant1', 'AsShotNeutral']
+SRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|V15.3.5 Transformer / matched dark
+SRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，读噪由黑场提供
+Decoded RAW 1/7: DSC_7576.NEF
+Decoded RAW 2/7: DSC_7577.NEF
+Decoded RAW 3/7: DSC_7578.NEF
+Decoded RAW 4/7: DSC_7579.NEF
+Decoded RAW 5/7: DSC_7580.NEF
+Decoded RAW 6/7: DSC_7581.NEF
+Decoded RAW 7/7: DSC_7582.NEF
+SENSOR_LEVELS [{"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7576.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7577.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7578.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7579.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7580.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7581.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7582.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}]
+
+ASSISTANT_JSR_LOG|PTC {"selection": "manual_fullwell", "shot": 0.0009072763563781527, "prnu": 0.0, "effective_fullwell_e": 1102.2, "fullwell_scope": "effective electrons at RAW white level for the actual ISO/readout mode", "prnu_source": "not supplied; zero, no camera catalog substitution", "read_source": "matched dark; manual fullwell only", "metadata_warnings": [], "exposure_policy": "capture_metadata"}
+SRHQ_V12_FRAME|0|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7576.NEF
+SRHQ_V12_FRAME|1|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7577.NEF
+SRHQ_V12_FRAME|2|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7578.NEF
+SRHQ_V12_FRAME|3|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7579.NEF
+SRHQ_V12_FRAME|4|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7580.NEF
+SRHQ_V12_FRAME|5|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7581.NEF
+SRHQ_V12_FRAME|6|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7582.NEF
+ColorMatrix cross-check: selected vs 'Nikon Z 8' max_abs=1.8405914e-08
+camera profile: Nikon Z 8 -> 'Z 8'; source=joraw2-native LibRaw 0.22.2-Release libraw cam_xyz; AsShotNeutral=[0.560175, 1.0, 0.557734]; embedded=none; fallback=['ColorMatrix1', 'CalibrationIlluminant1', 'AsShotNeutral']
+SRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|V15.3.5 Transformer / matched dark
+SRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，读噪由黑场提供
+Decoded RAW 1/7: DSC_7576.NEF
+Decoded RAW 2/7: DSC_7577.NEF
+Decoded RAW 3/7: DSC_7578.NEF
+Decoded RAW 4/7: DSC_7579.NEF
+Decoded RAW 5/7: DSC_7580.NEF
+Decoded RAW 6/7: DSC_7581.NEF
+Decoded RAW 7/7: DSC_7582.NEF
+SENSOR_LEVELS [{"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7576.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7577.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7578.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7579.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7580.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7581.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7582.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}]
+SRHQ_V12_PROGRESS|8|WGPU 对齐与 Transformer 恢复
+
+ASSISTANT_JSR_LOG|PTC {"selection": "manual_fullwell", "shot": 0.0009072763563781527, "prnu": 0.0, "effective_fullwell_e": 1102.2, "fullwell_scope": "effective electrons at RAW white level for the actual ISO/readout mode", "prnu_source": "not supplied; zero, no camera catalog substitution", "read_source": "matched dark; manual fullwell only", "metadata_warnings": [], "exposure_policy": "capture_metadata"}
+SRHQ_V12_FRAME|0|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7576.NEF
+SRHQ_V12_FRAME|1|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7577.NEF
+SRHQ_V12_FRAME|2|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7578.NEF
+SRHQ_V12_FRAME|3|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7579.NEF
+SRHQ_V12_FRAME|4|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7580.NEF
+SRHQ_V12_FRAME|5|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7581.NEF
+SRHQ_V12_FRAME|6|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7582.NEF
+ColorMatrix cross-check: selected vs 'Nikon Z 8' max_abs=1.8405914e-08
+camera profile: Nikon Z 8 -> 'Z 8'; source=joraw2-native LibRaw 0.22.2-Release libraw cam_xyz; AsShotNeutral=[0.560175, 1.0, 0.557734]; embedded=none; fallback=['ColorMatrix1', 'CalibrationIlluminant1', 'AsShotNeutral']
+SRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|V15.3.5 Transformer / matched dark
+SRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，读噪由黑场提供
+Decoded RAW 1/7: DSC_7576.NEF
+Decoded RAW 2/7: DSC_7577.NEF
+Decoded RAW 3/7: DSC_7578.NEF
+Decoded RAW 4/7: DSC_7579.NEF
+Decoded RAW 5/7: DSC_7580.NEF
+Decoded RAW 6/7: DSC_7581.NEF
+Decoded RAW 7/7: DSC_7582.NEF
+SENSOR_LEVELS [{"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7576.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7577.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7578.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7579.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7580.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7581.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7582.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}]
+SRHQ_V12_PROGRESS|8|WGPU 对齐与 Transformer 恢复
+Proxy 1/7 prepared
+SRHQ_V12_PROGRESS|9|准备对齐代理图
+
+ASSISTANT_JSR_LOG|PTC {"selection": "manual_fullwell", "shot": 0.0009072763563781527, "prnu": 0.0, "effective_fullwell_e": 1102.2, "fullwell_scope": "effective electrons at RAW white level for the actual ISO/readout mode", "prnu_source": "not supplied; zero, no camera catalog substitution", "read_source": "matched dark; manual fullwell only", "metadata_warnings": [], "exposure_policy": "capture_metadata"}
+SRHQ_V12_FRAME|0|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7576.NEF
+SRHQ_V12_FRAME|1|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7577.NEF
+SRHQ_V12_FRAME|2|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7578.NEF
+SRHQ_V12_FRAME|3|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7579.NEF
+SRHQ_V12_FRAME|4|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7580.NEF
+SRHQ_V12_FRAME|5|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7581.NEF
+SRHQ_V12_FRAME|6|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7582.NEF
+ColorMatrix cross-check: selected vs 'Nikon Z 8' max_abs=1.8405914e-08
+camera profile: Nikon Z 8 -> 'Z 8'; source=joraw2-native LibRaw 0.22.2-Release libraw cam_xyz; AsShotNeutral=[0.560175, 1.0, 0.557734]; embedded=none; fallback=['ColorMatrix1', 'CalibrationIlluminant1', 'AsShotNeutral']
+SRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|V15.3.5 Transformer / matched dark
+SRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，读噪由黑场提供
+Decoded RAW 1/7: DSC_7576.NEF
+Decoded RAW 2/7: DSC_7577.NEF
+Decoded RAW 3/7: DSC_7578.NEF
+Decoded RAW 4/7: DSC_7579.NEF
+Decoded RAW 5/7: DSC_7580.NEF
+Decoded RAW 6/7: DSC_7581.NEF
+Decoded RAW 7/7: DSC_7582.NEF
+SENSOR_LEVELS [{"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7576.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7577.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7578.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7579.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7580.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7581.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7582.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}]
+SRHQ_V12_PROGRESS|8|WGPU 对齐与 Transformer 恢复
+Proxy 1/7 prepared
+SRHQ_V12_PROGRESS|9|准备对齐代理图
+Proxy 2/7 prepared
+SRHQ_V12_PROGRESS|11|准备对齐代理图
+Proxy 3/7 prepared
+SRHQ_V12_PROGRESS|13|准备对齐代理图
+
+ASSISTANT_JSR_LOG|PTC {"selection": "manual_fullwell", "shot": 0.0009072763563781527, "prnu": 0.0, "effective_fullwell_e": 1102.2, "fullwell_scope": "effective electrons at RAW white level for the actual ISO/readout mode", "prnu_source": "not supplied; zero, no camera catalog substitution", "read_source": "matched dark; manual fullwell only", "metadata_warnings": [], "exposure_policy": "capture_metadata"}
+SRHQ_V12_FRAME|0|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7576.NEF
+SRHQ_V12_FRAME|1|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7577.NEF
+SRHQ_V12_FRAME|2|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7578.NEF
+SRHQ_V12_FRAME|3|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7579.NEF
+SRHQ_V12_FRAME|4|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7580.NEF
+SRHQ_V12_FRAME|5|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7581.NEF
+SRHQ_V12_FRAME|6|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7582.NEF
+ColorMatrix cross-check: selected vs 'Nikon Z 8' max_abs=1.8405914e-08
+camera profile: Nikon Z 8 -> 'Z 8'; source=joraw2-native LibRaw 0.22.2-Release libraw cam_xyz; AsShotNeutral=[0.560175, 1.0, 0.557734]; embedded=none; fallback=['ColorMatrix1', 'CalibrationIlluminant1', 'AsShotNeutral']
+SRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|V15.3.5 Transformer / matched dark
+SRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，读噪由黑场提供
+Decoded RAW 1/7: DSC_7576.NEF
+Decoded RAW 2/7: DSC_7577.NEF
+Decoded RAW 3/7: DSC_7578.NEF
+Decoded RAW 4/7: DSC_7579.NEF
+Decoded RAW 5/7: DSC_7580.NEF
+Decoded RAW 6/7: DSC_7581.NEF
+Decoded RAW 7/7: DSC_7582.NEF
+SENSOR_LEVELS [{"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7576.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7577.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7578.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7579.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7580.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7581.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7582.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}]
+SRHQ_V12_PROGRESS|8|WGPU 对齐与 Transformer 恢复
+Proxy 1/7 prepared
+SRHQ_V12_PROGRESS|9|准备对齐代理图
+Proxy 2/7 prepared
+SRHQ_V12_PROGRESS|11|准备对齐代理图
+Proxy 3/7 prepared
+SRHQ_V12_PROGRESS|13|准备对齐代理图
+Proxy 4/7 prepared
+SRHQ_V12_PROGRESS|14|准备对齐代理图
+Proxy 5/7 prepared
+SRHQ_V12_PROGRESS|16|准备对齐代理图
+
+ASSISTANT_JSR_LOG|PTC {"selection": "manual_fullwell", "shot": 0.0009072763563781527, "prnu": 0.0, "effective_fullwell_e": 1102.2, "fullwell_scope": "effective electrons at RAW white level for the actual ISO/readout mode", "prnu_source": "not supplied; zero, no camera catalog substitution", "read_source": "matched dark; manual fullwell only", "metadata_warnings": [], "exposure_policy": "capture_metadata"}
+SRHQ_V12_FRAME|0|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7576.NEF
+SRHQ_V12_FRAME|1|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7577.NEF
+SRHQ_V12_FRAME|2|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7578.NEF
+SRHQ_V12_FRAME|3|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7579.NEF
+SRHQ_V12_FRAME|4|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7580.NEF
+SRHQ_V12_FRAME|5|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7581.NEF
+SRHQ_V12_FRAME|6|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7582.NEF
+ColorMatrix cross-check: selected vs 'Nikon Z 8' max_abs=1.8405914e-08
+camera profile: Nikon Z 8 -> 'Z 8'; source=joraw2-native LibRaw 0.22.2-Release libraw cam_xyz; AsShotNeutral=[0.560175, 1.0, 0.557734]; embedded=none; fallback=['ColorMatrix1', 'CalibrationIlluminant1', 'AsShotNeutral']
+SRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|V15.3.5 Transformer / matched dark
+SRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，读噪由黑场提供
+Decoded RAW 1/7: DSC_7576.NEF
+Decoded RAW 2/7: DSC_7577.NEF
+Decoded RAW 3/7: DSC_7578.NEF
+Decoded RAW 4/7: DSC_7579.NEF
+Decoded RAW 5/7: DSC_7580.NEF
+Decoded RAW 6/7: DSC_7581.NEF
+Decoded RAW 7/7: DSC_7582.NEF
+SENSOR_LEVELS [{"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7576.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7577.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7578.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7579.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7580.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7581.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7582.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}]
+SRHQ_V12_PROGRESS|8|WGPU 对齐与 Transformer 恢复
+Proxy 1/7 prepared
+SRHQ_V12_PROGRESS|9|准备对齐代理图
+Proxy 2/7 prepared
+SRHQ_V12_PROGRESS|11|准备对齐代理图
+Proxy 3/7 prepared
+SRHQ_V12_PROGRESS|13|准备对齐代理图
+Proxy 4/7 prepared
+SRHQ_V12_PROGRESS|14|准备对齐代理图
+Proxy 5/7 prepared
+SRHQ_V12_PROGRESS|16|准备对齐代理图
+Proxy 6/7 prepared
+SRHQ_V12_PROGRESS|18|准备对齐代理图
+
+ASSISTANT_JSR_LOG|PTC {"selection": "manual_fullwell", "shot": 0.0009072763563781527, "prnu": 0.0, "effective_fullwell_e": 1102.2, "fullwell_scope": "effective electrons at RAW white level for the actual ISO/readout mode", "prnu_source": "not supplied; zero, no camera catalog substitution", "read_source": "matched dark; manual fullwell only", "metadata_warnings": [], "exposure_policy": "capture_metadata"}
+SRHQ_V12_FRAME|0|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7576.NEF
+SRHQ_V12_FRAME|1|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7577.NEF
+SRHQ_V12_FRAME|2|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7578.NEF
+SRHQ_V12_FRAME|3|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7579.NEF
+SRHQ_V12_FRAME|4|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7580.NEF
+SRHQ_V12_FRAME|5|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7581.NEF
+SRHQ_V12_FRAME|6|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7582.NEF
+ColorMatrix cross-check: selected vs 'Nikon Z 8' max_abs=1.8405914e-08
+camera profile: Nikon Z 8 -> 'Z 8'; source=joraw2-native LibRaw 0.22.2-Release libraw cam_xyz; AsShotNeutral=[0.560175, 1.0, 0.557734]; embedded=none; fallback=['ColorMatrix1', 'CalibrationIlluminant1', 'AsShotNeutral']
+SRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|V15.3.5 Transformer / matched dark
+SRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，读噪由黑场提供
+Decoded RAW 1/7: DSC_7576.NEF
+Decoded RAW 2/7: DSC_7577.NEF
+Decoded RAW 3/7: DSC_7578.NEF
+Decoded RAW 4/7: DSC_7579.NEF
+Decoded RAW 5/7: DSC_7580.NEF
+Decoded RAW 6/7: DSC_7581.NEF
+Decoded RAW 7/7: DSC_7582.NEF
+SENSOR_LEVELS [{"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7576.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7577.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7578.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7579.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7580.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7581.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7582.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}]
+SRHQ_V12_PROGRESS|8|WGPU 对齐与 Transformer 恢复
+Proxy 1/7 prepared
+SRHQ_V12_PROGRESS|9|准备对齐代理图
+Proxy 2/7 prepared
+SRHQ_V12_PROGRESS|11|准备对齐代理图
+Proxy 3/7 prepared
+SRHQ_V12_PROGRESS|13|准备对齐代理图
+Proxy 4/7 prepared
+SRHQ_V12_PROGRESS|14|准备对齐代理图
+Proxy 5/7 prepared
+SRHQ_V12_PROGRESS|16|准备对齐代理图
+Proxy 6/7 prepared
+SRHQ_V12_PROGRESS|18|准备对齐代理图
+Proxy 7/7 prepared
+SRHQ_V12_PROGRESS|20|准备对齐代理图
+
+ASSISTANT_JSR_LOG|PTC {"selection": "manual_fullwell", "shot": 0.0009072763563781527, "prnu": 0.0, "effective_fullwell_e": 1102.2, "fullwell_scope": "effective electrons at RAW white level for the actual ISO/readout mode", "prnu_source": "not supplied; zero, no camera catalog substitution", "read_source": "matched dark; manual fullwell only", "metadata_warnings": [], "exposure_policy": "capture_metadata"}
+SRHQ_V12_FRAME|0|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7576.NEF
+SRHQ_V12_FRAME|1|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7577.NEF
+SRHQ_V12_FRAME|2|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7578.NEF
+SRHQ_V12_FRAME|3|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7579.NEF
+SRHQ_V12_FRAME|4|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7580.NEF
+SRHQ_V12_FRAME|5|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7581.NEF
+SRHQ_V12_FRAME|6|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7582.NEF
+ColorMatrix cross-check: selected vs 'Nikon Z 8' max_abs=1.8405914e-08
+camera profile: Nikon Z 8 -> 'Z 8'; source=joraw2-native LibRaw 0.22.2-Release libraw cam_xyz; AsShotNeutral=[0.560175, 1.0, 0.557734]; embedded=none; fallback=['ColorMatrix1', 'CalibrationIlluminant1', 'AsShotNeutral']
+SRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|V15.3.5 Transformer / matched dark
+SRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，读噪由黑场提供
+Decoded RAW 1/7: DSC_7576.NEF
+Decoded RAW 2/7: DSC_7577.NEF
+Decoded RAW 3/7: DSC_7578.NEF
+Decoded RAW 4/7: DSC_7579.NEF
+Decoded RAW 5/7: DSC_7580.NEF
+Decoded RAW 6/7: DSC_7581.NEF
+Decoded RAW 7/7: DSC_7582.NEF
+SENSOR_LEVELS [{"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7576.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7577.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7578.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7579.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7580.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7581.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7582.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}]
+SRHQ_V12_PROGRESS|8|WGPU 对齐与 Transformer 恢复
+Proxy 1/7 prepared
+SRHQ_V12_PROGRESS|9|准备对齐代理图
+Proxy 2/7 prepared
+SRHQ_V12_PROGRESS|11|准备对齐代理图
+Proxy 3/7 prepared
+SRHQ_V12_PROGRESS|13|准备对齐代理图
+Proxy 4/7 prepared
+SRHQ_V12_PROGRESS|14|准备对齐代理图
+Proxy 5/7 prepared
+SRHQ_V12_PROGRESS|16|准备对齐代理图
+Proxy 6/7 prepared
+SRHQ_V12_PROGRESS|18|准备对齐代理图
+Proxy 7/7 prepared
+SRHQ_V12_PROGRESS|20|准备对齐代理图
+Global registration: similarity, affine, similarity, affine, affine, affine
+
+ASSISTANT_JSR_LOG|PTC {"selection": "manual_fullwell", "shot": 0.0009072763563781527, "prnu": 0.0, "effective_fullwell_e": 1102.2, "fullwell_scope": "effective electrons at RAW white level for the actual ISO/readout mode", "prnu_source": "not supplied; zero, no camera catalog substitution", "read_source": "matched dark; manual fullwell only", "metadata_warnings": [], "exposure_policy": "capture_metadata"}
+SRHQ_V12_FRAME|0|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7576.NEF
+SRHQ_V12_FRAME|1|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7577.NEF
+SRHQ_V12_FRAME|2|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7578.NEF
+SRHQ_V12_FRAME|3|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7579.NEF
+SRHQ_V12_FRAME|4|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7580.NEF
+SRHQ_V12_FRAME|5|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7581.NEF
+SRHQ_V12_FRAME|6|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\DSC_7582.NEF
+ColorMatrix cross-check: selected vs 'Nikon Z 8' max_abs=1.8405914e-08
+camera profile: Nikon Z 8 -> 'Z 8'; source=joraw2-native LibRaw 0.22.2-Release libraw cam_xyz; AsShotNeutral=[0.560175, 1.0, 0.557734]; embedded=none; fallback=['ColorMatrix1', 'CalibrationIlluminant1', 'AsShotNeutral']
+SRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|V15.3.5 Transformer / matched dark
+SRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，读噪由黑场提供
+Decoded RAW 1/7: DSC_7576.NEF
+Decoded RAW 2/7: DSC_7577.NEF
+Decoded RAW 3/7: DSC_7578.NEF
+Decoded RAW 4/7: DSC_7579.NEF
+Decoded RAW 5/7: DSC_7580.NEF
+Decoded RAW 6/7: DSC_7581.NEF
+Decoded RAW 7/7: DSC_7582.NEF
+SENSOR_LEVELS [{"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7576.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7577.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7578.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7579.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7580.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7581.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7582.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}]
+SRHQ_V12_PROGRESS|8|WGPU 对齐与 Transformer 恢复
+Proxy 1/7 prepared
+SRHQ_V12_PROGRESS|9|准备对齐代理图
+Proxy 2/7 prepared
+SRHQ_V12_PROGRESS|11|准备对齐代理图
+Proxy 3/7 prepared
+SRHQ_V12_PROGRESS|13|准备对齐代理图
+Proxy 4/7 prepared
+SRHQ_V12_PROGRESS|14|准备对齐代理图
+Proxy 5/7 prepared
+SRHQ_V12_PROGRESS|16|准备对齐代理图
+Proxy 6/7 prepared
+SRHQ_V12_PROGRESS|18|准备对齐代理图
+Proxy 7/7 prepared
+SRHQ_V12_PROGRESS|20|准备对齐代理图
+Global registration: similarity, affine, similarity, affine, affine, affine
+Traceback (most recent call last):
+  File "v15_2\pipeline.py", line 247, in run
+  File "v15_2\pipeline.py", line 130, in align
+  File "v15_2\runtime.py", line 144, in sample_driver_memory
+MemoryError: Driver reports process GPU usage 4085907456 above configured budget
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "backend.py", line 208, in product_main
+  File "v15_2\pipeline.py", line 250, in run
+MemoryError: Alignment cannot fit the current effective 4.00 GB budget. No CPU/CUDA fallback was used. Driver reports process GPU usage 4085907456 above configured budget
+SRHQ_NET_ABORT:runtime|Alignment cannot fit the current effective 4.00 GB budget. No CPU/CUDA fallback was used. Driver reports process GPU usage 4085907456 above configured budget
+
+ASSISTANT_JSR_RESULT|{"compressor":"D:\\GitRepos\\JSR_for_Z8\\reference\\Jiangtherapee-Bridge-2.3.25-Windows-x64\\resources\\jsr_backend.exe","dng":true,"engine":"stormer7","exit_code":3,"job_id":"jsr-1791893248588920000","log":"PTC {\"selection\": \"manual_fullwell\", \"shot\": 0.0009072763563781527, \"prnu\": 0.0, \"effective_fullwell_e\": 1102.2, \"fullwell_scope\": \"effective electrons at RAW white level for the actual ISO/readout mode\", \"prnu_source\": \"not supplied; zero, no camera catalog substitution\", \"read_source\": \"matched dark; manual fullwell only\", \"metadata_warnings\": [], \"exposure_policy\": \"capture_metadata\"}\r\nSRHQ_V12_FRAME|0|+0.00|0.01|D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7576.NEF\r\nSRHQ_V12_FRAME|1|+0.00|0.01|D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7577.NEF\r\nSRHQ_V12_FRAME|2|+0.00|0.01|D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7578.NEF\r\nSRHQ_V12_FRAME|3|+0.00|0.01|D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7579.NEF\r\nSRHQ_V12_FRAME|4|+0.00|0.01|D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7580.NEF\r\nSRHQ_V12_FRAME|5|+0.00|0.01|D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7581.NEF\r\nSRHQ_V12_FRAME|6|+0.00|0.01|D:\\GitRepos\\JSR_for_Z8\\samples\\DSC_7582.NEF\r\nColorMatrix cross-check: selected vs 'Nikon Z 8' max_abs=1.8405914e-08\r\ncamera profile: Nikon Z 8 -> 'Z 8'; source=joraw2-native LibRaw 0.22.2-Release libraw cam_xyz; AsShotNeutral=[0.560175, 1.0, 0.557734]; embedded=none; fallback=['ColorMatrix1', 'CalibrationIlluminant1', 'AsShotNeutral']\r\nSRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|V15.3.5 Transformer / matched dark\r\nSRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，读噪由黑场提供\r\nDecoded RAW 1/7: DSC_7576.NEF\r\nDecoded RAW 2/7: DSC_7577.NEF\r\nDecoded RAW 3/7: DSC_7578.NEF\r\nDecoded RAW 4/7: DSC_7579.NEF\r\nDecoded RAW 5/7: DSC_7580.NEF\r\nDecoded RAW 6/7: DSC_7581.NEF\r\nDecoded RAW 7/7: DSC_7582.NEF\r\nSENSOR_LEVELS [{\"source\": \"D:\\\\GitRepos\\\\JSR_for_Z8\\\\samples\\\\DSC_7576.NEF\", \"black_dn\": [[1008.0, 1008.0], [1008.0, 1008.0]], \"declared_white_dn\": [[16383.0, 16383.0], [16383.0, 16383.0]], \"saturation_threshold_dn\": [[16378.0, 16378.0], [16378.0, 16378.0]], \"headroom_dn\": 5.0, \"white_source\": \"native decoder metadata/profile\", \"white_scope\": \"camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel\"}, {\"source\": \"D:\\\\GitRepos\\\\JSR_for_Z8\\\\samples\\\\DSC_7577.NEF\", \"black_dn\": [[1008.0, 1008.0], [1008.0, 1008.0]], \"declared_white_dn\": [[16383.0, 16383.0], [16383.0, 16383.0]], \"saturation_threshold_dn\": [[16378.0, 16378.0], [16378.0, 16378.0]], \"headroom_dn\": 5.0, \"white_source\": \"native decoder metadata/profile\", \"white_scope\": \"camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel\"}, {\"source\": \"D:\\\\GitRepos\\\\JSR_for_Z8\\\\samples\\\\DSC_7578.NEF\", \"black_dn\": [[1008.0, 1008.0], [1008.0, 1008.0]], \"declared_white_dn\": [[16383.0, 16383.0], [16383.0, 16383.0]], \"saturation_threshold_dn\": [[16378.0, 16378.0], [16378.0, 16378.0]], \"headroom_dn\": 5.0, \"white_source\": \"native decoder metadata/profile\", \"white_scope\": \"camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel\"}, {\"source\": \"D:\\\\GitRepos\\\\JSR_for_Z8\\\\samples\\\\DSC_7579.NEF\", \"black_dn\": [[1008.0, 1008.0], [1008.0, 1008.0]], \"declared_white_dn\": [[16383.0, 16383.0], [16383.0, 16383.0]], \"saturation_threshold_dn\": [[16378.0, 16378.0], [16378.0, 16378.0]], \"headroom_dn\": 5.0, \"white_source\": \"native decoder metadata/profile\", \"white_scope\": \"camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel\"}, {\"source\": \"D:\\\\GitRepos\\\\JSR_for_Z8\\\\samples\\\\DSC_7580.NEF\", \"black_dn\": [[1008.0, 1008.0], [1008.0, 1008.0]], \"declared_white_dn\": [[16383.0, 16383.0], [16383.0, 16383.0]], \"saturation_threshold_dn\": [[16378.0, 16378.0], [16378.0, 16378.0]], \"headroom_dn\": 5.0, \"white_source\": \"native decoder metadata/profile\", \"white_scope\": \"camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel\"}, {\"source\": \"D:\\\\GitRepos\\\\JSR_for_Z8\\\\samples\\\\DSC_7581.NEF\", \"black_dn\": [[1008.0, 1008.0], [1008.0, 1008.0]], \"declared_white_dn\": [[16383.0, 16383.0], [16383.0, 16383.0]], \"saturation_threshold_dn\": [[16378.0, 16378.0], [16378.0, 16378.0]], \"headroom_dn\": 5.0, \"white_source\": \"native decoder metadata/profile\", \"white_scope\": \"camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel\"}, {\"source\": \"D:\\\\GitRepos\\\\JSR_for_Z8\\\\samples\\\\DSC_7582.NEF\", \"black_dn\": [[1008.0, 1008.0], [1008.0, 1008.0]], \"declared_white_dn\": [[16383.0, 16383.0], [16383.0, 16383.0]], \"saturation_threshold_dn\": [[16378.0, 16378.0], [16378.0, 16378.0]], \"headroom_dn\": 5.0, \"white_source\": \"native decoder metadata/profile\", \"white_scope\": \"camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel\"}]\r\nSRHQ_V12_PROGRESS|8|WGPU 对齐与 Transformer 恢复\r\nProxy 1/7 prepared\r\nSRHQ_V12_PROGRESS|9|准备对齐代理图\r\nProxy 2/7 prepared\r\nSRHQ_V12_PROGRESS|11|准备对齐代理图\r\nProxy 3/7 prepared\r\nSRHQ_V12_PROGRESS|13|准备对齐代理图\r\nProxy 4/7 prepared\r\nSRHQ_V12_PROGRESS|14|准备对齐代理图\r\nProxy 5/7 prepared\r\nSRHQ_V12_PROGRESS|16|准备对齐代理图\r\nProxy 6/7 prepared\r\nSRHQ_V12_PROGRESS|18|准备对齐代理图\r\nProxy 7/7 prepared\r\nSRHQ_V12_PROGRESS|20|准备对齐代理图\r\nGlobal registration: similarity, affine, similarity, affine, affine, affine\r\nTraceback (most recent call last):\r\n  File \"v15_2\\pipeline.py\", line 247, in run\r\n  File \"v15_2\\pipeline.py\", line 130, in align\r\n  File \"v15_2\\runtime.py\", line 144, in sample_driver_memory\r\nMemoryError: Driver reports process GPU usage 4085907456 above configured budget\r\n\r\nThe above exception was the direct cause of the following exception:\r\n\r\nTraceback (most recent call last):\r\n  File \"backend.py\", line 208, in product_main\r\n  File \"v15_2\\pipeline.py\", line 250, in run\r\nMemoryError: Alignment cannot fit the current effective 4.00 GB budget. No CPU/CUDA fallback was used. Driver reports process GPU usage 4085907456 above configured budget\r\nSRHQ_NET_ABORT:runtime|Alignment cannot fit the current effective 4.00 GB budget. No CPU/CUDA fallback was used. Driver reports process GPU usage 4085907456 above configured budget\r\n","mode":"full","output":"D:\\GitRepos\\JSR_for_Z8\\tmp_run1\\out","pid":6608,"stage":"reconstruction","started":1791893248.5889251,"state":"failed"}
