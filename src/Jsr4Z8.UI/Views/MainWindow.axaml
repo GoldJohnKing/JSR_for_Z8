@@ -1,0 +1,75 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:views="clr-namespace:Jsr4Z8.UI.Views"
+        xmlns:vm="clr-namespace:Jsr4Z8.UI.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="880" d:DesignHeight="620"
+        x:Class="Jsr4Z8.UI.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="JSR for Z8"
+        MinWidth="720" MinHeight="560" Width="880" Height="620"
+        WindowStartupLocation="CenterScreen">
+    <Window.Styles>
+        <!-- 「Nikon Z8 专用」pill next to the logo (layout.html top bar) -->
+        <Style Selector="Border.tag">
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="7,2" />
+            <Setter Property="Margin" Value="10,0,0,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Background" Value="{DynamicResource SemiColorFill}" />
+        </Style>
+        <Style Selector="Border.tag TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Opacity" Value="0.65" />
+        </Style>
+    </Window.Styles>
+
+    <DockPanel>
+        <!-- Top bar: logo + Nikon Z8 专用 tag + 添加/全部开始/⚙/主题切换 (layout.html) -->
+        <Border DockPanel.Dock="Top" Padding="16,10" BorderBrush="{DynamicResource SemiColorBorder}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto">
+                <TextBlock Grid.Column="0" Text="JSR for Z8" FontSize="16" FontWeight="Bold"
+                           VerticalAlignment="Center" />
+                <Border Grid.Column="1" Classes="tag">
+                    <TextBlock Text="Nikon Z8 专用" />
+                </Border>
+                <Button Grid.Column="3" Classes="Primary" Content="＋ 添加任务组"
+                        Command="{Binding AddTaskCommand}" />
+                <Button Grid.Column="4" Margin="8,0,0,0" Content="▶ 全部开始"
+                        Command="{Binding StartAllCommand}" />
+                <Button Grid.Column="5" Margin="8,0,0,0" Content="⚙"
+                        Command="{Binding OpenSettingsCommand}" ToolTip.Tip="高级设置" />
+                <Button Grid.Column="6" Margin="8,0,0,0" MinWidth="72"
+                        Content="{Binding Theme.ModeText}"
+                        Command="{Binding ToggleThemeCommand}" ToolTip.Tip="切换主题（暗色 → 亮色 → 跟随系统）" />
+            </Grid>
+        </Border>
+
+        <Grid>
+            <!-- 卡片纵列（一组一卡，layout.html option C） -->
+            <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding Tasks}" Margin="16">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <views:TaskCardView Margin="0,0,0,14" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- 空状态投放提示：visual only — 拖放接线在 Task 12（不接收鼠标） -->
+            <Grid IsVisible="{Binding HasNoTasks}" IsHitTestVisible="False" Margin="32,72,32,32">
+                <Rectangle Stroke="{DynamicResource SemiColorBorder}" StrokeThickness="2"
+                           StrokeDashArray="7,7" RadiusX="12" RadiusY="12" />
+                <StackPanel Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="把 7 张 RAW 拖进来，或点击添加" FontSize="15"
+                               HorizontalAlignment="Center"
+                               Foreground="{DynamicResource SemiColorText}" />
+                    <TextBlock Text="黑场可一起拖，自动识别" FontSize="12" Opacity="0.55"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </DockPanel>
+</Window>

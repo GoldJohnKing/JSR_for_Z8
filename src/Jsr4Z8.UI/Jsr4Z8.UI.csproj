@@ -7,6 +7,9 @@
     <OutputType>WinExe</OutputType>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Jsr4Z8.Core\Jsr4Z8.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.2.2" />
     <PackageReference Include="Avalonia.Desktop" Version="11.2.2" />
     <!-- Pinned: 11.3.x is binary-incompatible with Avalonia 11.2.x -->

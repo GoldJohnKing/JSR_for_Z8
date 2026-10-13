@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Jsr4Z8.Core\Jsr4Z8.Core.csproj" />
+    <ProjectReference Include="..\..\src\Jsr4Z8.UI\Jsr4Z8.UI.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\libs\*.dll" CopyToOutputDirectory="PreserveNewest" />

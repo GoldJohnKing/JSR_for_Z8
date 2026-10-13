@@ -1,0 +1,230 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:Jsr4Z8.UI.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="240"
+             x:Class="Jsr4Z8.UI.Views.TaskCardView"
+             x:DataType="vm:TaskGroupViewModel"
+             x:CompileBindings="True">
+    <!-- One task card, all six states of docs/design/card-states.html. The root border
+         carries the st-ready/st-running/st-done/st-failed/st-blocked class (set from
+         code-behind on State changes) that colors the accent stripe and status badge. -->
+    <UserControl.Styles>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource SemiColorBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SemiColorBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12,10" />
+        </Style>
+        <!-- 状态色：就绪灰 / 运行蓝 / 完成绿 / 失败红 / 阻断橙（card-states.html 左侧色条） -->
+        <Style Selector="Border.card.st-ready Rectangle.accent">
+            <Setter Property="Fill" Value="{DynamicResource SemiColorBorder}" />
+        </Style>
+        <Style Selector="Border.card.st-running Rectangle.accent">
+            <Setter Property="Fill" Value="{DynamicResource SemiColorPrimary}" />
+        </Style>
+        <Style Selector="Border.card.st-done Rectangle.accent">
+            <Setter Property="Fill" Value="{DynamicResource SemiColorSuccess}" />
+        </Style>
+        <Style Selector="Border.card.st-failed Rectangle.accent">
+            <Setter Property="Fill" Value="{DynamicResource SemiColorDanger}" />
+        </Style>
+        <Style Selector="Border.card.st-blocked Rectangle.accent">
+            <Setter Property="Fill" Value="{DynamicResource SemiColorWarning}" />
+        </Style>
+        <!-- 状态徽标 -->
+        <Style Selector="Border.badge">
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="9,1" />
+            <Setter Property="Margin" Value="8,0,0,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.badge TextBlock">
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+        <Style Selector="Border.card.st-ready Border.badge">
+            <Setter Property="Background" Value="#33808080" />
+        </Style>
+        <Style Selector="Border.card.st-ready Border.badge TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorText}" />
+        </Style>
+        <Style Selector="Border.card.st-running Border.badge">
+            <Setter Property="Background" Value="#334F7CFF" />
+        </Style>
+        <Style Selector="Border.card.st-running Border.badge TextBlock">
+            <Setter Property="Foreground" Value="#7D9BFF" />
+        </Style>
+        <Style Selector="Border.card.st-done Border.badge">
+            <Setter Property="Background" Value="#332E9E5B" />
+        </Style>
+        <Style Selector="Border.card.st-done Border.badge TextBlock">
+            <Setter Property="Foreground" Value="#4CC38A" />
+        </Style>
+        <Style Selector="Border.card.st-failed Border.badge">
+            <Setter Property="Background" Value="#33E5484D" />
+        </Style>
+        <Style Selector="Border.card.st-failed Border.badge TextBlock">
+            <Setter Property="Foreground" Value="#FF6369" />
+        </Style>
+        <Style Selector="Border.card.st-blocked Border.badge">
+            <Setter Property="Background" Value="#33F0A020" />
+        </Style>
+        <Style Selector="Border.card.st-blocked Border.badge TextBlock">
+            <Setter Property="Foreground" Value="#FFB020" />
+        </Style>
+        <!-- 文件芯片：基准蓝底白字，黑场暖橙，其余灰 -->
+        <Style Selector="Border.chip">
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="Margin" Value="0,2,6,2" />
+            <Setter Property="Background" Value="#26808080" />
+        </Style>
+        <Style Selector="Border.chip TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorText}" />
+        </Style>
+        <Style Selector="Border.chip.reference">
+            <Setter Property="Background" Value="{DynamicResource SemiColorPrimary}" />
+        </Style>
+        <Style Selector="Border.chip.reference TextBlock">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Border.chip.dark">
+            <Setter Property="Background" Value="#26F0A020" />
+            <Setter Property="BorderBrush" Value="#4DF0A020" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style Selector="Border.chip.dark TextBlock">
+            <Setter Property="Foreground" Value="#FFB020" />
+        </Style>
+        <!-- 标题行小按钮 -->
+        <Style Selector="Button.mini">
+            <Setter Property="Padding" Value="9,2" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+        <!-- 校验/错误消息条（card-states.html ④⑤⑥） -->
+        <Style Selector="Border.msg">
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="9,5" />
+            <Setter Property="Margin" Value="0,6,0,0" />
+            <Setter Property="Background" Value="#26E5484D" />
+        </Style>
+        <Style Selector="Border.msg TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="#FF6369" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <!-- 卡内日志（手动展开，card-states.html 用户选择 B） -->
+        <Style Selector="Border.logbox">
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="9,7" />
+            <Setter Property="Margin" Value="0,6,0,0" />
+            <Setter Property="Background" Value="#EE1E1E22" />
+        </Style>
+        <Style Selector="Border.logbox TextBlock">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontFamily" Value="Consolas,Courier New" />
+            <Setter Property="Foreground" Value="#7EE2A8" />
+        </Style>
+        <Style Selector="ToggleButton.logtoggle">
+            <Setter Property="Padding" Value="6,1" />
+            <Setter Property="Margin" Value="0,7,0,0" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorPrimary}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border x:Name="Root" Classes="card">
+        <Grid ColumnDefinitions="3,*">
+            <Rectangle Grid.Column="0" Classes="accent" Width="3" RadiusX="1.5" RadiusY="1.5" />
+            <Grid Grid.Column="1" Margin="10,0,0,0"
+                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                <!-- 标题行：基准帧名 + 状态徽标 + 动作（按状态由 CanExecute 自动启停） -->
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto">
+                    <TextBlock Grid.Column="0" Text="{Binding ReferenceName}" FontSize="14"
+                               FontWeight="Bold" VerticalAlignment="Center" />
+                    <Border Grid.Column="1" Classes="badge">
+                        <TextBlock Text="{Binding StateText}" />
+                    </Border>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6"
+                                VerticalAlignment="Center">
+                        <Button Classes="mini Primary" Content="▶ 开始此组"
+                                Command="{Binding StartCommand}" />
+                        <Button Classes="mini Danger" Content="■ 停止"
+                                Command="{Binding StopCommand}" />
+                        <Button Classes="mini" Content="↻ 重试"
+                                Command="{Binding RetryCommand}" />
+                        <Button Classes="mini" Content="📂 打开所在文件夹"
+                                Command="{Binding OpenFolderCommand}" />
+                        <Button Classes="mini" Content="✕ 移除"
+                                Command="{Binding RemoveCommand}" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- 文件芯片行：★基准 + 其余帧 + 🕯黑场 -->
+                <WrapPanel Grid.Row="1" Margin="0,6,0,0">
+                    <ItemsControl ItemsSource="{Binding FrameChips}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:FrameChipViewModel">
+                                <Border Classes="chip" Classes.reference="{Binding IsReference}">
+                                    <StackPanel Orientation="Horizontal" Spacing="3">
+                                        <TextBlock Text="★基准" FontSize="11" FontWeight="SemiBold"
+                                                   IsVisible="{Binding IsReference}" />
+                                        <TextBlock Text="{Binding FileName}" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Border Classes="chip dark"
+                            IsVisible="{Binding DarkName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <TextBlock Text="{Binding DarkName, StringFormat=🕯 {0}}" />
+                    </Border>
+                </WrapPanel>
+
+                <!-- 元信息行：PTC 满阱 / 输出名 -->
+                <TextBlock Grid.Row="2" Text="{Binding MetaText}" FontSize="11" Opacity="0.65"
+                           Margin="0,4,0,0" TextWrapping="Wrap" />
+
+                <!-- 进度条：仅运行中显示 -->
+                <ProgressBar Grid.Row="3" Margin="0,8,0,0" Height="6" Minimum="0" Maximum="100"
+                             Value="{Binding Progress}" IsVisible="{Binding IsRunning}" />
+
+                <!-- 校验失败/ 运行失败消息条 -->
+                <Border Grid.Row="4" Classes="msg"
+                        IsVisible="{Binding IssuesText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock Text="{Binding IssuesText}" />
+                </Border>
+                <Border Grid.Row="5" Classes="msg"
+                        IsVisible="{Binding ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock Text="{Binding ErrorText}" />
+                </Border>
+
+                <!-- ▾ 日志（手动展开） -->
+                <ToggleButton Grid.Row="6" Classes="logtoggle" Content="▾ 日志"
+                              IsChecked="{Binding IsLogExpanded}" />
+
+                <!-- 日志区 -->
+                <Border Grid.Row="7" Classes="logbox" IsVisible="{Binding IsLogExpanded}">
+                    <ItemsControl ItemsSource="{Binding LogLines}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>
