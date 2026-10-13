@@ -17,4 +17,14 @@ internal static class DngLjpegNative
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     internal static unsafe extern long lje_encode_tile(ushort* src, uint rows, uint cols,
         uint channels, uint bitDepth, byte* outBuf, nuint cap);
+
+    /// <summary>
+    /// Encoder self-test (dng_ljpeg.dll export): encodes a synthetic tile with
+    /// the same settings as lje_encode_tile and decodes it back with
+    /// libjpeg-turbo's own lossless decoder; returns the mismatching sample
+    /// count (0 = pass, -1 = setup failure). Discriminates encoder-usage bugs
+    /// from container/decoder issues.
+    /// </summary>
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern long lje_selftest();
 }

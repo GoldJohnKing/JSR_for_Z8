@@ -9,4 +9,8 @@
   <ItemGroup>
     <EmbeddedResource Include="Ptc\Embedded\ptc_z8.csv" LogicalName="Jsr4Z8.Core.Ptc.Embedded.ptc_z8.csv" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- DngWriterTests exercises DngLjpegNative.lje_selftest (encoder sanity) -->
+    <InternalsVisibleTo Include="Jsr4Z8.Tests" />
+  </ItemGroup>
 </Project>
