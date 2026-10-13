@@ -105,6 +105,17 @@ EXPORT long long lje_encode_tile(const unsigned short* src, unsigned rows,
 }
 
 
+// Error containment for ljd_decode_stream. libjpeg's default error_exit
+// (jerror.c) prints the message and calls exit(EXIT_FAILURE): a single
+// malformed/truncated strip would kill the whole .NET host process. Redirect
+// fatal errors to longjmp back into the decode call site instead.
+struct my_error_mgr { struct jpeg_error_mgr pub; jmp_buf setjmp_buffer; };
+
+static void my_error_exit(j_common_ptr cinfo)
+{
+    longjmp(((my_error_mgr*)cinfo->err)->setjmp_buffer, 1);
+}
+
 // Decodes one complete lossless-JPEG stream (SOF3, any predictor 1-7,
 // any component count 1-4, 16-bit precision) into caller-provided `dst`
 // (capacity `dstCap` u16 samples). Geometry comes from the stream's own SOF
@@ -114,23 +125,28 @@ EXPORT long long lje_encode_tile(const unsigned short* src, unsigned rows,
 // (width*height*components), or negative on error (-1 malformed/unsupported
 // stream, -2 destination too small, -3 read failure). Task 9 uses this to
 // read backend DNG strips written by tifffile (predictor 4) into pixel arrays.
+// Malformed input is contained: any libjpeg fatal error longjmps to the
+// setjmp below (never exits the process); every return path destroys dinfo.
 EXPORT long long ljd_decode_stream(const unsigned char* src, size_t cap,
                                    unsigned short* dst, size_t dstCap,
                                    unsigned* outW, unsigned* outH, unsigned* outNc)
 {
     if (!src || !dst || cap < 4) return -1LL;
 
-    struct my_error_mgr { struct jpeg_error_mgr pub; jmp_buf setjmp_buffer; };
     struct jpeg_decompress_struct dinfo;
     struct my_error_mgr jerr;
     dinfo.err = jpeg_std_error(&jerr.pub);
-    jpeg_create_decompress(&dinfo);
+    jerr.pub.error_exit = my_error_exit;
 
+    // Canonical libjpeg order (example.c): setjmp BEFORE jpeg_create_decompress
+    // (creation itself can raise, and it must land in this handler too).
     if (setjmp(jerr.setjmp_buffer))
     {
         jpeg_destroy_decompress(&dinfo);
         return -1LL;
     }
+
+    jpeg_create_decompress(&dinfo);
 
     jpeg_mem_src(&dinfo, src, (unsigned long)cap);
     if (jpeg_read_header(&dinfo, TRUE) != JPEG_HEADER_OK ||

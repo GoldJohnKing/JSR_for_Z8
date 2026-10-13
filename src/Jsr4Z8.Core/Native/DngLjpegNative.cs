@@ -48,6 +48,11 @@ internal static class DngLjpegNative
     internal static long DecodeStream(byte[] src, ushort[] dst, long dstOffset,
         out uint width, out uint height, out uint components)
     {
+        // Safety boundary: an offset outside [0, dst.Length] would pointer-trick
+        // past the pinned array (and a negative one wraps the native size_t cap).
+        if ((ulong)dstOffset > (ulong)dst.LongLength)
+            throw new ArgumentOutOfRangeException(nameof(dstOffset), dstOffset,
+                $"dstOffset must be within [0, dst.Length] (dst.Length={dst.LongLength})");
         unsafe
         {
             uint w = 0, h = 0, c = 0;

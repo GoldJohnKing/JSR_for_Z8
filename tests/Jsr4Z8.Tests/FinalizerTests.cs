@@ -205,6 +205,28 @@ public class FinalizerTests
             $"tile payload {tileBytes} B ≥ 2/3 of uncompressed {uncompressed} B");
     }
 
+    [Fact]
+    public void DecodeStream_MalformedStrip_IsContained_ReturnsErrorCode()
+    {
+        // Regression lock for the ljd_decode_stream error containment fix
+        // (Task 9 review round 1): before it, libjpeg's default error_exit
+        // printed and called exit(EXIT_FAILURE) — this very call would have
+        // killed the test host. Garbage with no SOI marker must now come back
+        // as the documented error code without taking the process down.
+        var garbage = new byte[16];
+        for (int i = 0; i < garbage.Length; i += 4)
+        {
+            garbage[i] = 0xDE; garbage[i + 1] = 0xAD;
+            garbage[i + 2] = 0xBE; garbage[i + 3] = 0xEF;
+        }
+        var dst = new ushort[64 * 64 * 3];
+
+        long decoded = DngLjpegNative.DecodeStream(garbage, dst, 0,
+            out uint w, out uint h, out uint nc);
+
+        Assert.Equal(-1L, decoded);
+    }
+
         /// <summary>Decodes the finalized DNG's raw SubIFD tile array back to the
     /// full interleaved sample plane (ljd_decode_stream per 256×256 tile,
     /// cropped to the TIFF tile grid).</summary>

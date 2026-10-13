@@ -105,6 +105,14 @@ public static class JsrDngFinalizer
         if (backendW == 2 * meta.Width && backendH == 2 * meta.Height && reference != null)
         {
             uint rw = (uint)reference.W * 2, rh = (uint)reference.H * 2;
+            // Negative-centering guard: a preview larger than the padded raw
+            // frame would wrap through the (uint) casts below into an absurd
+            // ActiveArea/DefaultCrop pair — reject the malformed reference
+            // instead (Z8 previews are strictly inside the raw frame).
+            if (rw > 2L * meta.Width || rh > 2L * meta.Height)
+                throw new InvalidDataException(
+                    $"基准帧预览 {reference.W}×{reference.H} 的 2 倍超过 padded raw 帧 " +
+                    $"{meta.Width * 2}×{meta.Height * 2}，无法居中（预览尺寸异常）");
             x = (uint)(((2L * meta.Width - rw) / 2) & ~1L);
             y = (uint)(((2L * meta.Height - rh) / 2) & ~1L);
             w = rw;
