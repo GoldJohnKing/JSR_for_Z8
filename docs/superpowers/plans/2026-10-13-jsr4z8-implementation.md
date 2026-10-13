@@ -15,7 +15,7 @@
 执行者不可更改这些事实，直接作为常量与测试夹具来源：
 
 1. 调用：`"<BridgeExe>" --assistant-jsr-job <request.json 绝对路径> <resources 绝对路径> <config 绝对路径>`（全 Windows 路径）。
-2. stdout 按行：`ASSISTANT_JSR_START|{json}` → N 条 `ASSISTANT_JSR_LOG|<原样日志行>`（内含 `SRHQ_V12_PROGRESS|<整数百分比>|<阶段中文>`、`SRHQ_V12_FRAME|<i>|<EV>|<值>|<路径>`、`SRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|<名称>`、纯文本行如 `Decoded RAW 3/7`）→ 结束时恰一条 `ASSISTANT_JSR_RESULT|{json: exit_code,state,log,job_id,output,pid,stage,...}`。失败时 stderr 另有 `ASSISTANT_JSR_ERROR|<msg>`。harness 进程退出码：失败=1（成功=0，待 e2e 确认）。
+2. stdout 按行：`ASSISTANT_JSR_START|{json}` → N 条 `ASSISTANT_JSR_LOG|<原样日志行>` → 结束时恰一条 `ASSISTANT_JSR_RESULT|{json: exit_code,state,log,job_id,output,pid,stage,...}`。**实测修正（Task 6）：绝大多数 SRHQ 进度行是裸行（不带 ASSISTANT_JSR_LOG| 前缀，stdout3 中 6754 裸 vs 120 包裹）；解析器对 `SRHQ_V12_PROGRESS|int|stage` 与 `SRHQ_ETA_PROGRESS|dng|done|total` 裸/裹均识别为 Log+Progress，其余裸行（SRHQ_V12_FRAME、SENSOR_LEVELS、空行、Decoded RAW 等纯文本）为 Unrecognized 原文保留。**失败时 stderr 另有 `ASSISTANT_JSR_ERROR|<msg>`。harness 进程退出码：失败=1（成功=0，待 e2e 确认）。
 3. harness 内部再 spawn `resources\jsr_backend.exe`——**取消任务必须杀整棵进程树**。
 4. `fullwell` 传数值则后端跳过自身 PTC 匹配并回显 `PTC {"selection":"manual_fullwell","effective_fullwell_e":<值>}`（日志可作确认锚点）。后端自身 PTC 匹配在 Z8 上因机型名差异必然失败——所以满阱永远由前端算好传入。
 5. 请求 JSON 精确 schema（多余字段勿加）：
