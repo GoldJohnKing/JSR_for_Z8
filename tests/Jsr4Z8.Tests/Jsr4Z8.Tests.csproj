@@ -17,7 +17,8 @@
     <None Include="..\..\libs\*.dll" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
-    <!-- Real captured backend stdout (protocol fixtures, see ProtocolTests) -->
+    <!-- Real captured backend stdout (protocol fixtures, see ProtocolTests) + stub .bat harnesses (BackendRunnerTests) -->
     <None Include="fixtures\**\*.log" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="fixtures\**\*.bat" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
