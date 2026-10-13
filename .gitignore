@@ -1,1 +1,14 @@
 .superpowers/
+
+# Build outputs (normalized by Directory.Build.props)
+build/
+out/
+
+# Native build outputs / vendored libs
+libs/
+
+# Temp
+tmp*/
+
+# VS / Rider
+*.user

@@ -1,0 +1,33 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jsr4Z8.Core", "src\Jsr4Z8.Core\Jsr4Z8.Core.csproj", "{FEE8BC16-256B-4668-9513-56800B4DDDBB}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jsr4Z8.UI", "src\Jsr4Z8.UI\Jsr4Z8.UI.csproj", "{9C058224-FC3D-4FFD-B6F1-E038A9D77EA0}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jsr4Z8.Tests", "tests\Jsr4Z8.Tests\Jsr4Z8.Tests.csproj", "{77BC0EE5-030A-4318-A38C-A5874D78B161}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FEE8BC16-256B-4668-9513-56800B4DDDBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FEE8BC16-256B-4668-9513-56800B4DDDBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FEE8BC16-256B-4668-9513-56800B4DDDBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FEE8BC16-256B-4668-9513-56800B4DDDBB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9C058224-FC3D-4FFD-B6F1-E038A9D77EA0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C058224-FC3D-4FFD-B6F1-E038A9D77EA0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C058224-FC3D-4FFD-B6F1-E038A9D77EA0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C058224-FC3D-4FFD-B6F1-E038A9D77EA0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{77BC0EE5-030A-4318-A38C-A5874D78B161}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{77BC0EE5-030A-4318-A38C-A5874D78B161}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{77BC0EE5-030A-4318-A38C-A5874D78B161}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{77BC0EE5-030A-4318-A38C-A5874D78B161}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
