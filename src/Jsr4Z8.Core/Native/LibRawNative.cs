@@ -68,8 +68,32 @@ public static class LibRawNative
         => Marshal.PtrToStringAnsi(lr_get_model(handle)) ?? string.Empty;
 
     /// <summary>As-shot ISO speed (LibRaw imgdata.other.iso_speed).</summary>
-    public static int GetIso(IntPtr handle)
-        => (int)lr_get_iso(handle);
+    public static float GetIso(IntPtr handle)
+        => lr_get_iso(handle);
+
+    /// <summary>Padded raw sensor width (LibRaw imgdata.sizes.raw_width).</summary>
+    public static int GetWidth(IntPtr handle)
+        => lr_get_width(handle);
+
+    /// <summary>Padded raw sensor height (LibRaw imgdata.sizes.raw_height).</summary>
+    public static int GetHeight(IntPtr handle)
+        => lr_get_height(handle);
+
+    /// <summary>Black level (LibRaw imgdata.color.black).</summary>
+    public static int GetBlackLevel(IntPtr handle)
+        => lr_get_black_level(handle);
+
+    /// <summary>White level (LibRaw imgdata.color.maximum).</summary>
+    public static int GetWhiteLevel(IntPtr handle)
+        => lr_get_white_level(handle);
+
+    /// <summary>2×2 CFA filter codes in row-major order (0,1,3,2 = RGGB).</summary>
+    public static byte[] GetCfaPattern(IntPtr handle)
+    {
+        var pattern = new byte[4];
+        lr_get_cfa_pattern(handle, pattern);
+        return pattern;
+    }
 
     /// <summary>As-shot white balance multipliers (R,G1,B,G2) from LibRaw cam_mul.</summary>
     public static float[] GetCamMul(IntPtr handle)
@@ -99,7 +123,7 @@ public static class LibRawNative
             {
                 -1 => "内存分配失败",
                 -2 => "raw_image 为空（不支持的格式）",
-                _ => LibRawErrorMessage(error)
+                _ => GetErrorMessage(error)
             };
             throw new InvalidOperationException($"LibRaw 打开/解码失败: {msg} (code={error}, file={filepath})");
         }
@@ -148,7 +172,7 @@ public static class LibRawNative
     private static extern IntPtr lr_strerror(int code);
 
     /// <summary>Surfaces LibRaw's own (verbatim) error text for a return code.</summary>
-    private static string LibRawErrorMessage(int code)
+    public static string GetErrorMessage(int code)
     {
         string? native = Marshal.PtrToStringAnsi(lr_strerror(code));
         return string.IsNullOrEmpty(native) ? $"LibRaw错误({code})" : $"LibRaw {native} ({code})";

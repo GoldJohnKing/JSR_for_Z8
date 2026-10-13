@@ -22,7 +22,7 @@ public class NativeSmokeTests
         {
             Assert.Equal("NIKON CORPORATION", LibRawNative.GetMake(handle));
             Assert.Contains("Z 8", LibRawNative.GetModel(handle));
-            Assert.Equal(3200, LibRawNative.GetIso(handle));
+            Assert.Equal(3200f, LibRawNative.GetIso(handle));
 
             float[] camMul = LibRawNative.GetCamMul(handle);
             Assert.Equal(4, camMul.Length);
@@ -33,17 +33,6 @@ public class NativeSmokeTests
         }
     }
 
-    /// <summary>Locates samples\&lt;name&gt; by walking up from the test output directory to the repo root.</summary>
-    private static string FindSample(string name)
-    {
-        string? dir = AppContext.BaseDirectory;
-        for (int i = 0; i < 10 && dir != null; i++)
-        {
-            string candidate = Path.Combine(dir, "samples", name);
-            if (File.Exists(candidate))
-                return candidate;
-            dir = Path.GetDirectoryName(dir);
-        }
-        throw new InvalidOperationException($"Sample not found: samples\\{name} (searched upwards from {AppContext.BaseDirectory})");
-    }
+    /// <summary>Locates samples\&lt;name&gt; by walking up to the repo root.</summary>
+    private static string FindSample(string name) => SampleFiles.FindSample(name);
 }
