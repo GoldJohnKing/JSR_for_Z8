@@ -1,0 +1,119 @@
+<h2>主界面布局：哪个方向对味？</h2>
+<p class="subtitle">这是布局结构的选择，不是最终视觉稿。共同点：全程围绕「任务组」（7帧RAW + 1黑场）组织，PTC/机型校验全自动。看完点一个选项，然后回终端聊细节。</p>
+
+<style>
+  .wf { background:#fafafa; border:1px solid #d8d8d8; border-radius:10px; overflow:hidden; font-size:11px; color:#333; user-select:none; }
+  .wf * { box-sizing:border-box; }
+  .wf-bar { display:flex; align-items:center; gap:8px; padding:7px 12px; background:#f0f0f2; border-bottom:1px solid #ddd; }
+  .wf-logo { font-weight:700; font-size:12px; }
+  .wf-btn { background:#3b6ef5; color:#fff; border-radius:6px; padding:3px 10px; font-size:11px; }
+  .wf-btn2 { background:#fff; color:#333; border:1px solid #ccc; border-radius:6px; padding:3px 10px; font-size:11px; }
+  .wf-btn3 { background:#e5484d; color:#fff; border-radius:6px; padding:3px 10px; font-size:11px; }
+  .wf-tag { background:#e8e8ec; border-radius:4px; padding:1px 6px; color:#666; }
+  .wf-tbl { width:100%; border-collapse:collapse; }
+  .wf-tbl th { text-align:left; font-weight:600; color:#888; padding:5px 10px; border-bottom:1px solid #e2e2e2; font-size:10px; }
+  .wf-tbl td { padding:6px 10px; border-bottom:1px solid #eee; }
+  .wf-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
+  .wf-log { font-family:ui-monospace,Consolas,monospace; font-size:10px; color:#4a6; background:#1e1e22; padding:8px 12px; line-height:1.6; }
+  .wf-chip { display:inline-block; background:#eef1ff; border:1px solid #ccd6ff; color:#2b4acb; border-radius:10px; padding:1px 8px; margin:2px; font-size:10px; }
+  .wf-chip-dark { background:#fff3e0; border-color:#ffe0b2; color:#b26a00; }
+  .wf-card { background:#fff; border:1px solid #e3e3e3; border-radius:8px; padding:8px 10px; margin:8px; }
+  .wf-badge { font-size:10px; border-radius:10px; padding:1px 8px; }
+  .wf-prog { height:6px; background:#ececec; border-radius:3px; overflow:hidden; margin-top:6px; }
+  .wf-prog i { display:block; height:100%; background:#3b6ef5; }
+  .wf-hint { padding:14px; text-align:center; color:#999; border:2px dashed #ddd; border-radius:8px; margin:10px; }
+</style>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>队列工作台（上表下日志）</h3>
+      <p>类似下载管理器：任务表格为主体，选中任务的实时日志固定在底部。信息密度高，适合多组排队。</p>
+      <div class="wf" style="margin-top:10px">
+        <div class="wf-bar">
+          <span class="wf-logo">JSR for Z8</span>
+          <span class="wf-tag">Nikon Z8 专用</span>
+          <span style="flex:1"></span>
+          <span class="wf-btn">＋ 添加任务组</span>
+          <span class="wf-btn">▶ 全部开始</span>
+          <span class="wf-btn3">■ 停止</span>
+          <span class="wf-btn2">⚙ 高级设置</span>
+        </div>
+        <table class="wf-tbl">
+          <tr><th></th><th>任务组（基准帧）</th><th>黑场</th><th>ISO</th><th>PTC 满阱</th><th>输出</th><th>状态</th></tr>
+          <tr style="background:#eef4ff"><td><span class="wf-dot" style="background:#3b6ef5"></span></td><td>DSC_7576.NEF <span class="wf-tag">7帧</span></td><td>DSC_7575.NEF</td><td>400</td><td>9,512 e⁻（表值）</td><td>JSR_DSC_7576.dng</td><td>重建中 42%</td></tr>
+          <tr><td><span class="wf-dot" style="background:#c8c8c8"></span></td><td>DSC_7583.NEF <span class="wf-tag">7帧</span></td><td>DSC_7575.NEF</td><td>400</td><td>9,512 e⁻</td><td>JSR_DSC_7583.dng</td><td>排队</td></tr>
+          <tr><td><span class="wf-dot" style="background:#2e9e5b"></span></td><td>DSC_7601.NEF <span class="wf-tag">7帧</span></td><td>DSC_7600.NEF</td><td>64</td><td>63,861 e⁻</td><td>JSR_DSC_7601.dng</td><td>✓ 完成</td></tr>
+        </table>
+        <div style="padding:4px 12px 6px; color:#888; font-size:10px; border-top:1px solid #eee; background:#f7f7f9">
+          日志 · DSC_7576.NEF &nbsp;&nbsp;<span class="wf-tag">自动滚动</span>
+        </div>
+        <div class="wf-log">[19:22:31] 加载 7 帧 + 黑场 … 对齐完成<br>[19:22:47] WGPU stormer7 · VRAM 4.0/6.0 GB · tile 3/8<br>[19:23:02] 导出 DNG → 写入元数据/预览 → 压缩</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>左右分栏（左队列右详情）</h3>
+      <p>类似邮件客户端：左侧窄任务列表，右侧是选中任务的完整详情——文件清单、校验状态、PTC 信息、大日志区。屏幕宽时日志更舒展。</p>
+      <div class="wf" style="margin-top:10px; display:flex; min-height:230px">
+        <div style="width:118px; border-right:1px solid #e2e2e2; background:#f5f5f7; padding:6px 0">
+          <div style="padding:4px 10px; font-weight:600; color:#888; font-size:10px">任务队列 (3)</div>
+          <div style="padding:6px 10px; background:#e8eefc; border-left:3px solid #3b6ef5; font-size:11px">▸ DSC_7576<br><span style="color:#888">重建中 42%</span></div>
+          <div style="padding:6px 10px; font-size:11px">▸ DSC_7583<br><span style="color:#888">排队</span></div>
+          <div style="padding:6px 10px; font-size:11px">▸ DSC_7601<br><span style="color:#2e9e5b">✓ 完成</span></div>
+          <div style="margin-top:8px; text-align:center"><span class="wf-btn">＋ 添加</span></div>
+        </div>
+        <div style="flex:1; display:flex; flex-direction:column">
+          <div style="display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid #eee">
+            <b>DSC_7576.NEF</b><span class="wf-tag">ISO 400</span><span class="wf-tag">Z8</span>
+            <span style="flex:1"></span><span class="wf-btn">▶ 开始此组</span>
+          </div>
+          <div style="padding:8px 12px; border-bottom:1px solid #f0f0f0">
+            <span class="wf-chip">基准 DSC_7576</span><span class="wf-chip">DSC_7577</span><span class="wf-chip">DSC_7578</span><span class="wf-chip">DSC_7579</span><span class="wf-chip">DSC_7580</span><span class="wf-chip">DSC_7581</span><span class="wf-chip">DSC_7582</span><span class="wf-chip wf-chip-dark">黑场 DSC_7575</span>
+            <div style="color:#2e9e5b; margin-top:4px; font-size:10px">✓ 8 个文件机型/ISO 一致 · PTC 已匹配 Z8/ISO400 · 满阱 9,512 e⁻</div>
+          </div>
+          <div class="wf-log" style="flex:1">[19:22:31] 加载 7 帧 + 黑场 … 对齐完成<br>[19:22:47] WGPU stormer7 · VRAM 4.0/6.0 GB · tile 3/8<br>[19:23:02] …<br>（大面积日志区，随任务实时滚动）</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>极简卡片流（一组一卡）</h3>
+      <p>整个界面就是一列任务卡片：卡片内展示文件、状态、进度，日志按需在卡内展开。最贴近「加完就跑」的心智，窗口小也好用。</p>
+      <div class="wf" style="margin-top:10px">
+        <div class="wf-bar">
+          <span class="wf-logo">JSR for Z8</span>
+          <span style="flex:1"></span>
+          <span class="wf-btn">＋ 添加任务组</span>
+          <span class="wf-btn2">⚙</span>
+        </div>
+        <div class="wf-hint">把 7 张 RAW 拖进来，或点击添加（黑场可一起拖，自动识别）</div>
+        <div class="wf-card">
+          <div style="display:flex; align-items:center; gap:6px">
+            <b>DSC_7576.NEF</b><span class="wf-badge" style="background:#e8eefc; color:#2b4acb">重建中 42%</span>
+            <span style="flex:1"></span><span class="wf-btn3" style="font-size:10px">■</span>
+          </div>
+          <div>
+            <span class="wf-chip">基准 7576</span><span class="wf-chip">7577</span><span class="wf-chip">7578</span><span class="wf-chip">7579</span><span class="wf-chip">7580</span><span class="wf-chip">7581</span><span class="wf-chip">7582</span><span class="wf-chip wf-chip-dark">黑场 7575</span>
+          </div>
+          <div style="color:#888; font-size:10px; margin-top:3px">ISO 400 · PTC 9,512 e⁻ · 输出 JSR_DSC_7576.dng</div>
+          <div class="wf-prog"><i style="width:42%"></i></div>
+          <div style="color:#3b6ef5; font-size:10px; margin-top:5px">▾ 展开日志</div>
+        </div>
+        <div class="wf-card" style="opacity:.75">
+          <div style="display:flex; align-items:center; gap:6px">
+            <b>DSC_7583.NEF</b><span class="wf-badge" style="background:#eee; color:#888">排队</span>
+          </div>
+          <div><span class="wf-chip">基准 7583 …</span><span class="wf-chip wf-chip-dark">黑场 7575</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

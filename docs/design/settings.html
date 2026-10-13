@@ -1,0 +1,94 @@
+<h2>高级设置：控件风格选哪种？</h2>
+<p class="subtitle">两项内容相同（显存预算 + 输出路径 + 临时路径，全局生效并记住），差异是控件风格。外壳默认用模态对话框（与「新建任务组」一致）；如果你想要独立设置页，在终端说。</p>
+
+<style>
+  .wf { background:#fafafa; border:1px solid #d8d8d8; border-radius:10px; overflow:hidden; font-size:11px; color:#333; user-select:none; max-width:460px; margin:0 auto; }
+  .wf * { box-sizing:border-box; }
+  .wf-btn { background:#3b6ef5; color:#fff; border-radius:6px; padding:4px 12px; font-size:11px; }
+  .wf-btn2 { background:#fff; color:#333; border:1px solid #ccc; border-radius:6px; padding:4px 12px; font-size:11px; }
+  .wf-title { padding:10px 14px 0; font-weight:700; font-size:13px; }
+  .wf-sec { padding:8px 14px 0; }
+  .wf-lab { font-size:10px; color:#888; margin-bottom:4px; }
+  .wf-body { padding:2px 14px 12px; }
+  .wf-select { display:inline-flex; border:1px solid #ccc; border-radius:6px; overflow:hidden; }
+  .wf-select span { padding:3px 10px; background:#fff; }
+  .wf-select span.on { background:#3b6ef5; color:#fff; }
+  .wf-pathrow { display:flex; gap:6px; align-items:center; margin-top:4px; }
+  .wf-input { flex:1; border:1px solid #ccc; border-radius:6px; padding:3px 8px; background:#fff; color:#555; font-size:10.5px; }
+  .wf-mini { background:#fff; border:1px solid #ccc; border-radius:6px; padding:3px 8px; font-size:10.5px; }
+  .wf-example { background:#f2f6ff; border-radius:6px; padding:5px 10px; color:#2b4acb; font-size:10px; margin-top:8px; }
+  .wf-slider { position:relative; height:4px; background:#e2e2e2; border-radius:2px; margin:12px 0 4px; }
+  .wf-slider i { position:absolute; left:0; top:0; bottom:0; width:44%; background:#3b6ef5; border-radius:2px; }
+  .wf-slider b { position:absolute; left:44%; top:-5px; width:14px; height:14px; background:#3b6ef5; border-radius:50%; transform:translateX(-50%); border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+  .wf-ticks { display:flex; justify-content:space-between; font-size:9px; color:#aaa; }
+  .wf-radio { display:flex; align-items:center; gap:5px; margin-top:4px; font-size:10.5px; }
+  .wf-rdot { width:11px; height:11px; border-radius:50%; border:2px solid #3b6ef5; }
+  .wf-rdot.on { background:#3b6ef5; box-shadow:inset 0 0 0 2px #fff; }
+  .wf-foot { display:flex; justify-content:flex-end; gap:8px; padding:8px 14px 12px; border-top:1px solid #f0f0f0; }
+  .wf-note { font-size:9.5px; color:#999; margin-top:3px; }
+</style>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>预设档位 · 点选即用</h3>
+      <p>显存预算用预设档位（1/2/4/6/8/12 GB，默认 4GB），路径用单选 + 选择按钮。零输入错误，最快设置完。</p>
+      <div class="wf" style="margin-top:10px">
+        <div class="wf-title">⚙ 高级设置</div>
+        <div class="wf-body">
+          <div class="wf-sec">
+            <div class="wf-lab">显存预算（GB）</div>
+            <div class="wf-select"><span>1</span><span>2</span><span class="on">4</span><span>6</span><span>8</span><span>12</span></div>
+            <div class="wf-note">后端实际占用会留出驱动余量；预算不足时任务会明确报错</div>
+          </div>
+          <div class="wf-sec">
+            <div class="wf-lab">输出路径</div>
+            <div class="wf-radio"><span class="wf-rdot on"></span>与输入 RAW 同目录</div>
+            <div class="wf-radio"><span class="wf-rdot"></span>自定义</div>
+            <div class="wf-pathrow"><span class="wf-input">D:\Photos\JSR 输出</span><span class="wf-mini">浏览…</span></div>
+          </div>
+          <div class="wf-sec">
+            <div class="wf-lab">临时文件路径</div>
+            <div class="wf-radio"><span class="wf-rdot on"></span>系统默认（%TEMP%）</div>
+            <div class="wf-radio"><span class="wf-rdot"></span>自定义</div>
+          </div>
+          <div class="wf-example">示例输出：DSC_7576.NEF 所在目录 \ JSR_DSC_7576.dng</div>
+        </div>
+        <div class="wf-foot"><span class="wf-btn2">取消</span><span class="wf-btn">保存</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>滑块精调 · 自由输入</h3>
+      <p>显存预算用滑块（1–16GB 连续值 + 数值框可直接输入，默认 4GB），路径同样是单选 + 输入框。适合精确压榨显存的老卡用户。</p>
+      <div class="wf" style="margin-top:10px">
+        <div class="wf-title">⚙ 高级设置</div>
+        <div class="wf-body">
+          <div class="wf-sec">
+            <div class="wf-lab">显存预算（GB）<span style="float:right; color:#2b4acb; font-weight:600">4.0</span></div>
+            <div class="wf-slider"><i></i><b></b></div>
+            <div class="wf-ticks"><span>1</span><span>4</span><span>8</span><span>12</span><span>16</span></div>
+          </div>
+          <div class="wf-sec">
+            <div class="wf-lab">输出路径</div>
+            <div class="wf-radio"><span class="wf-rdot on"></span>与输入 RAW 同目录</div>
+            <div class="wf-radio"><span class="wf-rdot"></span>自定义</div>
+            <div class="wf-pathrow"><span class="wf-input">D:\Photos\JSR 输出</span><span class="wf-mini">浏览…</span></div>
+          </div>
+          <div class="wf-sec">
+            <div class="wf-lab">临时文件路径</div>
+            <div class="wf-radio"><span class="wf-rdot on"></span>系统默认（%TEMP%）</div>
+            <div class="wf-radio"><span class="wf-rdot"></span>自定义</div>
+            <div class="wf-pathrow"><span class="wf-input" style="color:#bbb">未启用</span><span class="wf-mini">浏览…</span></div>
+          </div>
+          <div class="wf-example">示例输出：D:\Photos\JSR 输出 \ JSR_DSC_7576.dng</div>
+        </div>
+        <div class="wf-foot"><span class="wf-btn2">取消</span><span class="wf-btn">保存</span></div>
+      </div>
+    </div>
+  </div>
+</div>

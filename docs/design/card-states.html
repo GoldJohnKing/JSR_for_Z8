@@ -1,0 +1,97 @@
+<h2>任务卡片：六种状态 + 一个小分叉</h2>
+<p class="subtitle">下面是卡片从加入队列到出结果的所有状态。看完状态图，回答底部的问题：运行中要不要自动展开日志？想改哪个状态的样子也在终端说。</p>
+
+<style>
+  .wf { background:#fafafa; border:1px solid #d8d8d8; border-radius:10px; overflow:hidden; font-size:11px; color:#333; user-select:none; }
+  .wf * { box-sizing:border-box; }
+  .wf-card { background:#fff; border:1px solid #e3e3e3; border-left:3px solid #ccc; border-radius:8px; padding:8px 12px; margin:8px 10px; }
+  .wf-card-run { border-left-color:#3b6ef5; }
+  .wf-card-ok { border-left-color:#2e9e5b; }
+  .wf-card-err { border-left-color:#e5484d; }
+  .wf-card-warn { border-left-color:#f0a020; }
+  .wf-head { display:flex; align-items:center; gap:6px; }
+  .wf-badge { font-size:10px; border-radius:10px; padding:1px 8px; }
+  .b-ready { background:#eef1f6; color:#555; }
+  .b-run { background:#e8eefc; color:#2b4acb; }
+  .b-ok { background:#e8f7ee; color:#1c7c43; }
+  .b-err { background:#fdecec; color:#c0292e; }
+  .b-warn { background:#fff4e0; color:#b26a00; }
+  .wf-chip { display:inline-block; background:#f2f4fa; border:1px solid #dde2f0; color:#4a5578; border-radius:10px; padding:1px 8px; margin:2px 2px 0 0; font-size:10px; }
+  .wf-chip-dark { background:#fff3e0; border-color:#ffe0b2; color:#b26a00; }
+  .wf-chip-base { background:#3b6ef5; border-color:#3b6ef5; color:#fff; }
+  .wf-meta { color:#888; font-size:10px; margin-top:4px; }
+  .wf-prog { height:6px; background:#ececec; border-radius:3px; overflow:hidden; margin-top:6px; }
+  .wf-prog i { display:block; height:100%; background:#3b6ef5; }
+  .wf-log { font-family:ui-monospace,Consolas,monospace; font-size:9.5px; color:#7ee2a8; background:#1e1e22; border-radius:6px; padding:6px 10px; line-height:1.55; margin-top:6px; }
+  .wf-act { margin-left:auto; display:flex; gap:5px; }
+  .wf-mini2 { background:#fff; border:1px solid #ccc; border-radius:6px; padding:1px 8px; font-size:10px; color:#333; }
+  .wf-mini2-p { background:#3b6ef5; border-color:#3b6ef5; color:#fff; }
+  .wf-mini2-d { background:#e5484d; border-color:#e5484d; color:#fff; }
+  .wf-errmsg { background:#fdecec; color:#c0292e; border-radius:6px; padding:5px 9px; font-size:10px; margin-top:5px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:4px 14px; }
+  .statelab { font-size:10px; color:#999; margin:10px 6px 0; }
+</style>
+
+<div class="grid2">
+  <div>
+    <div class="statelab">① 就绪（校验通过，可开始）</div>
+    <div class="wf"><div class="wf-card">
+      <div class="wf-head"><b>DSC_7576.NEF</b><span class="wf-badge b-ready">就绪</span>
+        <div class="wf-act"><span class="wf-mini2 wf-mini2-p">▶ 开始此组</span><span class="wf-mini2">✕ 移除</span></div></div>
+      <div><span class="wf-chip wf-chip-base">★基准 7576</span><span class="wf-chip">7577</span><span class="wf-chip">7578</span><span class="wf-chip">7579</span><span class="wf-chip">7580</span><span class="wf-chip">7581</span><span class="wf-chip">7582</span><span class="wf-chip wf-chip-dark">🕯 7575</span></div>
+      <div class="wf-meta">Z8 · ISO 400 · 满阱 9,512 e⁻ · 待输出 JSR_DSC_7576.dng</div>
+    </div></div>
+
+    <div class="statelab">② 运行中</div>
+    <div class="wf"><div class="wf-card wf-card-run">
+      <div class="wf-head"><b>DSC_7576.NEF</b><span class="wf-badge b-run">对齐 tile 3/8 · 42%</span>
+        <div class="wf-act"><span class="wf-mini2 wf-mini2-d">■ 停止</span></div></div>
+      <div class="wf-prog"><i style="width:42%"></i></div>
+      <div class="wf-log">[19:22:31] 黑场 DSC_7575.NEF 已加载（ISO400/1/8000s）<br>[19:22:47] WGPU stormer7 · VRAM 4.0/8.0 GB · tile 3/8<br>[19:23:02] …</div>
+    </div></div>
+
+    <div class="statelab">③ 已完成</div>
+    <div class="wf"><div class="wf-card wf-card-ok">
+      <div class="wf-head"><b>DSC_7576.NEF</b><span class="wf-badge b-ok">✓ 完成 · 4分12秒</span>
+        <div class="wf-act"><span class="wf-mini2">📂 打开所在文件夹</span><span class="wf-mini2">▾ 日志</span><span class="wf-mini2">✕ 移除</span></div></div>
+      <div class="wf-meta">已输出 <span style="color:#2b4acb">D:\Photos\JSR_DSC_7576.dng</span>（151.2 MB · 含EXIF/镜头校正/预览 · 无损压缩）</div>
+    </div></div>
+  </div>
+  <div>
+    <div class="statelab">④ 校验失败（不允许开始）</div>
+    <div class="wf"><div class="wf-card wf-card-err">
+      <div class="wf-head"><b>DSC_7583.NEF</b><span class="wf-badge b-err">✕ 无法执行</span>
+        <div class="wf-act"><span class="wf-mini2">✕ 移除</span></div></div>
+      <div><span class="wf-chip wf-chip-base">★基准 7583</span><span class="wf-chip">7584</span><span class="wf-chip" style="border-color:#f3b1b3;color:#c0292e;background:#fdf0f0">7585 ✕</span><span class="wf-chip">7586</span><span class="wf-chip">7587</span><span class="wf-chip">7588</span><span class="wf-chip">7589</span><span class="wf-chip wf-chip-dark">🕯 7582</span></div>
+      <div class="wf-errmsg">DSC_7585.NEF 的 ISO 为 800，与其余文件（ISO 400）不一致——请移除后重选，或拆成单独任务组</div>
+    </div></div>
+
+    <div class="statelab">⑤ 机型/PTC 不支持（本轮仅 Z8）</div>
+    <div class="wf"><div class="wf-card wf-card-warn">
+      <div class="wf-head"><b>_DSC1234.NEF</b><span class="wf-badge b-warn">⚠ 不支持的机型</span>
+        <div class="wf-act"><span class="wf-mini2">✕ 移除</span></div></div>
+      <div class="wf-errmsg">检测到 Nikon Z 6_3 —— 本版本仅支持 Nikon Z8（无对应 PTC 数据，无法推算满阱）</div>
+    </div></div>
+
+    <div class="statelab">⑥ 运行失败（后端报错）</div>
+    <div class="wf"><div class="wf-card wf-card-err">
+      <div class="wf-head"><b>DSC_7601.NEF</b><span class="wf-badge b-err">✕ 失败</span>
+        <div class="wf-act"><span class="wf-mini2 wf-mini2-p">↻ 重试</span><span class="wf-mini2">▾ 日志</span><span class="wf-mini2">✕ 移除</span></div></div>
+      <div class="wf-errmsg">显存预算不足（需要 ~5.2 GB，已设 4.0 GB）——可在高级设置调高后重试</div>
+    </div></div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:18px">
+  <h3>小分叉：运行中的卡片，日志要不要自动展开？</h3>
+  <div class="options">
+    <div class="option" data-choice="auto" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content"><h3>自动展开</h3><p>开始运行时卡片自动展开日志实时滚动（手动上滚则暂停跟随）；完成后自动收起只留摘要。</p></div>
+    </div>
+    <div class="option" data-choice="manual" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content"><h3>手动展开</h3><p>卡片默认紧凑（只显示进度条和阶段文字），点「▾ 日志」才展开。界面更安静。</p></div>
+    </div>
+  </div>
+</div>
