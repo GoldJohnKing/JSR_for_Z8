@@ -234,6 +234,25 @@ public class ProtocolTests
     }
 
     [Fact]
+    public void FullFile_SuccessLog_BackfilledFixture_CompleteResultWithEtaProgress()
+    {
+        // Task 16 Step 4: the real success stdout stream backfilled under its plan
+        // name success.log (byte-identical to the Task 6 stdout3.log capture: one
+        // full 7-frame V12 run). Pins the renamed fixture: full parse, single
+        // complete RESULT, and the DNG-export ETA tail the UI's finish estimate
+        // depends on.
+        string[] lines = ReadFixtureLines("success.log");
+        Assert.Equal(16175, lines.Length);
+
+        ProtocolEvent[] events = Array.ConvertAll(lines, ProtocolParser.ParseLine);
+        Assert.Single(events.OfType<Start>());
+        var result = Assert.Single(events.OfType<Result>());
+        Assert.Equal("complete", result.Json.State);
+        Assert.Equal(0, result.Json.ExitCode);
+        Assert.Contains(events, e => e is Log { Progress: { Stage: "DNG 导出" } });
+    }
+
+    [Fact]
     public void WholeFile_FailureRun_EndsInSingleFailedResult()
     {
         string[] lines = ReadFixtureLines("stdout2.log");
