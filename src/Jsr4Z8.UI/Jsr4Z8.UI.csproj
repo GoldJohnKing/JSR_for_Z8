@@ -17,4 +17,8 @@
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.2" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- QueueRunnerTests drive MainViewModel/QueueMediator internal seams -->
+    <InternalsVisibleTo Include="Jsr4Z8.Tests" />
+  </ItemGroup>
 </Project>

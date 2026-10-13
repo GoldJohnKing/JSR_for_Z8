@@ -20,10 +20,13 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Minimal constructor DI (Task 13 replaces NullTaskRunner with the real queue runner).
+            // Minimal constructor DI (Task 13): the queue mediator replaces NullTaskRunner —
+            // engine events are marshaled back onto the UI thread through the same
+            // dispatcher the dialog validation uses.
             var theme = new ThemeService();
             theme.Apply();
-            var main = new MainViewModel(theme);
+            var runner = new QueueMediator(dispatcher: new AvaloniaDispatcher());
+            var main = new MainViewModel(theme, runner);
             main.AddTaskRequested += (_, _) => ShowNewTaskDialog(desktop.MainWindow!, main);
             desktop.MainWindow = new MainWindow { DataContext = main };
         }

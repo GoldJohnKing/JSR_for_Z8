@@ -41,6 +41,10 @@ public partial class TaskGroupViewModel : ObservableObject
 
     public TaskGroup Group { get; }
 
+    /// <summary>The PTC match captured at creation validation — the queue's request
+    /// JSON needs its fullwell (BuildJson rounds inside); null only for unvalidated cards.</summary>
+    public PtcMatch? Ptc => _ptc;
+
     public string ReferenceName { get; }
 
     public string DarkName { get; }
@@ -68,6 +72,7 @@ public partial class TaskGroupViewModel : ObservableObject
     {
         Group = group;
         _runner = runner ?? NullTaskRunner.Instance;
+        _runner.IsBusyChanged += OnRunnerBusyChanged;
         _ptc = validation?.Ptc;
         FrameChips = new(group.FramePaths
             .Select((path, i) => new FrameChipViewModel(Path.GetFileName(path), i == 0)));
@@ -186,15 +191,24 @@ public partial class TaskGroupViewModel : ObservableObject
     }
 
     /// <summary>Start (and Retry, below): enter Running, then hand the card to the runner.
-    /// NullTaskRunner completes without touching the card, so it honestly stays Running
-    /// until Task 13's real queue engine arrives. Faults land the card in Failed.</summary>
+    /// The queue runner maps engine events onto the card and finishes it through
+    /// GoDone/GoFailed. The optional external token (queue-level entry, below) links a
+    /// 全部开始-level stop into this run; the card's own ■停止 cancels only its own token.</summary>
     [RelayCommand(CanExecute = nameof(CanStart))]
-    public async Task StartAsync()
+    public Task StartAsync() => StartCoreAsync(CancellationToken.None);
+
+    /// <summary>Queue-level entry (MainViewModel.StartAll): cancelling externalToken stops
+    /// this run together with the whole queue; the card's own Stop stops only this run.</summary>
+    public Task StartAsync(CancellationToken externalToken) => StartCoreAsync(externalToken);
+
+    private async Task StartCoreAsync(CancellationToken externalToken)
     {
         if (!GoRunning())
             return;
         _cts?.Dispose();
-        _cts = new CancellationTokenSource();
+        _cts = externalToken.CanBeCanceled
+            ? CancellationTokenSource.CreateLinkedTokenSource(externalToken)
+            : new CancellationTokenSource();
         try
         {
             await _runner.RunAsync(this, _cts.Token);
@@ -209,12 +223,20 @@ public partial class TaskGroupViewModel : ObservableObject
         }
     }
 
-    private bool CanStart() => State == TaskState.Ready;
+    // Single-flight (Task 13): while the queue is running another card, 开始此组/重试
+    // are disabled — one run at a time.
+    private bool CanStart() => State == TaskState.Ready && !_runner.IsBusy;
 
     [RelayCommand(CanExecute = nameof(CanRetry))]
     private Task RetryAsync() => StartAsync();
 
-    private bool CanRetry() => State == TaskState.Failed;
+    private bool CanRetry() => State == TaskState.Failed && !_runner.IsBusy;
+
+    private void OnRunnerBusyChanged(object? sender, EventArgs e)
+    {
+        StartCommand.NotifyCanExecuteChanged();
+        RetryCommand.NotifyCanExecuteChanged();
+    }
 
     /// <summary>Stops the in-flight run by cancelling its token; the runner's continuation
     /// moves the card to Failed("已停止").</summary>
@@ -230,8 +252,9 @@ public partial class TaskGroupViewModel : ObservableObject
     // cards; Running(②) shows only ■停止.
     private bool CanRemove() => State is TaskState.Blocked or TaskState.Ready or TaskState.Done or TaskState.Failed;
 
-    /// <summary>Task 13 sets OutputPath via GoDone and wires the shell open (explorer);
-    /// skeleton no-op so the button exists with correct availability.</summary>
+    /// <summary>Task 13's queue sets OutputPath via GoDone (Done → 已输出 …); opening
+    /// the folder in Explorer is shell wiring outside this VM — still a skeleton no-op
+    /// so the button exists with correct availability.</summary>
     [RelayCommand(CanExecute = nameof(CanOpenFolder))]
     private void OpenFolder()
     {

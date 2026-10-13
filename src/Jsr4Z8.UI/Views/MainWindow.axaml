@@ -58,15 +58,16 @@
                 </ItemsControl>
             </ScrollViewer>
 
-            <!-- 空状态投放提示：visual only — 拖放接收在 Task 12 的「新建任务组」对话框内（不接收鼠标） -->
+            <!-- 空状态投放提示（Task 13 v3 一致文案）：拖入仅指向新建任务组对话框（主窗口不接拖放）；
+                 黑场在任务面板内选择，不承诺自动识别 -->
             <Grid IsVisible="{Binding HasNoTasks}" IsHitTestVisible="False" Margin="32,72,32,32">
                 <Rectangle Stroke="{DynamicResource SemiColorBorder}" StrokeThickness="2"
                            StrokeDashArray="7,7" RadiusX="12" RadiusY="12" />
                 <StackPanel Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <TextBlock Text="把 7 张 RAW 拖进来，或点击添加" FontSize="15"
+                    <TextBlock Text="把 7 张 RAW 拖进来添加任务组" FontSize="15"
                                HorizontalAlignment="Center"
                                Foreground="{DynamicResource SemiColorText}" />
-                    <TextBlock Text="黑场可一起拖，自动识别" FontSize="12" Opacity="0.55"
+                    <TextBlock Text="黑场在任务面板中选择文件" FontSize="12" Opacity="0.55"
                                HorizontalAlignment="Center" />
                 </StackPanel>
             </Grid>

@@ -17,6 +17,8 @@ namespace Jsr4Z8.UI.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     private readonly ThemeService _theme;
+    private readonly ITaskRunner _runner;
+    private CancellationTokenSource? _queueCts;
 
     public ObservableCollection<TaskGroupViewModel> Tasks { get; } = new();
 
@@ -24,9 +26,11 @@ public partial class MainViewModel : ObservableObject
 
     public event EventHandler? OpenSettingsRequested;
 
-    public MainViewModel(ThemeService? theme = null)
+    public MainViewModel(ThemeService? theme = null, ITaskRunner? runner = null)
     {
         _theme = theme ?? new ThemeService();
+        _runner = runner ?? NullTaskRunner.Instance;
+        _runner.IsBusyChanged += (_, _) => StartAllCommand.NotifyCanExecuteChanged();
         Tasks.CollectionChanged += OnTasksChanged;
     }
 
@@ -47,9 +51,10 @@ public partial class MainViewModel : ObservableObject
 
     /// <summary>Task 12's dialog completion (NewTaskDialog CreateCompleted): the validated
     /// group becomes a card — Ready when CanRun (创建任务组 is gated on it), Blocked with
-    /// the issues defensively otherwise (Create cannot fire without CanRun today).</summary>
+    /// the issues defensively otherwise (Create cannot fire without CanRun today). Cards
+    /// share this VM's runner (Task 13: the queue mediator; NullTaskRunner headless).</summary>
     public void AddValidated(TaskGroup group, ValidationResult validation) =>
-        Add(new TaskGroupViewModel(group, validation));
+        Add(new TaskGroupViewModel(group, validation, _runner));
 
     private void OnTasksChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
@@ -60,15 +65,41 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void AddTask() => AddTaskRequested?.Invoke(this, EventArgs.Empty);
 
-    /// <summary>Starts every Ready card sequentially (the queue model Task 13 formalizes).</summary>
+    /// <summary>Test seam: the queue-level token source of an in-flight 全部开始 run
+    /// (null while none is running). Cancelling it stops the CURRENT card within the
+    /// stop budget AND prevents later cards from starting; a per-card ■停止 cancels only
+    /// that card — the queue continues with the remaining ones.</summary>
+    internal CancellationTokenSource? ActiveQueueCts => _queueCts;
+
+    /// <summary>Starts every Ready card sequentially: one at a time (the runner is
+    /// single-flight), each to completion, continuing after failures and per-card stops.
+    /// Per the card-states mockups there is no StopAll; the queue-level source is the
+    /// test/lifecycle seam above.</summary>
     [RelayCommand(CanExecute = nameof(CanStartAll))]
     private async Task StartAllAsync()
     {
-        foreach (var vm in Tasks.Where(t => t.State == TaskState.Ready).ToList())
-            await vm.StartAsync();
+        if (_runner.IsBusy)
+            return; // single-flight backstop (the button is already disabled while busy)
+        using var queueCts = new CancellationTokenSource();
+        _queueCts = queueCts;
+        try
+        {
+            foreach (TaskGroupViewModel vm in Tasks.Where(t => t.State == TaskState.Ready).ToList())
+            {
+                if (queueCts.IsCancellationRequested)
+                    break; // queue-level stop: later tasks are never started
+                if (!Tasks.Contains(vm))
+                    continue; // card removed while an earlier one ran
+                await vm.StartAsync(queueCts.Token);
+            }
+        }
+        finally
+        {
+            _queueCts = null;
+        }
     }
 
-    private bool CanStartAll() => Tasks.Any(t => t.State == TaskState.Ready);
+    private bool CanStartAll() => !_runner.IsBusy && Tasks.Any(t => t.State == TaskState.Ready);
 
     [RelayCommand]
     private void OpenSettings() => OpenSettingsRequested?.Invoke(this, EventArgs.Empty);

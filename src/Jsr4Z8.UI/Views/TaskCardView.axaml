@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:Jsr4Z8.UI.ViewModels"
+             xmlns:views="clr-namespace:Jsr4Z8.UI.Views"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="240"
              x:Class="Jsr4Z8.UI.Views.TaskCardView"
              x:DataType="vm:TaskGroupViewModel"
@@ -214,15 +215,9 @@
                 <ToggleButton Grid.Row="6" Classes="logtoggle" Content="▾ 日志"
                               IsChecked="{Binding IsLogExpanded}" />
 
-                <!-- 日志区 -->
+                <!-- 日志区：只读滚动面板，贴底自动跟随（上滚钉住） -->
                 <Border Grid.Row="7" Classes="logbox" IsVisible="{Binding IsLogExpanded}">
-                    <ItemsControl ItemsSource="{Binding LogLines}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding}" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <views:LogPanel LogLines="{Binding LogLines}" />
                 </Border>
             </Grid>
         </Grid>

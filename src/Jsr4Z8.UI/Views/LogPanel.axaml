@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="120"
+             x:Class="Jsr4Z8.UI.Views.LogPanel">
+    <!-- 只读卡内日志（Task 13）：滚动视口有上限高度，贴底时自动跟随新行（用户上滚即钉住）；
+         展开仍由卡片的 ▾日志 开关控制，本面板不提供任何折叠 UI。 -->
+    <ScrollViewer x:Name="Scroller" MaxHeight="180">
+        <ItemsControl x:Name="Lines">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding}" />
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </ScrollViewer>
+</UserControl>
