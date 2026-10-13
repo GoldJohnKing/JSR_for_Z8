@@ -12,8 +12,10 @@ namespace Jsr4Z8.Core.Backend;
 /// failure messages are distilled from the log tail (SRHQ_NET_ABORT:&lt;stage&gt;|&lt;msg&gt;
 /// or a MemoryError line). Cancellation kills the whole process tree with
 /// "cmd /c taskkill /T /F /PID": killing only the harness PID would leave the real
-/// backend child running. Callbacks and log writes are serialized across the two
-/// reader tasks, so onEvent is never invoked concurrently.
+/// backend child running. If the harness dies without a RESULT envelope, the backend
+/// pid reported in the START envelope is killed the same way — descendants of a dead
+/// parent are unreachable via a pid tree walk. Callbacks and log writes are serialized
+/// across the two reader tasks, so onEvent is never invoked concurrently.
 /// </summary>
 public sealed class BackendRunner
 {
@@ -48,6 +50,7 @@ public sealed class BackendRunner
         var lines = new List<string>(); // every received line in arrival order (stderr prefixed): the tail used for message extraction
         string? lastStderr = null;
         string? stderrError = null;
+        JsrStart? startJson = null; // the pid inside it is the orphan-cleanup target when no RESULT arrives
         JsrResult? result = null;
 
         var psi = new ProcessStartInfo
@@ -72,25 +75,20 @@ public sealed class BackendRunner
         { AutoFlush = true };
 
         process.Start();
+        int harnessPid = process.Id; // captured once: the kill task outlives the disposed Process object
 
         // Tree kill: /T walks harness -> jsr_backend -> any grandchild; /F because the backend
         // does not respond to polite termination. Guarded so cancel + no-RESULT cleanup kill once.
+        // taskkill runs on the thread pool: ct.Register callbacks may fire on a UI thread, which
+        // must not block waiting for the killer to exit.
         int killDone = 0;
+        int killExitCode = 0; // 0 = not run or succeeded; >0 = taskkill's exit code; -1 timeout; -2 not started
+        Task killTask = Task.CompletedTask;
         void KillTree()
         {
             if (Interlocked.CompareExchange(ref killDone, 1, 0) != 0)
                 return;
-            try
-            {
-                using Process? killer = Process.Start(new ProcessStartInfo(
-                    "cmd.exe", $"/c taskkill /T /F /PID {process.Id}")
-                { UseShellExecute = false, CreateNoWindow = true });
-                killer?.WaitForExit(TimeSpan.FromSeconds(10));
-            }
-            catch (Exception)
-            {
-                // process already gone or taskkill unavailable; the closing pipes end the readers anyway
-            }
+            killTask = Task.Run(() => killExitCode = RunTaskKill(harnessPid));
         }
 
         using CancellationTokenRegistration registration = ct.Register(KillTree);
@@ -108,6 +106,7 @@ public sealed class BackendRunner
                         case Start start: // envelope line: persisted raw, surfaced as Started
                             lines.Add(line);
                             log.WriteLine(line);
+                            startJson = start.Json;
                             onEvent(new Started(start.Json));
                             break;
 
@@ -160,12 +159,22 @@ public sealed class BackendRunner
         });
 
         await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
-        process.WaitForExit();
+        await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
         registration.Dispose();
 
-        // The harness exited without ever sending RESULT: clean up any backend child it left behind.
+        // The harness died without a RESULT envelope. Its backend child may still be alive —
+        // but a dead parent's descendants are unreachable (taskkill /T on the dead harness pid
+        // finds nothing, they were orphaned at parent death) — so kill the harness tree as a
+        // cheap belt-and-braces, then the jsr_backend pid reported in the START envelope.
+        // Best effort: that pid may be stale or already gone; failures are swallowed.
         if (result is null)
+        {
             KillTree();
+            if (startJson is { Pid: > 0 })
+                RunTaskKill(startJson.Pid);
+        }
+
+        await killTask.ConfigureAwait(false); // taskkill's exit code is final before the message is composed
 
         bool cancelled = ct.IsCancellationRequested;
         bool success = !cancelled && result is { State: "complete" } && process.ExitCode == 0;
@@ -174,7 +183,11 @@ public sealed class BackendRunner
         if (success)
             message = SuccessMessage;
         else if (cancelled)
+        {
             message = CancelledMessage;
+            if (killExitCode != 0) // a failed tree kill must not be reported as a clean stop
+                message += $"（taskkill 退出码 {killExitCode}）";
+        }
         else if (result is null)
             message = stderrError ?? lastStderr ?? NoResultMessage;
         else
@@ -186,6 +199,27 @@ public sealed class BackendRunner
             onEvent(new Finished(final));
         }
         return final;
+    }
+
+    /// <summary>Runs "cmd /c taskkill /T /F /PID &lt;pid&gt;" synchronously and returns its outcome:
+    /// 0 on success, taskkill's own nonzero exit code on failure, -1 when taskkill did not
+    /// exit within 10s, -2 when it could not be started (process already gone, taskkill
+    /// unavailable). Best effort only — a failed kill never fails the run itself.</summary>
+    private static int RunTaskKill(int pid)
+    {
+        try
+        {
+            using Process? killer = Process.Start(new ProcessStartInfo(
+                "cmd.exe", $"/c taskkill /T /F /PID {pid}")
+            { UseShellExecute = false, CreateNoWindow = true });
+            if (killer is null)
+                return -2;
+            return killer.WaitForExit(TimeSpan.FromSeconds(10)) ? killer.ExitCode : -1;
+        }
+        catch (Exception)
+        {
+            return -2; // process already gone or taskkill unavailable; the closing pipes end the readers anyway
+        }
     }
 
     /// <summary>Distills a user-readable failure message from the log tail: the last

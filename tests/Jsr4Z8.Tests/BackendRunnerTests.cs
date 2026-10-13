@@ -6,7 +6,7 @@ namespace Jsr4Z8.Tests;
 
 /// <summary>
 /// Task 7: BackendRunner against the cmd.exe stubs in fixtures\stub_backend\
-/// (success / fail / long-running-with-heartbeat-child). The stubs replay the
+/// (success / fail / long-running-with-heartbeat-child / dies-without-RESULT-and-a-detached-orphan). The stubs replay the
 /// measured wire shape of "Jiangtherapee Bridge.exe --assistant-jsr-job" and
 /// spawn their own children, so cancellation must kill the whole process tree
 /// (taskkill /T /F), and every streamed line must land in the run log file.
@@ -70,6 +70,9 @@ public class BackendRunnerTests
         Assert.Contains("ASSISTANT_JSR_START|", log);
         Assert.Contains("SRHQ_V12_PROGRESS|42|模拟阶段", log);
         Assert.Contains("done", log); // RESULT envelope line is persisted too
+
+        // The runner creates the per-run config dir (exclusive-lock territory, fact #3).
+        Assert.True(Directory.Exists(spec.ConfigDir), $"config dir missing: {spec.ConfigDir}");
     }
 
     [Fact]
@@ -133,6 +136,44 @@ public class BackendRunnerTests
             TimeSpan age = DateTime.UtcNow - lastWrite;
             Assert.True(age > TimeSpan.FromMilliseconds(700),
                 $"heartbeat still alive: last write {age.TotalMilliseconds:F0}ms ago");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("JSR4Z8_TEST_TICK", null);
+            try { File.Delete(tick); } catch (IOException) { }
+        }
+    }
+
+    [Fact]
+    public async Task Orphan_StubOrphan_NoResultKillsBackendPidFromStartEnvelope()
+    {
+        BackendRunSpec spec = NewSpec("stub_orphan.bat");
+        string tick = Path.Combine(Path.GetTempPath(), $"jsr4z8_test_{Guid.NewGuid():N}.tick");
+        try
+        {
+            // The stub spawns a detached heartbeat child, reports THAT pid in the START
+            // envelope, then exits without a RESULT envelope. The heartbeat is an orphan
+            // the cancel path never saw: only the START-pid cleanup can kill it.
+            Environment.SetEnvironmentVariable("JSR4Z8_TEST_TICK", tick);
+            var events = new List<RunnerEvent>();
+
+            Task<RunnerResult> run = new BackendRunner().RunAsync(spec, events.Add, CancellationToken.None);
+            Task completed = await Task.WhenAny(run, Task.Delay(TimeSpan.FromSeconds(10)));
+            Assert.Same(run, completed);
+
+            RunnerResult result = await run;
+            Assert.False(result.Success);
+            Assert.Contains("后端未返回结果", result.Message);
+            Assert.Contains(events, e => e is Started { Json: { Pid: > 0 } });
+            Assert.IsType<Finished>(events[^1]);
+
+            // Within ~1.5s of the run ending the orphan must be dead: its heartbeat stopped.
+            Assert.True(File.Exists(tick), "orphan child never started");
+            await Task.Delay(TimeSpan.FromSeconds(1.5));
+            DateTime lastWrite = File.GetLastWriteTimeUtc(tick);
+            TimeSpan age = DateTime.UtcNow - lastWrite;
+            Assert.True(age > TimeSpan.FromMilliseconds(700),
+                $"orphan heartbeat still alive: last write {age.TotalMilliseconds:F0}ms ago");
         }
         finally
         {
