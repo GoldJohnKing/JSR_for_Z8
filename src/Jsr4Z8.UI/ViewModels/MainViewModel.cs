@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Jsr4Z8.Core.Model;
 using Jsr4Z8.UI.Services;
 
 namespace Jsr4Z8.UI.ViewModels;
@@ -9,9 +10,9 @@ namespace Jsr4Z8.UI.ViewModels;
 /// <summary>
 /// Root ViewModel of the card-flow main window (docs/design/layout.html option C): the
 /// vertical task list plus the top-bar commands. Pure state, headless-testable — the
-/// dialogs are opened by the views through the *Requested events (AddTask → NewTaskDialog
-/// in Task 12, OpenSettings → SettingsDialog in Task 14), keeping this VM free of
-/// windowing dependencies.
+/// dialogs are opened by the app composition root through the *Requested events (App
+/// wires AddTask → NewTaskDialog since Task 12; OpenSettings → SettingsDialog in Task 14),
+/// keeping this VM free of windowing dependencies.
 /// </summary>
 public partial class MainViewModel : ObservableObject
 {
@@ -36,13 +37,19 @@ public partial class MainViewModel : ObservableObject
     /// (drop wiring itself is Task 12; the hint is visual only).</summary>
     [ObservableProperty] private bool _hasNoTasks = true;
 
-    /// <summary>Entry point for new cards (Task 12's dialog calls this): wires the card's
-    /// RemoveRequested back into Tasks. Adding via Tasks directly bypasses that wiring.</summary>
+    /// <summary>Entry point for new cards: wires the card's RemoveRequested back into
+    /// Tasks. Adding via Tasks directly bypasses that wiring.</summary>
     public void Add(TaskGroupViewModel vm)
     {
         vm.RemoveRequested += (_, _) => Tasks.Remove(vm);
         Tasks.Add(vm);
     }
+
+    /// <summary>Task 12's dialog completion (NewTaskDialog CreateCompleted): the validated
+    /// group becomes a card — Ready when CanRun (创建任务组 is gated on it), Blocked with
+    /// the issues defensively otherwise (Create cannot fire without CanRun today).</summary>
+    public void AddValidated(TaskGroup group, ValidationResult validation) =>
+        Add(new TaskGroupViewModel(group, validation));
 
     private void OnTasksChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {

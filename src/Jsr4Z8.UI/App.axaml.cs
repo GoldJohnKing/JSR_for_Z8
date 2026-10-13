@@ -1,6 +1,8 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using Jsr4Z8.UI.Services;
 using Jsr4Z8.UI.ViewModels;
 using Jsr4Z8.UI.Views;
@@ -21,9 +23,26 @@ public partial class App : Application
             // Minimal constructor DI (Task 13 replaces NullTaskRunner with the real queue runner).
             var theme = new ThemeService();
             theme.Apply();
-            desktop.MainWindow = new MainWindow { DataContext = new MainViewModel(theme) };
+            var main = new MainViewModel(theme);
+            main.AddTaskRequested += (_, _) => ShowNewTaskDialog(desktop.MainWindow!, main);
+            desktop.MainWindow = new MainWindow { DataContext = main };
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>Task 12 composition: ＋添加任务组 opens the NewTaskDialog; CreateCompleted
+    /// turns the validated group into a card via MainViewModel.AddValidated and closes.</summary>
+    private static void ShowNewTaskDialog(Window owner, MainViewModel main)
+    {
+        var vm = new NewTaskViewModel(post: action => Dispatcher.UIThread.Post(action));
+        var dialog = new NewTaskDialog { DataContext = vm };
+        vm.CreateCompleted += (_, created) =>
+        {
+            main.AddValidated(created.Group, created.Validation);
+            dialog.Close();
+        };
+        vm.CancelRequested += (_, _) => dialog.Close();
+        dialog.ShowDialog(owner);
     }
 }

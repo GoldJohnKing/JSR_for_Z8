@@ -58,7 +58,7 @@
                 </ItemsControl>
             </ScrollViewer>
 
-            <!-- 空状态投放提示：visual only — 拖放接线在 Task 12（不接收鼠标） -->
+            <!-- 空状态投放提示：visual only — 拖放接收在 Task 12 的「新建任务组」对话框内（不接收鼠标） -->
             <Grid IsVisible="{Binding HasNoTasks}" IsHitTestVisible="False" Margin="32,72,32,32">
                 <Rectangle Stroke="{DynamicResource SemiColorBorder}" StrokeThickness="2"
                            StrokeDashArray="7,7" RadiusX="12" RadiusY="12" />
