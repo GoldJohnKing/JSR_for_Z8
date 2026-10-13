@@ -114,7 +114,10 @@ public sealed class TaskQueueRunner
             string logFile = Path.Combine(jobDir, "job.log");
 
             // ③ request.json: UTF-8 without BOM (backend contract), output = job dir, prefix = jobId.
-            string request = BackendRequest.BuildJson(g, ptc, (int)Math.Round(settings.VramGb), jobDir, jobId);
+            // VramGb rounds AwayFromZero — the same convention as BuildJson's fullwell
+            // (Task 13 carried review fix).
+            string request = BackendRequest.BuildJson(
+                g, ptc, (int)Math.Round(settings.VramGb, MidpointRounding.AwayFromZero), jobDir, jobId);
             File.WriteAllText(requestPath, request, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
             // ④ backend run; events forwarded for the UI to map onto the card.
@@ -126,11 +129,9 @@ public sealed class TaskQueueRunner
             if (!result.Success)
                 return new TaskRunOutcome(false, ct.IsCancellationRequested, result.Message, null, clock.Elapsed, jobDir);
 
-            // ⑤ the backend product: newest <prefix>*.dng anywhere under the job dir.
-            string? backendDng = Directory
-                .EnumerateFiles(jobDir, jobId + "*.dng", SearchOption.AllDirectories)
-                .OrderByDescending(File.GetLastWriteTimeUtc)
-                .FirstOrDefault();
+            // ⑤ the backend product: newest <prefix>*.dng anywhere under the job dir,
+            // skipping *.partial segments (Task 13 carried review fix).
+            string? backendDng = FindNewestProductDng(jobDir, jobId);
             if (backendDng is null)
                 return new TaskRunOutcome(false, false, NoDngMessage, null, clock.Elapsed, jobDir);
 
@@ -175,6 +176,25 @@ public sealed class TaskQueueRunner
         s.TempMode == TempMode.Custom && !string.IsNullOrWhiteSpace(s.CustomTempDir)
             ? s.CustomTempDir
             : Path.GetTempPath();
+
+    /// <summary>Success-path product glob (internal test seam): the newest
+    /// <paramref name="prefix"/>*.dng anywhere under <paramref name="root"/>, skipping
+    /// any path that traverses a *.partial segment — the backend's resume leftovers
+    /// (Task 13 carried review fix).</summary>
+    internal static string? FindNewestProductDng(string root, string prefix) =>
+        Directory.EnumerateFiles(root, prefix + "*.dng", SearchOption.AllDirectories)
+            .Where(p => !HasPartialSegment(p))
+            .OrderByDescending(File.GetLastWriteTimeUtc)
+            .FirstOrDefault();
+
+    /// <summary>True when any path segment ends with .partial (case-insensitive).</summary>
+    private static bool HasPartialSegment(string path)
+    {
+        foreach (string segment in path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+            if (segment.EndsWith(".partial", StringComparison.OrdinalIgnoreCase))
+                return true;
+        return false;
+    }
 
     private static string? Kept(string jobDir) => Directory.Exists(jobDir) ? jobDir : null;
 

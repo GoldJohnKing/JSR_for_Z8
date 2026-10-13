@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Jsr4Z8.Core;
 using Jsr4Z8.Core.Model;
+using Jsr4Z8.Core.Settings;
 
 namespace Jsr4Z8.UI.ViewModels;
 
@@ -68,6 +69,7 @@ public partial class NewTaskViewModel : ObservableObject
     private readonly Func<string, RawMetadata> _read;
     private readonly TimeSpan _debounce;
     private readonly Action<Action> _post;
+    private readonly SettingsService? _settings;
     private readonly int _requiredFrames = 7;
     private CancellationTokenSource? _validateCts;
     private Task _validationTask = Task.CompletedTask;
@@ -77,11 +79,13 @@ public partial class NewTaskViewModel : ObservableObject
     public NewTaskViewModel(
         Func<string, RawMetadata>? read = null,
         TimeSpan? debounce = null,
-        Action<Action>? post = null)
+        Action<Action>? post = null,
+        SettingsService? settings = null)
     {
         _read = read ?? RawMetadataReader.Read;
         _debounce = debounce ?? DefaultDebounce;
         _post = post ?? (action => action());
+        _settings = settings;
         Frames.CollectionChanged += OnFramesChanged;
     }
 
@@ -129,15 +133,26 @@ public partial class NewTaskViewModel : ObservableObject
     }
 
     /// <summary>Dark-frame picker completion; the black-frame-equals-a-frame rule is
-    /// enforced in the validation pass (Task 5 carried finding).</summary>
+    /// enforced in the validation pass (Task 5 carried finding). Task 14: the selection
+    /// is remembered — load-modify-save persists LastDarkPath (only that field changes)
+    /// so the next dialog's picker starts in its folder.</summary>
     public void SelectDark(string path)
     {
         DarkPath = path;
         DarkName = Path.GetFileName(path);
         HasDark = true;
         HasNoDark = false;
+        if (_settings is { } settings)
+            settings.Save(settings.Load() with { LastDarkPath = path });
         InvalidateAndSchedule();
     }
+
+    /// <summary>Task 14: the dark picker's start folder — the persisted LastDarkPath's
+    /// dir (only the folder is reused, never the file itself).</summary>
+    public string? LastDarkDir =>
+        _settings is not null && _settings.Current.LastDarkPath is { Length: > 0 } last
+            ? Path.GetDirectoryName(last)
+            : null;
 
     /// <summary>Click on a chip: 与现任互换 — the new ★基准 takes slot 0, the old one its
     /// slot, everything else keeps order. Slot 0 is already the reference / not found: no-op.</summary>

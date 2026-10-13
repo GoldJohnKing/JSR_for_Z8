@@ -8,17 +8,14 @@ namespace Jsr4Z8.UI.Views;
 /// <summary>
 /// 新建任务组 dialog (docs/design/add-task-flow-v3.html). Per the headless-VM contract
 /// this code-behind only wires interaction onto <see cref="NewTaskViewModel"/>: drag-drop
-/// and click-to-pick for the frame chips, the OS file picker for the dark frame (initial
-/// dir = the last dark selection's folder; persisted start-dir settings are Task 14), and
-/// chip clicks. All rules — filtering, ordering, validation, gating — live in the VM.
+/// and click-to-pick for the frame chips, the OS file picker for the dark frame (start
+/// dir = the persisted LastDarkPath's folder — Task 14), and chip clicks. All rules —
+/// filtering, ordering, validation, gating — live in the VM.
 /// </summary>
 public partial class NewTaskDialog : Window
 {
     /// <summary>Z 8 writes NEF only; .nrw and friends are filtered out everywhere.</summary>
     private static readonly FilePickerFileType NefFile = new("Nikon NEF (RAW)") { Patterns = new[] { "*.nef" } };
-
-    /// <summary>Picker start folder for the dark frame until Task 14's settings persistence.</summary>
-    private static string? _lastDarkDir;
 
     public NewTaskDialog()
     {
@@ -84,13 +81,10 @@ public partial class NewTaskDialog : Window
             AllowMultiple = false,
             FileTypeFilter = new[] { NefFile },
         };
-        if (_lastDarkDir is { } dir && Directory.Exists(dir))
+        if (vm.LastDarkDir is { } dir && Directory.Exists(dir))
             options.SuggestedStartLocation = await StorageProvider.TryGetFolderFromPathAsync(dir);
         IReadOnlyList<IStorageFile> files = await StorageProvider.OpenFilePickerAsync(options);
         if (files is [{ } picked] && picked.TryGetLocalPath() is { } path)
-        {
-            _lastDarkDir = Path.GetDirectoryName(path);
-            vm.SelectDark(path);
-        }
+            vm.SelectDark(path);   // SelectDark persists LastDarkPath (next picker starts in its folder)
     }
 }
