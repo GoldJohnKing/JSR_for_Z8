@@ -198,6 +198,34 @@ public class SettingsViewModelTests
             Assert.Equal("16.0", vm.VramText);
             vm.VramGb = 4;
             Assert.Equal("4.0", vm.VramText);
+            vm.VramGb = double.NaN;                                  // Math.Clamp passes NaN through — guarded
+            Assert.Equal(4.0, vm.VramGb);
+            Assert.Equal("4.0", vm.VramText);
+        }
+        finally { Cleanup(dir); }
+    }
+
+    /// <summary>Task 14 review fix: an off-grid push whose quantized value EQUALS the
+    /// stored one (4.2 → 4.0 while already 4.0) must still raise PropertyChanged for
+    /// VramGb — otherwise the bound NumericUpDown/Slider keeps echoing the raw 4.2
+    /// while VramText and Save use 4.0. The re-raise pushes the quantized value back;
+    /// the echo's second push is on-grid and raises nothing (converges, no loop).</summary>
+    [Fact]
+    public void Vram_OffGridInputEqualStoredValue_ReRaisesVramGb_DisplayConverges()
+    {
+        var (vm, _, dir) = MakeVm(new AppSettings(4.0));
+        try
+        {
+            int raised = 0;
+            vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(SettingsViewModel.VramGb)) raised++; };
+
+            vm.VramGb = 4.2;                                        // the raw push a bound control makes
+            Assert.Equal(4.0, vm.VramGb);                           // read back: quantized, not 4.2
+            Assert.Equal(1, raised);                                // …and the control was told to re-read it
+
+            vm.VramGb = vm.VramGb;                                  // the binding's echo push: on-grid, terminal
+            Assert.Equal(1, raised);                                // no further event — no ping-pong loop
+            Assert.Equal("4.0", vm.VramText);
         }
         finally { Cleanup(dir); }
     }

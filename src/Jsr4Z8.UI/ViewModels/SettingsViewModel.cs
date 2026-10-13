@@ -55,7 +55,16 @@ public partial class SettingsViewModel : ObservableObject
         get => _vramGb;
         set
         {
-            if (SetProperty(ref _vramGb, Quantize(value)))
+            double q = Quantize(value);
+            bool changed = SetProperty(ref _vramGb, q);
+            if (value != q)
+                // Off-grid push (e.g. 4.2 while stored 4.0): the field is unchanged so
+                // SetProperty raised nothing, yet the bound NumericUpDown/Slider still
+                // echoes the raw 4.2. Re-raise VramGb so the binding re-reads the
+                // quantized value; the echo push it sends back is on-grid and terminal
+                // (no event, no loop).
+                OnPropertyChanged(nameof(VramGb));
+            if (changed)
                 OnPropertyChanged(nameof(VramText));
         }
     }
@@ -158,9 +167,11 @@ public partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private void Cancel() => CancelRequested?.Invoke(this, EventArgs.Empty);
 
-    /// <summary>Nearest 0.5 (AwayFromZero), clamped to the slider's [1,16] range.</summary>
+    /// <summary>Nearest 0.5 (AwayFromZero), clamped to the slider's [1,16] range.
+    /// NaN is guarded first — Math.Clamp passes NaN through (a NaN slider value
+    /// would otherwise poison the field), falling back to the 4 GB plan default.</summary>
     private static double Quantize(double v) =>
-        Math.Clamp(Math.Round(v * 2, MidpointRounding.AwayFromZero) / 2, 1.0, 16.0);
+        double.IsNaN(v) ? 4.0 : Math.Clamp(Math.Round(v * 2, MidpointRounding.AwayFromZero) / 2, 1.0, 16.0);
 
     private static string? NullIfBlank(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }

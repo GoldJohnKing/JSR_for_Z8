@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Text.Json;
 using Jsr4Z8.Core.Backend;
 using Jsr4Z8.Core.Model;
 using Jsr4Z8.Core.Ptc;
@@ -188,6 +189,36 @@ public class QueueRunnerTests
             Assert.Contains("诊断目录：", vm.ErrorText);
             lock (h.FinalizeCalls) Assert.Empty(h.FinalizeCalls);
             Assert.Single(Directory.GetDirectories(h.JsrTempRoot));
+        }
+        finally
+        {
+            try { Directory.Delete(h.TempBase, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+    }
+
+    // ---------------------------------------------------------------- engine: settings → request.json
+
+    /// <summary>Task 14 review fix: VramGb → request.json memory uses AwayFromZero —
+    /// 4.5 is the midpoint case where default banker's rounding would write 4 instead
+    /// of 5 (BackendRequest.cs `memory`). stub_backend completes WITHOUT a product DNG,
+    /// so the run fails and the job dir (with request.json) is kept for inspection.</summary>
+    [Fact]
+    public async Task VramGb45_WritesMemory5AwayFromZero_InRequestJson()
+    {
+        var h = new Harness("stub_backend.bat");
+        h.Settings.CurrentSettings = h.Settings.CurrentSettings with { VramGb = 4.5 }; // mediator reads it per run
+        TaskGroupViewModel vm = Card(h.Mediator);
+        try
+        {
+            await vm.StartAsync();
+
+            Assert.Equal(TaskState.Failed, vm.State);   // expected: no product DNG → temp kept
+            string jobDir = Assert.Single(Directory.GetDirectories(h.JsrTempRoot));
+            string json = File.ReadAllText(Path.Combine(jobDir, "request.json"));
+            Assert.Contains("\"memory\":5", json);                      // literal evidence
+            using JsonDocument doc = JsonDocument.Parse(json);             // exact value: 4.5 → 5,
+            Assert.Equal(5, doc.RootElement                               // banker's rounding would give 4
+                .GetProperty("parameters").GetProperty("memory").GetInt32());
         }
         finally
         {
