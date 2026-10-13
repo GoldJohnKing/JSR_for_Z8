@@ -226,10 +226,9 @@ public partial class TaskGroupViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanRemove))]
     private void Remove() => RemoveRequested?.Invoke(this, EventArgs.Empty);
 
-    // Per the brief's table: Remove is enabled for Done/Failed/Blocked only (Ready/Running
-    // rows show just their primary action). NOTE: mockup ① also draws ✕移除 on Ready —
-    // flagged to the controller; flipping it is a one-line change here.
-    private bool CanRemove() => State is TaskState.Blocked or TaskState.Done or TaskState.Failed;
+    // Per docs/design/card-states.html: ✕移除 shows on Blocked(④⑤)/Ready(①)/Done(③)/Failed(⑥)
+    // cards; Running(②) shows only ■停止.
+    private bool CanRemove() => State is TaskState.Blocked or TaskState.Ready or TaskState.Done or TaskState.Failed;
 
     /// <summary>Task 13 sets OutputPath via GoDone and wires the shell open (explorer);
     /// skeleton no-op so the button exists with correct availability.</summary>

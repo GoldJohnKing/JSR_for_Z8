@@ -140,24 +140,22 @@ public class TaskGroupVmTests
         Assert.False(main.StartAllCommand.CanExecute(null));
     }
 
-    /// <summary>Per-state command availability (brief's table):
-    /// Ready→Start; Running→Stop; Done→OpenFolder+Remove; Failed→Retry+Remove; Blocked→Remove only.
-    /// Note: Ready is not removable in this table even though mockup ① shows ✕移除 —
-    /// flagged to the controller; flipping it is one line in CanRemove().</summary>
+    /// <summary>Per docs/design/card-states.html: Ready→Start+Remove; Running→Stop only;
+    /// Done→OpenFolder+Remove; Failed→Retry+Remove; Blocked→Remove only.</summary>
     [Fact]
     public void CommandAvailability_PerState()
     {
         var ready = To(TaskState.Ready);
         Assert.True(ready.StartCommand.CanExecute(null));
+        Assert.True(ready.RemoveCommand.CanExecute(null));   // mockup ① shows ✕移除 on Ready
         Assert.False(ready.StopCommand.CanExecute(null));
-        Assert.False(ready.RemoveCommand.CanExecute(null));
         Assert.False(ready.RetryCommand.CanExecute(null));
         Assert.False(ready.OpenFolderCommand.CanExecute(null));
 
         var running = To(TaskState.Running);
         Assert.True(running.StopCommand.CanExecute(null));
         Assert.False(running.StartCommand.CanExecute(null));
-        Assert.False(running.RemoveCommand.CanExecute(null));
+        Assert.False(running.RemoveCommand.CanExecute(null)); // mockup ② shows only ■停止
         Assert.False(running.RetryCommand.CanExecute(null));
         Assert.False(running.OpenFolderCommand.CanExecute(null));
 
