@@ -99,6 +99,26 @@ public class BackendRunnerTests
     }
 
     [Fact]
+    public async Task Fail_EnvelopeEmbedsAbortText_ExtractsBareTailMessageNotJson()
+    {
+        // Task 16 real-run finding (2026-10-14): the real backend's RESULT envelope
+        // embeds its whole log — SRHQ_NET_ABORT/MemoryError text included — inside the
+        // JSON "log" field and arrives last, so the envelope line used to win the
+        // "last abort line" scan and the card showed raw JSON. stub_fail_envelope.bat
+        // replays that wire shape (envelope + stderr ERROR wrapper both carrying the
+        // abort text); the distillation must skip envelopes and keep the bare line.
+        BackendRunSpec spec = NewSpec("stub_fail_envelope.bat");
+
+        RunnerResult result = await new BackendRunner().RunAsync(spec, _ => { }, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains("Alignment cannot fit the current effective 4.00 GB budget", result.Message);
+        Assert.DoesNotContain("ASSISTANT_JSR_", result.Message); // no envelope leakage
+        Assert.DoesNotContain("exit_code", result.Message);      // no JSON debris
+        Assert.DoesNotContain("JSR未完成", result.Message);        // stderr wrapper loses too
+    }
+
+    [Fact]
     public async Task Cancel_StubKill_KillsWholeTreeAndReturnsStopped()
     {
         BackendRunSpec spec = NewSpec("stub_kill.bat");

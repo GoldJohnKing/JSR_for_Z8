@@ -26,6 +26,7 @@ public sealed class BackendRunner
     private const string StderrPrefix = "stderr| ";
     private const string AbortTag = "SRHQ_NET_ABORT:";
     private const string MemoryErrorPrefix = "MemoryError:";
+    private const string EnvelopePrefix = "ASSISTANT_JSR_";
 
     /// <summary>Spawns the harness per <paramref name="spec"/> and streams it to completion.</summary>
     public async Task<RunnerResult> RunAsync(BackendRunSpec spec, Action<RunnerEvent> onEvent, CancellationToken ct)
@@ -225,13 +226,23 @@ public sealed class BackendRunner
     /// <summary>Distills a user-readable failure message from the log tail: the last
     /// SRHQ_NET_ABORT:&lt;stage&gt;|&lt;msg&gt; message (what the backend itself chose to report,
     /// works both bare and LOG-wrapped), else the last MemoryError line, else the last
-    /// non-empty line.</summary>
+    /// non-empty line. ASSISTANT_* envelope lines are skipped entirely — their JSON
+    /// log field embeds the same abort/MemoryError text and would otherwise win as
+    /// the "last" line (they arrive last) and surface raw JSON to the user.</summary>
     private static string? ExtractFailureMessage(List<string> lines)
     {
         string? lastAbort = null, lastMemory = null, lastNonEmpty = null;
         foreach (string line in lines)
         {
             if (line.Length == 0)
+                continue;
+            // Envelope lines — raw ASSISTANT_* on stdout and the stderr|-prefixed ERROR
+            // wrapper — embed the backend's whole log (abort and MemoryError text
+            // included) inside JSON, and the RESULT envelope arrives last. Without
+            // this skip the envelope wins the "last abort line" scan and the card
+            // shows raw JSON (Task 16 real-run finding, 2026-10-14).
+            if (line.StartsWith(EnvelopePrefix, StringComparison.Ordinal) ||
+                line.StartsWith(StderrPrefix + EnvelopePrefix, StringComparison.Ordinal))
                 continue;
             lastNonEmpty = line;
             if (line.Contains(AbortTag, StringComparison.Ordinal))
