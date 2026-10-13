@@ -19,8 +19,8 @@ REM   build\bin\<Project>\<Config>   build outputs (dev debugging)
 REM   build\publish                  single-file publish staging
 REM   out\                           FINAL distributable
 REM Steps 0-3 are incremental: existing artifacts are skipped (delete to rebuild).
-REM Step 4 skips while payload.bin exists (delete
-REM src\Jsr4Z8.Core\Payload\Embedded\payload.bin to force a re-pack).
+REM Step 4 skips while BOTH payload.bin and payload.manifest.json exist
+REM (delete src\Jsr4Z8.Core\Payload\Embedded\payload.bin to force a re-pack).
 REM NOTE: while the packed pair sits in Payload\Embedded\ every Core build embeds
 REM ~493 MB (slow dev/test). Restore fast dev builds after a release run with:
 REM   del src\Jsr4Z8.Core\Payload\Embedded\payload.bin src\Jsr4Z8.Core\Payload\Embedded\payload.manifest.json
@@ -129,10 +129,10 @@ if errorlevel 1 (echo ERROR: dng_ljpeg build failed & exit /b 1)
 del /q %LIBS%\dng_ljpeg.exp %LIBS%\dng_ljpeg.lib 2>nul
 echo      dng_ljpeg.dll built OK
 
-REM --- Step 4: pack backend payload into Core embedded resources (skip if present) ---
+REM --- Step 4: pack backend payload into Core embedded resources (skip if both present) ---
 cd /d %ROOT%
-if exist "%PAYLOAD_EMBED%\payload.bin" (
-    echo [4/6] payload.bin exists, skipping. Delete src\Jsr4Z8.Core\Payload\Embedded\payload.bin to re-pack.
+if exist "%PAYLOAD_EMBED%\payload.bin" if exist "%PAYLOAD_EMBED%\payload.manifest.json" (
+    echo [4/6] payload.bin + payload.manifest.json exist, skipping. Delete src\Jsr4Z8.Core\Payload\Embedded\payload.bin to re-pack.
     goto :publish
 )
 if not defined PAYLOAD_SRC (

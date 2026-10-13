@@ -27,6 +27,11 @@ public sealed class QueueMediator : ITaskRunner
     private const string StoppedStage = "已停止";
     private const string DiagnosticPrefix = "诊断目录：";
 
+    /// <summary>Plan fact #7: a VRAM-budget failure must tell the user where the
+    /// budget lives — appended to any failure whose message carries the backend's
+    /// budget/MemoryError wording.</summary>
+    private const string BudgetHint = "\n建议：在 ⚙ 高级设置 中调高显存预算后重试";
+
     private readonly TaskQueueRunner _engine;
     private readonly ISettingsProvider _settings;
     private readonly IDispatcher _dispatcher;
@@ -140,6 +145,11 @@ public sealed class QueueMediator : ITaskRunner
                 string message = outcome.DiagnosticDir is { } dir
                     ? $"{outcome.Message}\n{DiagnosticPrefix}{dir}"
                     : outcome.Message;
+                // VRAM-budget failures (plan fact #7): actionable guidance to raise the
+                // budget, keyed on the backend's own budget/MemoryError wording.
+                if (outcome.Message.Contains("budget", StringComparison.OrdinalIgnoreCase) ||
+                    outcome.Message.Contains("MemoryError", StringComparison.OrdinalIgnoreCase))
+                    message += BudgetHint;
                 if (outcome.Cancelled)
                     vm.ReportProgress(vm.Progress, StoppedStage); // stopped-task ruling: stage 已停止, then Failed
                 vm.GoFailed(message);

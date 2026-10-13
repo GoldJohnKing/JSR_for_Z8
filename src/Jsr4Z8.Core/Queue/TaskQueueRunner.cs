@@ -62,6 +62,13 @@ public sealed class TaskQueueRunner
     private const string NoDngMessage = "后端未产出 DNG";
     private const string CancelledMessage = "已停止";
 
+    /// <summary>Failed/stopped diagnostic dirs (final-review finding 4): job temp dirs
+    /// are ~3 GB each and accumulate forever without pruning. Once per process, the
+    /// first run fires a sweep of <see cref="SweepStaleDiagnosticDirs"/>.</summary>
+    public const int DiagnosticDirMaxAgeDays = 7;
+
+    private static int _startupSweepDone;
+
     private readonly PayloadManager _payload;
 
     /// <summary>Test seam: replaces payload resolution — receives the payload-phase
@@ -94,6 +101,18 @@ public sealed class TaskQueueRunner
         var clock = Stopwatch.StartNew();
         string jobId = Guid.NewGuid().ToString("N");
         string jobDir = Path.Combine(ResolveTempBase(settings), "Jsr4Z8", jobId);
+
+        // Final-review finding 4: once per process, prune stale diagnostic dirs older
+        // than DiagnosticDirMaxAgeDays (the current job excluded). Fire-and-forget on a
+        // background thread — a ~3 GB recursive delete must not delay the first run,
+        // and the sweep swallows every IO error so it can never crash one either.
+        if (Interlocked.Exchange(ref _startupSweepDone, 1) == 0)
+        {
+            AppSettings sweepSettings = settings;
+            string currentJobId = jobId;
+            _ = Task.Run(() => SweepStaleDiagnosticDirs(sweepSettings, currentJobId));
+        }
+
         try
         {
             // ① payload: off the caller thread — EnsureExtracted is synchronous work
@@ -141,7 +160,10 @@ public sealed class TaskQueueRunner
                   ?? throw new InvalidOperationException("基准帧路径没有所在目录");
             string written = FinalizeOverride is { } finalize
                 ? finalize(backendDng, g.ReferencePath, destDir)
-                : JsrDngFinalizer.Finalize(backendDng, g.ReferencePath, destDir);
+                // Final-review finding 8: cross-check warnings land in the job log
+                // (kept diagnostic dirs) instead of the invisible Console.Error.
+                : JsrDngFinalizer.Finalize(backendDng, g.ReferencePath, destDir,
+                    line => AppendJobLog(logFile, line));
 
             // ⑥ success: clean the whole job dir (request/cfg/log/product). Best effort —
             // a locked file must not turn a finished job into a reported failure.
@@ -177,6 +199,39 @@ public sealed class TaskQueueRunner
             ? s.CustomTempDir
             : Path.GetTempPath();
 
+    /// <summary>Deletes every &lt;TempBase&gt;\Jsr4Z8\&lt;dir&gt; whose LastWriteTimeUtc is older
+    /// than <see cref="DiagnosticDirMaxAgeDays"/> days (the ~3 GB diagnostic dirs kept
+    /// by failed/stopped runs — final-review finding 4), skipping the given job id and
+    /// swallowing all IO errors: best effort, never fatal to a run. The temp base is
+    /// resolved from the CURRENT settings at sweep time. Internal for the mtime-based
+    /// unit test (fabricated old/new dirs).</summary>
+    internal static void SweepStaleDiagnosticDirs(AppSettings settings, string? excludeJobId = null)
+    {
+        try
+        {
+            string root = Path.Combine(ResolveTempBase(settings), "Jsr4Z8");
+            if (!Directory.Exists(root))
+                return;
+            DateTime cutoff = DateTime.UtcNow - TimeSpan.FromDays(DiagnosticDirMaxAgeDays);
+            foreach (string dir in Directory.EnumerateDirectories(root))
+            {
+                if (string.Equals(Path.GetFileName(dir), excludeJobId, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                try
+                {
+                    if (Directory.GetLastWriteTimeUtc(dir) < cutoff)
+                        Directory.Delete(dir, recursive: true);
+                }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
+        }
+        catch (Exception)
+        {
+            // The sweep must never take a run down with it.
+        }
+    }
+
     /// <summary>Success-path product glob (internal test seam): the newest
     /// <paramref name="prefix"/>*.dng anywhere under <paramref name="root"/>, skipping
     /// any path that traverses a *.partial segment — the backend's resume leftovers
@@ -197,6 +252,18 @@ public sealed class TaskQueueRunner
     }
 
     private static string? Kept(string jobDir) => Directory.Exists(jobDir) ? jobDir : null;
+
+    /// <summary>Appends one finalizer warning line to the run's job.log. Best effort —
+    /// a locked/missing log must never fail a run that is about to succeed.</summary>
+    private static void AppendJobLog(string logFile, string line)
+    {
+        try
+        {
+            File.AppendAllText(logFile, line + Environment.NewLine);
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
 
     /// <summary>Plain IProgress adapter: reports on the calling thread, no
     /// SynchronizationContext marshaling (the queue's consumer marshals itself).</summary>

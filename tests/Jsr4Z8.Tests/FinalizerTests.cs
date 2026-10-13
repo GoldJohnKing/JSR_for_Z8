@@ -119,6 +119,21 @@ public class FinalizerTests
         Assert.InRange(Tiff.U32(asn, 16) / 1e6, 0.557734 - 1e-5, 0.557734 + 1e-5);
     }
 
+    /// <summary>Final-review finding 5: the reference NEF's XMP packet (IFD0 tag 700,
+    /// verified present in samples\DSC_7576.NEF — 32,768-byte xpacket) must migrate
+    /// into the finalized DNG's IFD0 with its payload intact.</summary>
+    [Fact]
+    public void Ifd0_XmpPacketMigratedFromReferenceNef()
+    {
+        var (final, _) = Finalized.Value;
+        byte[] file = File.ReadAllBytes(final);
+        var ifd0 = Tiff.ParseIfd(file, Tiff.U32(file, 4));
+
+        Assert.True(ifd0.Tags.TryGetValue(700, out var xmp), "IFD0 tag 700 (XMP) missing");
+        Assert.True(xmp.Count > 0 && xmp.Value.Length > 0, "XMP tag present but empty");
+        Assert.StartsWith("<?xpacket", Encoding.ASCII.GetString(xmp.Value), StringComparison.Ordinal);
+    }
+
     [Fact]
     public void RawSubIfd_GeometryPairAndOpcodes()
     {

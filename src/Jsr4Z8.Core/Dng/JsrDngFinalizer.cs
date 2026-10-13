@@ -23,9 +23,13 @@ public static class JsrDngFinalizer
     /// <summary>
     /// Fuses <paramref name="backendDngPath"/> with <paramref name="referenceNefPath"/>'s
     /// metadata into <paramref name="destDir"/>/JSR_&lt;基准帧名&gt;.dng and returns the
-    /// absolute output path.
+    /// absolute output path. <paramref name="log"/> (optional, final-review finding 8)
+    /// receives the AsShotNeutral cross-check warnings — null keeps the CLI/selftest
+    /// behavior of writing them to Console.Error; the queue runner routes them into the
+    /// job log so they are visible in the GUI's kept diagnostic dirs.
     /// </summary>
-    public static string Finalize(string backendDngPath, string referenceNefPath, string destDir)
+    public static string Finalize(string backendDngPath, string referenceNefPath, string destDir,
+        Action<string>? log = null)
     {
         var backend = BackendDngReader.Read(backendDngPath);
         if (backend.Photometric != 34892 || backend.Samples != 3)
@@ -35,7 +39,7 @@ public static class JsrDngFinalizer
         var meta = RawMetadataReader.Read(referenceNefPath);
         var assets = NefAssetExtractor.Extract(referenceNefPath);
 
-        CrossCheckAsShotNeutral(backend, meta, referenceNefPath);
+        CrossCheckAsShotNeutral(backend, meta, referenceNefPath, log);
 
         var (activeArea, crop) = Geometry(backend.W, backend.H, meta, assets);
 
@@ -72,8 +76,11 @@ public static class JsrDngFinalizer
     }
 
     /// <summary>Backend AsShotNeutral vs 1/cam_mul per component: deviations
-    /// beyond 1e-4 are warn-logged (never fatal — the backend value carries).</summary>
-    private static void CrossCheckAsShotNeutral(BackendDng backend, RawMetadata meta, string referenceNefPath)
+    /// beyond 1e-4 are warn-logged (never fatal — the backend value carries). Warnings
+    /// go to <paramref name="log"/> when given (the queue's job log), else
+    /// Console.Error (CLI/selftest) — final-review finding 8.</summary>
+    private static void CrossCheckAsShotNeutral(BackendDng backend, RawMetadata meta, string referenceNefPath,
+        Action<string>? log)
     {
         if (backend.AsShotNeutral is not { Length: >= 3 } || meta.CamMul is not { Length: >= 3 })
             return;
@@ -82,9 +89,15 @@ public static class JsrDngFinalizer
             double derived = meta.CamMul[i] > 0 ? 1.0 / meta.CamMul[i] : double.NaN;
             double deviation = Math.Abs(backend.AsShotNeutral[i] - derived);
             if (deviation > 1e-4)
-                Console.Error.WriteLine(
+            {
+                string warning =
                     $"[JsrDngFinalizer] WARN AsShotNeutral[{i}] 偏差 {deviation:e2} > 1e-4: " +
-                    $"后端 {backend.AsShotNeutral[i]} vs LibRaw cam_mul 推导 {derived} ({referenceNefPath})");
+                    $"后端 {backend.AsShotNeutral[i]} vs LibRaw cam_mul 推导 {derived} ({referenceNefPath})";
+                if (log is { } sink)
+                    sink(warning);
+                else
+                    Console.Error.WriteLine(warning);
+            }
         }
     }
 

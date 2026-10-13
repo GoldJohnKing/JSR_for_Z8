@@ -196,6 +196,72 @@ public class QueueRunnerTests
         }
     }
 
+    /// <summary>Final-review finding 3 (plan fact #7): a VRAM-budget failure must
+    /// guide the user to raise the budget — the hint is keyed on the backend's own
+    /// budget/MemoryError wording in the distilled message and must NOT fire for an
+    /// unrelated failure. stub_fail_envelope reproduces the real 4 GB alignment
+    /// failure message; stub_fail's distilled message is 模拟失败原因 (unrelated).</summary>
+    [Fact]
+    public async Task BudgetFailureMessage_AppendsVramBudgetHint_UnrelatedFailureDoesNot()
+    {
+        var h = new Harness("stub_fail_envelope.bat", "stub_fail.bat");
+        TaskGroupViewModel budget = Card(h.Mediator), unrelated = Card(h.Mediator);
+        try
+        {
+            await budget.StartAsync();
+
+            Assert.Equal(TaskState.Failed, budget.State);
+            Assert.Contains("budget", budget.ErrorText, StringComparison.OrdinalIgnoreCase);
+            Assert.EndsWith("\n建议：在 ⚙ 高级设置 中调高显存预算后重试", budget.ErrorText, StringComparison.Ordinal);
+
+            await unrelated.StartAsync();
+
+            Assert.Equal(TaskState.Failed, unrelated.State);
+            Assert.DoesNotContain("调高显存预算", unrelated.ErrorText);
+        }
+        finally
+        {
+            try { Directory.Delete(h.TempBase, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+    }
+
+    // ---------------------------------------------------------------- engine: stale diagnostic-dir sweep
+
+    /// <summary>Final-review finding 4: failed/stopped runs keep ~3 GB diagnostic dirs
+    /// that would accumulate forever — the sweep deletes job dirs older than 7 days
+    /// (mtime-fabricated: -8 days deleted, -1 day kept) and never touches the current
+    /// job's dir even when it is old.</summary>
+    [Fact]
+    public void SweepStaleDiagnosticDirs_DeletesOld_KeepsFreshAndExcluded()
+    {
+        string tempBase = Path.Combine(Path.GetTempPath(), "jsr4z8_q_sweep_" + Guid.NewGuid().ToString("N"));
+        string root = Path.Combine(tempBase, "Jsr4Z8");
+        string old = Path.Combine(root, Guid.NewGuid().ToString("N"));
+        string fresh = Path.Combine(root, Guid.NewGuid().ToString("N"));
+        string current = Path.Combine(root, "currentjob");
+        foreach (string dir in new[] { old, fresh, current })
+        {
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "request.json"), "{}");
+        }
+        Directory.SetLastWriteTimeUtc(old, DateTime.UtcNow - TimeSpan.FromDays(8));
+        Directory.SetLastWriteTimeUtc(fresh, DateTime.UtcNow - TimeSpan.FromDays(1));
+        Directory.SetLastWriteTimeUtc(current, DateTime.UtcNow - TimeSpan.FromDays(8));
+        var settings = new AppSettings(TempMode: TempMode.Custom, CustomTempDir: tempBase);
+        try
+        {
+            TaskQueueRunner.SweepStaleDiagnosticDirs(settings, excludeJobId: "currentjob");
+
+            Assert.False(Directory.Exists(old), "8-day-old diagnostic dir must be swept");
+            Assert.True(Directory.Exists(fresh), "1-day-old dir must be kept");
+            Assert.True(Directory.Exists(current), "current job's dir must never be swept");
+        }
+        finally
+        {
+            try { Directory.Delete(tempBase, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+    }
+
     // ---------------------------------------------------------------- engine: settings → request.json
 
     /// <summary>Task 14 review fix: VramGb → request.json memory uses AwayFromZero —

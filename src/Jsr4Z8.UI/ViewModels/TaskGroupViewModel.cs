@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -252,12 +253,30 @@ public partial class TaskGroupViewModel : ObservableObject
     // cards; Running(②) shows only ■停止.
     private bool CanRemove() => State is TaskState.Blocked or TaskState.Ready or TaskState.Done or TaskState.Failed;
 
-    /// <summary>Task 13's queue sets OutputPath via GoDone (Done → 已输出 …); opening
-    /// the folder in Explorer is shell wiring outside this VM — still a skeleton no-op
-    /// so the button exists with correct availability.</summary>
+    /// <summary>Done card's 📂 button (final-review finding 1): opens Explorer with the
+    /// written output file selected (/select). Guards: a null/empty or unresolvable
+    /// OutputPath is a no-op; when the containing folder still exists but the file was
+    /// moved, the folder opens WITHOUT /select; the whole command is wrapped so a shell
+    /// failure can never throw out of the button handler.</summary>
     [RelayCommand(CanExecute = nameof(CanOpenFolder))]
     private void OpenFolder()
     {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(OutputPath))
+                return;
+            string? dir = Path.GetDirectoryName(Path.GetFullPath(OutputPath));
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+                return;
+            string arguments = File.Exists(OutputPath)
+                ? $"/select,\"{OutputPath}\""
+                : $"\"{dir}\"";
+            Process.Start(new ProcessStartInfo("explorer.exe", arguments) { UseShellExecute = true });
+        }
+        catch (Exception)
+        {
+            // Shell wiring (final-review finding 1): never throw from the command.
+        }
     }
 
     private bool CanOpenFolder() => State == TaskState.Done;
