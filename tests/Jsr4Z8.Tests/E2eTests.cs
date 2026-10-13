@@ -153,6 +153,23 @@ public class E2eTests
         return output.Contains(image, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>Polls tasklist until the image disappears; seconds taken, or -1 past the
+    /// limit. taskkill /T /F initiates termination but a force-killed GPU process stays
+    /// in the tasklist snapshot for seconds while the driver releases its VRAM —
+    /// measured 2026-10-14: alive right at the 已停止 card, gone within seconds. The
+    /// acceptance criterion is "no leftover shortly after", hence a bounded wait.</summary>
+    private static async Task<double> WaitProcessGoneSeconds(string image, TimeSpan limit)
+    {
+        var clock = Stopwatch.StartNew();
+        while (ProcessAlive(image))
+        {
+            if (clock.Elapsed > limit)
+                return -1;
+            await Task.Delay(500);
+        }
+        return clock.Elapsed.TotalSeconds;
+    }
+
     // ---- Step 1 + 2: full run on the real samples + full product DNG check ----
 
     [Fact]
@@ -390,10 +407,14 @@ public class E2eTests
         Assert.NotNull(outcome.DiagnosticDir);
         Assert.True(Directory.Exists(outcome.DiagnosticDir!), "停止后临时目录应保留");
 
-        // No backend process leftover (tree kill through the harness)
-        Assert.False(ProcessAlive("jsr_backend.exe"), "jsr_backend.exe 仍在运行");
-        Assert.False(ProcessAlive("Jiangtherapee Bridge.exe"), "Jiangtherapee Bridge.exe 仍在运行");
-        Ev("tasklist: 无 jsr_backend.exe / Jiangtherapee Bridge.exe 残留");
+        // No backend process leftover (tree kill through the harness; the forced
+        // processes vanish from tasklist within seconds of driver teardown)
+        double goneBackend = await WaitProcessGoneSeconds("jsr_backend.exe", TimeSpan.FromSeconds(15));
+        Assert.True(goneBackend >= 0, "jsr_backend.exe 停止后 15s 内未退出");
+        double goneBridge = await WaitProcessGoneSeconds("Jiangtherapee Bridge.exe", TimeSpan.FromSeconds(15));
+        Assert.True(goneBridge >= 0, "Jiangtherapee Bridge.exe 停止后 15s 内未退出");
+        Ev($"tasklist: 无 jsr_backend.exe / Jiangtherapee Bridge.exe 残留" +
+           $"（{goneBackend:F1}s / {goneBridge:F1}s 内消失，≤15s 轮询）");
     }
 
     // ---- Step 3a: Chinese + spaces directory path full run ----
