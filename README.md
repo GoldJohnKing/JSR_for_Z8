@@ -11,7 +11,9 @@ Jiangtherapee Python 后端（stormer7 引擎，V15.3.5 Transformer），在 GPU
 - 支持 Vulkan 的 GPU（计算经 wgpu 走 Vulkan）。验收配置为 12 GB 显存预算；
   预算不足（如 4 GB）会在对齐阶段失败并给出明确报错，不会损坏原片
 - 磁盘：程序本体约 **537 MB**（单文件 exe）；首次运行释放约 650 MB 载荷到
-  `%LOCALAPPDATA%\JSR4Z8`；每个任务另需约 1–2 GB 临时空间
+  `%LOCALAPPDATA%\JSR4Z8`；每个任务另需约 1–2 GB 临时空间。失败或停止的任务
+  会保留约 3 GB 诊断目录于临时路径，连续失败时请确保系统盘（或自定义临时
+  路径所在盘）有 5 GB 以上可用空间
 
 ## 使用说明
 
