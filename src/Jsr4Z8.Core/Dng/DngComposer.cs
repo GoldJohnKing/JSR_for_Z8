@@ -84,6 +84,39 @@ public static class DngComposer
         DngWriter.Write(destDngPath, payload.Data, payload.W, payload.H, options, sourceMetadata, cameraWb);
     }
 
+    /// <summary>
+    /// Full-control composition path: <paramref name="options"/> is the complete
+    /// output profile — domain (BL/WL), photometric/samples, compression,
+    /// IFD0 attribution (Software/OmitIfd0Artist), AsShotNeutral/ColorMatrix1
+    /// and geometry overrides. Task 9's LinearRaw RGB fusion entry: the backend
+    /// product's payload + the reference NEF's metadata blocks.
+    /// </summary>
+    public static void Compose(RawPayload payload, RawMetadata meta, NefAssets assets, string destDngPath,
+        DngWriteOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+        ArgumentNullException.ThrowIfNull(meta);
+        ArgumentNullException.ThrowIfNull(assets);
+        ArgumentNullException.ThrowIfNull(options);
+        if (options.SamplesPerPixel < 1)
+            throw new ArgumentException("SamplesPerPixel must be ≥ 1", nameof(options));
+        if ((options.CfaPattern != null) != payload.IsCfa)
+            throw new ArgumentException(
+                $"payload.IsCfa={payload.IsCfa} 与 CfaPattern {(options.CfaPattern == null ? "缺失" : "多出")}不一致");
+        if (payload.Data.Length != (long)payload.W * payload.H * options.SamplesPerPixel)
+            throw new ArgumentException(
+                $"payload.Data.Length {payload.Data.Length} != W·H·Samples {payload.W}×{payload.H}×{options.SamplesPerPixel}");
+
+        // AsShotNeutral = 1/cam_mul per component (fallback when options leaves
+        // it unset; Save_Z8/ADC parity).
+        float[]? cameraWb = meta.CamMul is { Length: >= 3 }
+            ? Array.ConvertAll(meta.CamMul, v => (float)v)
+            : null;
+
+        DngWriter.Write(destDngPath, payload.Data, payload.W, payload.H, options,
+            ParseAssets(assets), cameraWb);
+    }
+
     /// <summary>2×2 phase string ("RGGB", chars from {R,G,B}) → DNG CFAPattern colors (0=R,1=G,2=B).</summary>
     private static byte[] MapCfaPattern(string? phase)
     {

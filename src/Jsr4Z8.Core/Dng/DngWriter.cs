@@ -68,6 +68,8 @@ public class DngWriter
     private const ushort TagActiveArea = 50829;
     private const ushort TagOpcodeList2 = 51009;
     private const ushort TagOpcodeList3 = 51022;
+    private const ushort TagSoftware = 305;
+    private const ushort TagArtist = 315;
     private const ushort TagBaselineExposure = 50730;
     private const ushort TagBaselineNoise = 50731;
     private const ushort TagBaselineSharpness = 50732;
@@ -132,13 +134,15 @@ public class DngWriter
             throw new ArgumentException("CFA pattern must hold 4 colors (2×2)", nameof(options));
 
         // ================= lossless-JPEG tiles (Compression=7, ADC -c profile) =====
-        // 256x256 tiles, each an independent SOF3 stream: PSV=1, Pt=0, 16-bit,
-        // interleaved components (CFA mosaic column pairs feed the interleaver
-        // as 2 components; LinearRaw RGB as 3), per-tile optimized Huffman tables
-        // (encoder side). Edge tiles are zero-padded to full geometry (decoder
-        // crops via TIFF tile grid). Tile offsets follow the ADC layout:
-        // sequential, each tile start 2-byte aligned.
+        // 256x256 tiles, each an independent SOF3 stream: 16-bit, interleaved
+        // components (CFA mosaic column pairs feed the interleaver as 2
+        // components with PSV=1 — the ADC profile; LinearRaw RGB as 3 components
+        // with PSV=4 Ra+Rb-Rc, parity with the backend's tifffile encoding),
+        // per-tile optimized Huffman tables (encoder side). Edge tiles are
+        // zero-padded to full geometry (decoder crops via TIFF tile grid). Tile
+        // offsets follow the ADC layout: sequential, each tile start 2-byte aligned.
         const int TileSide = 256;
+        uint predictor = isCfa ? 1u : 4u;
         List<byte[]>? tiles = null;
         if (compress)
         {
@@ -179,7 +183,7 @@ public class DngWriter
                     fixed (byte* op = tileOut)
                     {
                         encoded = Native.DngLjpegNative.lje_encode_tile(sp, TileSide,
-                            encCols, encChannels, 16, op, (nuint)tileOut.Length);
+                            encCols, encChannels, 16, op, (nuint)tileOut.Length, predictor);
                     }
                 }
                 if (encoded <= 0)
@@ -258,25 +262,39 @@ public class DngWriter
 
         // ActiveArea: full stored area — replicates ADC's Z8 geometry. The warp/vignette
         // opcodes normalize radius over the active area, so this must match ADC's
-        // convention (full 8280x5520) or the correction strength shifts.
-        RawLongs(TagActiveArea, new[] { 0u, 0u, (uint)height, (uint)width });
+        // convention (full 8280x5520) or the correction strength shifts. Task 9
+        // overrides this with the ×2-scaled sensor active area (options.ActiveArea).
+        if (options.ActiveArea is { Length: 4 } aa)
+            RawLongs(TagActiveArea, aa);
+        else
+            RawLongs(TagActiveArea, new[] { 0u, 0u, (uint)height, (uint)width });
 
         // DefaultCrop: ADC pairs the full ActiveArea with DefaultScale/Crop tags so the
         // displayed image matches the NEF's framing (Z8: origin 12,8, size 8256x5504).
         // Derived from the largest embedded preview (= camera's active crop), origin
-        // centered and CFA-phase-even.
-        var previews = originalMetadata?.Previews;
-        if (previews is { Count: > 0 })
+        // centered and CFA-phase-even. Task 9 overrides the pair explicitly
+        // (options.DefaultCrop) for the backend's ×2 geometry.
+        if (options.DefaultCrop is { } crop)
         {
-            var active = previews[^1];
-            if (active.Width <= width && active.Height <= height &&
-                (active.Width < width || active.Height < height))
+            RawRationals(TagDefaultScale, new[] { (1, 1), (1, 1) });
+            RawRationals(TagDefaultCropOrigin, new[] { ((int)crop.X, 1), ((int)crop.Y, 1) });
+            RawRationals(TagDefaultCropSize, new[] { ((int)crop.W, 1), ((int)crop.H, 1) });
+        }
+        else
+        {
+            var previews0 = originalMetadata?.Previews;
+            if (previews0 is { Count: > 0 })
             {
-                uint ox = (uint)(((width - active.Width) / 2) & ~1);
-                uint oy = (uint)(((height - active.Height) / 2) & ~1);
-                RawRationals(TagDefaultScale, new[] { (1, 1), (1, 1) });
-                RawRationals(TagDefaultCropOrigin, new[] { ((int)ox, 1), ((int)oy, 1) });
-                RawRationals(TagDefaultCropSize, new[] { (active.Width, 1), (active.Height, 1) });
+                var active = previews0[^1];
+                if (active.Width <= width && active.Height <= height &&
+                    (active.Width < width || active.Height < height))
+                {
+                    uint ox = (uint)(((width - active.Width) / 2) & ~1);
+                    uint oy = (uint)(((height - active.Height) / 2) & ~1);
+                    RawRationals(TagDefaultScale, new[] { (1, 1), (1, 1) });
+                    RawRationals(TagDefaultCropOrigin, new[] { ((int)ox, 1), ((int)oy, 1) });
+                    RawRationals(TagDefaultCropSize, new[] { (active.Width, 1), (active.Height, 1) });
+                }
             }
         }
 
@@ -341,6 +359,7 @@ public class DngWriter
         // ================= IFD0 =================
         // With previews: IFD0 = thumbnail (ADC topology), raw + larger previews in SubIFDs.
         // Without previews: IFD0 = raw directly (still valid DNG).
+        var previews = originalMetadata?.Previews;
         var ifd0 = new IfdBlock();
         var subIfdTargets = new List<IfdBlock>();
 
@@ -391,14 +410,17 @@ public class DngWriter
             Inline = Pad(new byte[] { 1, 4, 0, 0 }) });
         AddAscii(TagUniqueCameraModel, CameraModelName);
 
-        var cm = new byte[ColorMatrix1Values.Length * 8];
-        for (int i = 0; i < ColorMatrix1Values.Length; i++)
+        var cmValues = options.ColorMatrix1 ?? ColorMatrix1Values;
+        if (cmValues.Length != 9)
+            throw new ArgumentException("ColorMatrix1 requires 9 values", nameof(options));
+        var cm = new byte[cmValues.Length * 8];
+        for (int i = 0; i < cmValues.Length; i++)
         {
-            BitConverter.GetBytes((int)Math.Round(ColorMatrix1Values[i] * 10000)).CopyTo(cm, i * 8);
+            BitConverter.GetBytes((int)Math.Round(cmValues[i] * 10000)).CopyTo(cm, i * 8);
             BitConverter.GetBytes(10000).CopyTo(cm, i * 8 + 4);
         }
         ifd0.Entries.Add(new Entry { Tag = TagColorMatrix1, Type = TypeSRational,
-            Count = (uint)ColorMatrix1Values.Length, Blob = cm });
+            Count = (uint)cmValues.Length, Blob = cm });
         AddShort(TagCalibrationIlluminant1, (ushort)CalibrationIlluminant1Value);
 
         // Rendering parity with Adobe's Z8 defaults (measured from ADC 18.6 output)
@@ -406,8 +428,20 @@ public class DngWriter
         AddRationals(TagBaselineNoise, TypeRational, new[] { (80, 100) });
         AddRationals(TagBaselineSharpness, TypeRational, new[] { (100, 100) });
 
-        // AsShotNeutral: per-shot camera white balance (inverse multipliers, like ADC)
-        if (cameraWb is { Length: >= 3 } && cameraWb[0] > 0 && cameraWb[1] > 0 && cameraWb[2] > 0)
+        // AsShotNeutral: per-shot camera white balance (inverse multipliers, like ADC).
+        // options.AsShotNeutral (backend product value, Task 9) wins over cameraWb.
+        var explicitNeutral = options.AsShotNeutral;
+        if (explicitNeutral is { Length: >= 3 } &&
+            explicitNeutral[0] > 0 && explicitNeutral[1] > 0 && explicitNeutral[2] > 0)
+        {
+            AddRationals(TagAsShotNeutral, TypeRational, new[]
+            {
+                ((int)Math.Round(explicitNeutral[0] * 1e6), 1000000),
+                ((int)Math.Round(explicitNeutral[1] * 1e6), 1000000),
+                ((int)Math.Round(explicitNeutral[2] * 1e6), 1000000),
+            });
+        }
+        else if (cameraWb is { Length: >= 3 } && cameraWb[0] > 0 && cameraWb[1] > 0 && cameraWb[2] > 0)
         {
             AddRationals(TagAsShotNeutral, TypeRational, new[]
             {
@@ -425,6 +459,11 @@ public class DngWriter
 
             foreach (var tag in CopyableIfd0Tags)
             {
+                // Task 9 attribution policy (fact #9): the final product names
+                // itself via options.Software and carries no IFD0 Artist tag;
+                // NEF EXIF-region photographer metadata migrates untouched.
+                if (tag == TagSoftware && options.Software != null) continue;
+                if (tag == TagArtist && options.OmitIfd0Artist) continue;
                 var e = srcIfd0.Entries.Find(x => x.Tag == tag);
                 if (e != null) CopyEntry(ifd0, e, originalMetadata.IsLittleEndian);
             }
@@ -437,6 +476,9 @@ public class DngWriter
             if (gpsBlock != null)
                 ifd0.Entries.Add(new Entry { Tag = TagGpsIFD, Type = TypeLong, Count = 1, SubBlock = gpsBlock });
         }
+
+        if (options.Software != null)
+            AddAscii(TagSoftware, options.Software);
 
         // SubIFDs pointer (raw + previews) — ADC topology
         if (subIfdTargets.Count == 1)

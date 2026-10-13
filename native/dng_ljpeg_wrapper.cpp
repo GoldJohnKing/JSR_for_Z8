@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <setjmp.h>
 #include "jpeglib.h"
 #include <stdio.h>
 
@@ -27,15 +28,17 @@
 extern "C" {
 
 // Encodes one tile into caller-provided `out` (capacity `cap` bytes).
-// Returns the encoded size, or a negative value on error (-1 setup,
-// -2 capacity exceeded, -3 encode failure, -4 unsupported params).
+// `psv` selects the lossless predictor (JPEG Ss value 1-7): 1 = Ra (the ADC
+// -c CFA profile), 4 = Ra+Rb-Rc (the RGB LinearRaw profile — parity with
+// tifffile's default). Returns the encoded size, or a negative value on error
+// (-1 setup, -2 capacity exceeded, -3 encode failure, -4 unsupported params).
 EXPORT long long lje_encode_tile(const unsigned short* src, unsigned rows,
                             unsigned cols /* per channel */,
                             unsigned channels, unsigned bitDepth,
-                            unsigned char* out, size_t cap)
+                            unsigned char* out, size_t cap, unsigned psv)
 {
     if (!src || !out || rows == 0 || cols == 0 || channels == 0 ||
-        channels > 4 || bitDepth != 16)
+        channels > 4 || bitDepth != 16 || psv < 1 || psv > 7)
         return -4LL;
 
     struct jpeg_compress_struct cinfo;
@@ -64,7 +67,7 @@ EXPORT long long lje_encode_tile(const unsigned short* src, unsigned rows,
         cinfo.comp_info[i].quant_tbl_no = 0;
     }
 
-    jpeg_enable_lossless(&cinfo, /*psv=*/1, /*pt=*/0);
+    jpeg_enable_lossless(&cinfo, psv, /*pt=*/0);
     cinfo.optimize_coding = TRUE;         // per-tile Huffman optimization
     cinfo.write_JFIF_header = FALSE;
     cinfo.write_Adobe_marker = FALSE;
@@ -101,6 +104,74 @@ EXPORT long long lje_encode_tile(const unsigned short* src, unsigned rows,
     return result;
 }
 
+
+// Decodes one complete lossless-JPEG stream (SOF3, any predictor 1-7,
+// any component count 1-4, 16-bit precision) into caller-provided `dst`
+// (capacity `dstCap` u16 samples). Geometry comes from the stream's own SOF
+// header; each decoded scanline is width*components interleaved samples.
+// When outW/outH/outNc are non-NULL they receive the stream's width, height
+// and component count. Returns the decoded sample count
+// (width*height*components), or negative on error (-1 malformed/unsupported
+// stream, -2 destination too small, -3 read failure). Task 9 uses this to
+// read backend DNG strips written by tifffile (predictor 4) into pixel arrays.
+EXPORT long long ljd_decode_stream(const unsigned char* src, size_t cap,
+                                   unsigned short* dst, size_t dstCap,
+                                   unsigned* outW, unsigned* outH, unsigned* outNc)
+{
+    if (!src || !dst || cap < 4) return -1LL;
+
+    struct my_error_mgr { struct jpeg_error_mgr pub; jmp_buf setjmp_buffer; };
+    struct jpeg_decompress_struct dinfo;
+    struct my_error_mgr jerr;
+    dinfo.err = jpeg_std_error(&jerr.pub);
+    jpeg_create_decompress(&dinfo);
+
+    if (setjmp(jerr.setjmp_buffer))
+    {
+        jpeg_destroy_decompress(&dinfo);
+        return -1LL;
+    }
+
+    jpeg_mem_src(&dinfo, src, (unsigned long)cap);
+    if (jpeg_read_header(&dinfo, TRUE) != JPEG_HEADER_OK ||
+        dinfo.data_precision != 16 ||
+        dinfo.num_components < 1 || dinfo.num_components > 4)
+    {
+        jpeg_destroy_decompress(&dinfo);
+        return -1LL;
+    }
+
+    unsigned long long count = (unsigned long long)dinfo.image_width *
+        dinfo.image_height * (unsigned)dinfo.num_components;
+    if (outW) *outW = (unsigned)dinfo.image_width;
+    if (outH) *outH = (unsigned)dinfo.image_height;
+    if (outNc) *outNc = (unsigned)dinfo.num_components;
+    if (count > (unsigned long long)dstCap)
+    {
+        jpeg_destroy_decompress(&dinfo);
+        return -2LL;
+    }
+
+    jpeg_start_decompress(&dinfo);
+    while (dinfo.output_scanline < dinfo.output_height)
+    {
+        // 16-bit precision path: one row of width*components u16 samples.
+        size_t rowOff = (size_t)dinfo.output_scanline * dinfo.image_width *
+            (unsigned)dinfo.num_components;
+        J16SAMPROW row = (J16SAMPROW)(dst + rowOff);
+        if (jpeg16_read_scanlines(&dinfo, (J16SAMPARRAY)&row, 1) != 1)
+        {
+            jpeg_abort_decompress(&dinfo);
+            jpeg_destroy_decompress(&dinfo);
+            return -3LL;
+        }
+    }
+    long long result = (long long)count;
+
+    jpeg_finish_decompress(&dinfo);
+    jpeg_destroy_decompress(&dinfo);
+    return result;
+}
 
 // Round-trip selftest: encode a deterministic 2-channel gradient tile with
 // the same settings as lje_encode_tile, decode it back with libjpeg-turbo's
