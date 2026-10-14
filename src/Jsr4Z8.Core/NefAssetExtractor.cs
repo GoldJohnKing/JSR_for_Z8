@@ -110,7 +110,6 @@ public class NefAssetExtractor
         var ifd0 = meta.AllIfds.FirstOrDefault() ?? new TiffIfd();
         var exifIfd = FindSubIfdByPointerTag(ifd0, 0x8769); // EXIF
         var gpsIfd = FindSubIfdByPointerTag(ifd0, 0x8825);  // GPS
-        var interopIfd = exifIfd != null ? FindSubIfdByPointerTag(exifIfd, 0xA005) : null; // Interop
 
         // EXIF block: contiguous region IFD0 → end of EXIF IFD data (incl. MakerNote
         // and nested Interop IFD; excludes the SubIFD previews/raw strips).
@@ -125,8 +124,6 @@ public class NefAssetExtractor
         {
             ExifBlock = exifBlock,
             GpsBlock = gpsIfd != null && gpsIfd.Entries.Count > 0 ? Slice(data, gpsIfd.Offset, IfdRegionEnd(gpsIfd)) : Array.Empty<byte>(),
-            InteropBlock = interopIfd != null && interopIfd.Entries.Count > 0 ? Slice(data, interopIfd.Offset, IfdRegionEnd(interopIfd)) : Array.Empty<byte>(),
-            XmpBlock = ifd0.Entries.Find(e => e.Tag == 0x02BC)?.Data ?? Array.Empty<byte>(),
             Previews = meta.Previews.Take(3)
                 .Select(p => new PreviewImage { W = p.Width, H = p.Height, Jpeg = p.Jpeg })
                 .ToArray(),
@@ -135,7 +132,7 @@ public class NefAssetExtractor
     }
 
     /// <summary>Finds the sub-IFD of <paramref name="parent"/> referenced by a pointer
-    /// tag (0x8769 EXIF / 0x8825 GPS / 0xA005 Interop).</summary>
+    /// tag (0x8769 EXIF / 0x8825 GPS).</summary>
     private static TiffIfd? FindSubIfdByPointerTag(TiffIfd parent, ushort tag)
     {
         var ptr = parent.Entries.Find(e => e.Tag == tag);
@@ -305,12 +302,6 @@ public sealed record NefAssets
 
     /// <summary>GPS IFD source region (structure + data).</summary>
     public required byte[] GpsBlock { get; init; }
-
-    /// <summary>Interop IFD source region (nested under EXIF via 0xA005).</summary>
-    public required byte[] InteropBlock { get; init; }
-
-    /// <summary>XMP packet bytes (IFD0 tag 0x02BC).</summary>
-    public required byte[] XmpBlock { get; init; }
 
     /// <summary>Embedded JPEG previews, smallest first (at most 3).</summary>
     public required PreviewImage[] Previews { get; init; }

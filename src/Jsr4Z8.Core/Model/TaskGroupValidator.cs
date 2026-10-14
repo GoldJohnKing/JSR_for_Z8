@@ -45,7 +45,9 @@ public sealed record ValidationResult(bool CanRun, IReadOnlyList<ValidationIssue
 /// </summary>
 public static class TaskGroupValidator
 {
-    private const int RequiredFrames = 7;
+    /// <summary>The exact frame count a <see cref="TaskGroup"/> requires (7 frames + 1 dark);
+    /// the dialog's ✓ line gates on it too.</summary>
+    public const int RequiredFrames = 7;
     private const double IsoRelativeTolerance = 1e-6;
     private const string NikonPrefix = "nikon";
     private const string Z8Canonical = "z8"; // NormalizeModel("NIKON CORPORATION", "NIKON Z 8")
@@ -139,7 +141,7 @@ public static class TaskGroupValidator
                 ptc = PtcTable.LoadDefault().Lookup(baseIso);
                 if (ptc == null)
                     issues.Add(new ValidationIssue(referencePath, IssueKind.PtcUnavailable,
-                        $"基准帧 {Path.GetFileName(referencePath)} 的 ISO {Fmt(baseIso)} 超出 PTC 表范围 [50, 102400]，无法估算满阱"));
+                        $"基准帧 {Path.GetFileName(referencePath)} 的 ISO {Fmt(baseIso)} 超出 PTC 表范围 {PtcRange()}，无法估算满阱"));
             }
         }
 
@@ -186,4 +188,12 @@ public static class TaskGroupValidator
 
     /// <summary>ISO for Chinese messages, e.g. 3200 → "3200", 51.5 → "51.5".</summary>
     private static string Fmt(double iso) => iso.ToString("0.###", CultureInfo.InvariantCulture);
+
+    /// <summary>PTC table ISO bounds ("[50, 102400]"), derived from the embedded rows
+    /// so the message can never drift from the actual table.</summary>
+    private static string PtcRange()
+    {
+        IReadOnlyList<PtcRow> rows = PtcTable.LoadDefault().Rows;
+        return $"[{Fmt(rows[0].Iso)}, {Fmt(rows[^1].Iso)}]";
+    }
 }

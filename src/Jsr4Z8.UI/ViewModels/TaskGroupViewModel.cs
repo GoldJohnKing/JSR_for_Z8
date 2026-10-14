@@ -38,8 +38,6 @@ public partial class TaskGroupViewModel : ObservableObject
     private readonly PtcMatch? _ptc;
     private CancellationTokenSource? _cts;
 
-    public Guid Id { get; } = Guid.NewGuid();
-
     public TaskGroup Group { get; }
 
     /// <summary>The PTC match captured at creation validation — the queue's request
@@ -282,9 +280,6 @@ public partial class TaskGroupViewModel : ObservableObject
     }
 
     private bool CanOpenFolder() => State == TaskState.Done;
-
-    [RelayCommand]
-    private void ToggleLog() => IsLogExpanded = !IsLogExpanded;
 
     partial void OnStateChanged(TaskState value)
     {

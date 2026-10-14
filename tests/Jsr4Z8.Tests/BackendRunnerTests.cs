@@ -19,19 +19,8 @@ public class BackendRunnerTests : IClassFixture<TestTemp>
 
     public BackendRunnerTests(TestTemp temp) => _temp = temp;
 
-    /// <summary>Locates a stub .bat under fixtures\stub_backend\ by walking up from the test output directory.</summary>
-    private static string StubPath(string name)
-    {
-        string? dir = AppContext.BaseDirectory;
-        for (int i = 0; i < 10 && dir != null; i++)
-        {
-            string candidate = Path.Combine(dir, "fixtures", "stub_backend", name);
-            if (File.Exists(candidate))
-                return candidate;
-            dir = Path.GetDirectoryName(dir);
-        }
-        throw new InvalidOperationException($"Stub not found: fixtures\\stub_backend\\{name} (searched upwards from {AppContext.BaseDirectory})");
-    }
+    /// <summary>Locates a stub .bat under fixtures\stub_backend\.</summary>
+    private static string StubPath(string name) => SampleFiles.FindUp(Path.Combine("fixtures", "stub_backend", name));
 
     /// <summary>A run spec pointing at a stub harness, with temp resources/config/log paths and a minimal request JSON.</summary>
     private BackendRunSpec NewSpec(string batName)

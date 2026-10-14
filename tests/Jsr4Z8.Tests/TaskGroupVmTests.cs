@@ -120,9 +120,9 @@ public class TaskGroupVmTests
         Assert.False(vm.IsLogExpanded);
 
         vm.LogLines.Add("[19:22:31] 黑场 DSC_7575.NEF 已加载（ISO400/1/8000s）");
-        vm.ToggleLogCommand.Execute(null);
+        vm.IsLogExpanded = true;
         Assert.True(vm.IsLogExpanded);
-        vm.ToggleLogCommand.Execute(null);
+        vm.IsLogExpanded = false;
         Assert.False(vm.IsLogExpanded);
         Assert.Single(vm.LogLines);
     }

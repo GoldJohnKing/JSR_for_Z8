@@ -6,7 +6,7 @@ namespace Jsr4Z8.Tests;
 /// <summary>
 /// Task 10: payload pack → extract → verify → self-heal pipeline, using the SAME
 /// PayloadPacker code the release packer tool (tools/pack-payload) uses. The tests
-/// build a 3-file fake payload in temp dirs — the real ~200 MB backend payload is
+/// build a 3-file fake payload in temp dirs — the real ~500 MB backend payload is
 /// never committed or embedded into test builds (Task 15 packs it at release time).
 /// Windows-host tests: the manager writes/renames/deletes real directories.
 /// </summary>

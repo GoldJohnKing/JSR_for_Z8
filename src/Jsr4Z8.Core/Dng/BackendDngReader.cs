@@ -25,9 +25,6 @@ public sealed record BackendDng
 
     public required int WhiteLevel { get; init; }
 
-    /// <summary>2×2 phase string ("RGGB") when the payload is CFA; null for LinearRaw.</summary>
-    public string? CfaPattern { get; init; }
-
     /// <summary>IFD0 AsShotNeutral [R,G,B]; null when the backend omitted it.</summary>
     public float[]? AsShotNeutral { get; init; }
 
@@ -56,7 +53,6 @@ public static class BackendDngReader
     private const ushort TagRowsPerStrip = 278;
     private const ushort TagStripByteCounts = 279;
     private const ushort TagSubIfds = 0x014A;
-    private const ushort TagCfaPattern = 33422;
     private const ushort TagColorMatrix1 = 50721;
     private const ushort TagBlackLevel = 50714;
     private const ushort TagWhiteLevel = 50717;
@@ -85,7 +81,6 @@ public static class BackendDngReader
             Photometric = d.Photometric,
             BlackLevel = d.BlackLevel,
             WhiteLevel = d.WhiteLevel,
-            CfaPattern = d.Photometric == 32803 ? ReadCfaPattern(reader, rawIfd) : null,
             AsShotNeutral = ReadAsShotNeutral(reader, ifd0),
             ColorMatrix1 = ReadColorMatrix1(reader, ifd0),
         };
@@ -130,7 +125,6 @@ public static class BackendDngReader
             Photometric = d.Photometric,
             BlackLevel = d.BlackLevel,
             WhiteLevel = d.WhiteLevel,
-            CfaPattern = null,
             AsShotNeutral = ReadAsShotNeutral(reader, ifd0),
             ColorMatrix1 = ReadColorMatrix1(reader, ifd0),
         }, streams);
@@ -256,11 +250,6 @@ public static class BackendDngReader
         Buffer.BlockCopy(pixels, 0, words, 0, pixels.Length);
         return words;
     }
-
-    private static string? ReadCfaPattern(TiffReader reader, Dictionary<ushort, List<uint>> rawIfd) =>
-        rawIfd.TryGetValue(TagCfaPattern, out var colors) && colors.Count == 4
-            ? new string(Array.ConvertAll(colors.ToArray(), c => c switch { 0 => 'R', 2 => 'B', _ => 'G' }))
-            : null;
 
     private static float[]? ReadAsShotNeutral(TiffReader reader, Dictionary<ushort, List<uint>> ifd0)
     {

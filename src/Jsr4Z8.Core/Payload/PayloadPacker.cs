@@ -29,7 +29,7 @@ public sealed record PayloadPackResult(
 /// payload.manifest.json) and provides the manifest/archive readers used by
 /// <see cref="PayloadManager"/> for extraction. Shared library code: the release packer
 /// tool (tools/pack-payload, invoked by the release script in Task 15) and the tests
-/// (fake 3-file payloads in temp dirs) both go through it — the real ~200 MB payload is
+/// (fake 3-file payloads in temp dirs) both go through it — the real ~500 MB payload is
 /// never committed or embedded into test builds.
 ///
 /// Scanned from &lt;srcDir&gt; (byte-exact constraint): "Jiangtherapee Bridge.exe", the
@@ -140,7 +140,6 @@ public static class PayloadPacker
                 BinaryPrimitives.WriteUInt32LittleEndian(head[4..], (uint)files.Count);
                 payload.Write(head);
 
-                Span<byte> num = stackalloc byte[8];
                 for (int i = 0; i < files.Count; i++)
                 {
                     byte[] path = Encoding.UTF8.GetBytes(files[i]);
@@ -173,14 +172,14 @@ public static class PayloadPacker
     }
 
     /// <summary>Builds the manifest from entries: files ordinal-sorted by path, hash computed per the format contract.</summary>
-    public static PayloadManifest BuildManifest(IEnumerable<PayloadManifestEntry> entries)
+    private static PayloadManifest BuildManifest(IEnumerable<PayloadManifestEntry> entries)
     {
         PayloadManifestEntry[] sorted = entries.OrderBy(e => e.Path, StringComparer.Ordinal).ToArray();
         return new PayloadManifest(CurrentManifestVersion, ComputeManifestHash(sorted), sorted);
     }
 
     /// <summary>SHA-256 over the ordinal-path-sorted concatenation of "path\nsha256\n" lines (lowercase hex).</summary>
-    public static string ComputeManifestHash(IEnumerable<PayloadManifestEntry> entries)
+    private static string ComputeManifestHash(IEnumerable<PayloadManifestEntry> entries)
     {
         using IncrementalHash sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         foreach (PayloadManifestEntry entry in entries.OrderBy(e => e.Path, StringComparer.Ordinal))
@@ -188,7 +187,7 @@ public static class PayloadPacker
         return Convert.ToHexString(sha.GetHashAndReset()).ToLowerInvariant();
     }
 
-    public static void WriteManifestJson(PayloadManifest manifest, string path)
+    private static void WriteManifestJson(PayloadManifest manifest, string path)
     {
         using FileStream stream = File.Create(path);
         JsonSerializer.Serialize(stream, ManifestDto.From(manifest), ManifestJsonOptions);

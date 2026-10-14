@@ -70,7 +70,6 @@ public partial class NewTaskViewModel : ObservableObject
     private readonly TimeSpan _debounce;
     private readonly Action<Action> _post;
     private readonly SettingsService? _settings;
-    private readonly int _requiredFrames = 7;
     private CancellationTokenSource? _validateCts;
     private Task _validationTask = Task.CompletedTask;
     private ValidationResult? _lastValidation;
@@ -296,7 +295,7 @@ public partial class NewTaskViewModel : ObservableObject
         bool canRun = result.CanRun && issues.Count == 0;
         string ptcInfo = "";
         if (canRun && result.Ptc is { } ptc
-            && Frames.Count == _requiredFrames
+            && Frames.Count == TaskGroupValidator.RequiredFrames
             && passMeta.TryGetValue(Frames[0].Path, out RawMetadata? reference))
         {
             ptcInfo = $"✓ {Frames.Count + 1} 个文件机型/ISO 一致 · PTC 匹配 Nikon Z8·ISO{Fmt(reference.Iso)}" +

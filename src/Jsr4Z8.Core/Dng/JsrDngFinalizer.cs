@@ -105,7 +105,6 @@ public static class JsrDngFinalizer
             PhotometricInterpretation = backend.Photometric,
             BlackLevel = backend.BlackLevel,
             WhiteLevel = backend.WhiteLevel,
-            PixelBitShift = 0,
             Software = SoftwareTag,
             OmitIfd0Artist = true,
             AsShotNeutral = backend.AsShotNeutral,

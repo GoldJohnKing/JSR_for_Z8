@@ -51,7 +51,8 @@ public static class LibRawNative
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     private static extern float lr_get_iso(IntPtr handle);
 
-    /// <summary>Native LibRaw version string (e.g. "0.21.3-Release"), shown in the UI footer.</summary>
+    /// <summary>Native LibRaw version string (e.g. "0.21.3-Release"), reported by the
+    /// --selftest release QA path and the E2E evidence log.</summary>
     public static string GetVersion()
         => Marshal.PtrToStringAnsi(lr_version()) ?? "LibRaw (版本未知)";
 

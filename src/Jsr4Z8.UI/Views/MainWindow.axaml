@@ -7,6 +7,7 @@
         mc:Ignorable="d" d:DesignWidth="880" d:DesignHeight="620"
         x:Class="Jsr4Z8.UI.Views.MainWindow"
         x:DataType="vm:MainViewModel"
+        x:CompileBindings="True"
         Title="JSR for Z8"
         MinWidth="720" MinHeight="560" Width="880" Height="620"
         DragDrop.AllowDrop="True"

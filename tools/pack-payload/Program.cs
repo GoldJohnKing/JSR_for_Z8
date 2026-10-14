@@ -5,7 +5,7 @@ using Jsr4Z8.Core.Payload;
 // The release script (Task 15) invokes:
 //   pack-payload <srcDir> <outDir>
 // with outDir = src/Jsr4Z8.Core/Payload/Embedded/ — the pair is NOT committed
-// (payload.bin is ~200 MB); the Core csproj embeds both files as resources when present.
+// (payload.bin is ~500 MB); the Core csproj embeds both files as resources when present.
 
 if (args.Length != 2)
 {

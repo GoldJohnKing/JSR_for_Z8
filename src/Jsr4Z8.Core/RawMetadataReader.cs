@@ -20,8 +20,7 @@ public static class RawMetadataReader
         IntPtr handle = LibRawNative.OpenRaw(nefPath, out int error);
         if (handle == IntPtr.Zero)
             throw new RawReadException(
-                $"LibRaw 打开/解码失败: {LibRawNative.GetErrorMessage(error)} (code={error}, file={nefPath})",
-                errorCode: error);
+                $"LibRaw 打开/解码失败: {LibRawNative.GetErrorMessage(error)} (code={error}, file={nefPath})");
 
         string make, model;
         double iso;

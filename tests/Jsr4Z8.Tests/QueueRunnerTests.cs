@@ -35,19 +35,8 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
 
     private const string DarkPath = @"C:\Photos\DSC_7575.NEF";
 
-    /// <summary>Locates a stub .bat under fixtures\stub_backend\ by walking up from the test output directory.</summary>
-    private static string StubPath(string name)
-    {
-        string? dir = AppContext.BaseDirectory;
-        for (int i = 0; i < 10 && dir != null; i++)
-        {
-            string candidate = Path.Combine(dir, "fixtures", "stub_backend", name);
-            if (File.Exists(candidate))
-                return candidate;
-            dir = Path.GetDirectoryName(dir);
-        }
-        throw new InvalidOperationException($"Stub not found: fixtures\\stub_backend\\{name} (searched upwards from {AppContext.BaseDirectory})");
-    }
+    /// <summary>Locates a stub .bat under fixtures\stub_backend\.</summary>
+    private static string StubPath(string name) => SampleFiles.FindUp(Path.Combine("fixtures", "stub_backend", name));
 
     /// <summary>Headless dispatcher: posts run inline (the tests then observe every
     /// mutation synchronously, in arrival order).</summary>
@@ -428,18 +417,7 @@ public class QueueMediatorTests : IClassFixture<TestTemp>
         return condition();
     }
 
-    private static string StubPath(string name)
-    {
-        string? dir = AppContext.BaseDirectory;
-        for (int i = 0; i < 10 && dir != null; i++)
-        {
-            string candidate = Path.Combine(dir, "fixtures", "stub_backend", name);
-            if (File.Exists(candidate))
-                return candidate;
-            dir = Path.GetDirectoryName(dir);
-        }
-        throw new InvalidOperationException($"Stub not found: {name}");
-    }
+    private static string StubPath(string name) => SampleFiles.FindUp(Path.Combine("fixtures", "stub_backend", name));
 
     /// <summary>Engine pointed at one stub, no temp-dir assertions — pure event mapping.
     /// The finalizer is faked so the mapping test observes the mediator, not the real

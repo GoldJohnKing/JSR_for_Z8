@@ -38,17 +38,7 @@ public class E2eTests
 
     // ---- shared plumbing ----------------------------------------------------
 
-    private static string RepoRoot()
-    {
-        string? dir = AppContext.BaseDirectory;
-        for (int i = 0; i < 12 && dir != null; i++)
-        {
-            if (File.Exists(Path.Combine(dir, "JSR_for_Z8.sln")))
-                return dir;
-            dir = Path.GetDirectoryName(dir);
-        }
-        throw new InvalidOperationException($"repo root not found walking up from {AppContext.BaseDirectory}");
-    }
+    private static string RepoRoot() => SampleFiles.RepoRoot();
 
     private static string SamplesDir() => Path.Combine(RepoRoot(), "samples");
 
@@ -214,42 +204,42 @@ public class E2eTests
         byte[] file = File.ReadAllBytes(dngPath);
         Assert.Equal(0x49, file[0]);
         Assert.Equal(0x49, file[1]);
-        Assert.Equal(42, Tiff.U16(file, 2));
-        var ifd0 = Tiff.ParseIfd(file, Tiff.U32(file, 4));
+        Assert.Equal(42, TestTiff.U16(file, 2));
+        var ifd0 = TestTiff.ParseIfd(file, TestTiff.U32(file, 4));
 
         // IFD0 identity & attribution (probe fact #9: the tool names itself, no Artist tag)
-        Assert.Equal("JSR for Z8", Tiff.Ascii(ifd0.Tags[305].Value));
+        Assert.Equal("JSR for Z8", TestTiff.Ascii(ifd0.Tags[305].Value));
         Assert.False(ifd0.Tags.ContainsKey(315), "IFD0 不得携带 Artist 署名");
 
         // raw SubIFD topology: ×2 LinearRaw RGB, lossless JPEG tiles
         Assert.True(ifd0.Tags.ContainsKey(330), "SubIFDs missing");
         var (_, _, v330) = ifd0.Tags[330];
-        var raw = Tiff.ParseIfd(file, Tiff.U32(v330, 0));
-        Assert.Equal(0u, Tiff.U32(raw.Tags[254].Value, 0));
-        Assert.Equal(16560u, Tiff.U32(raw.Tags[256].Value, 0));
-        Assert.Equal(11040u, Tiff.U32(raw.Tags[257].Value, 0));
-        Assert.Equal(7, Tiff.U16(raw.Tags[259].Value, 0));
-        Assert.Equal(34892, Tiff.U16(raw.Tags[262].Value, 0));
-        Assert.Equal(3, Tiff.U16(raw.Tags[277].Value, 0));
-        Assert.Equal(16, Tiff.U16(raw.Tags[258].Value, 0));
-        Assert.Equal(0, Tiff.U16(raw.Tags[50714].Value, 0));
-        Assert.Equal(65535u, Tiff.U32(raw.Tags[50717].Value, 0));
+        var raw = TestTiff.ParseIfd(file, TestTiff.U32(v330, 0));
+        Assert.Equal(0u, TestTiff.U32(raw.Tags[254].Value, 0));
+        Assert.Equal(16560u, TestTiff.U32(raw.Tags[256].Value, 0));
+        Assert.Equal(11040u, TestTiff.U32(raw.Tags[257].Value, 0));
+        Assert.Equal(7, TestTiff.U16(raw.Tags[259].Value, 0));
+        Assert.Equal(34892, TestTiff.U16(raw.Tags[262].Value, 0));
+        Assert.Equal(3, TestTiff.U16(raw.Tags[277].Value, 0));
+        Assert.Equal(16, TestTiff.U16(raw.Tags[258].Value, 0));
+        Assert.Equal(0, TestTiff.U16(raw.Tags[50714].Value, 0));
+        Assert.Equal(65535u, TestTiff.U32(raw.Tags[50717].Value, 0));
 
         // Save_Z8 conventions spot check: geometry pair, color tags, baseline trio
         Assert.True(raw.Tags.ContainsKey(50718), "DefaultScale missing");
         var aa = raw.Tags[50829].Value; // ActiveArea top,left,bottom,right (×2 domain)
-        Assert.Equal(16u, Tiff.U32(aa, 0));
-        Assert.Equal(24u, Tiff.U32(aa, 4));
-        Assert.Equal(11024u, Tiff.U32(aa, 8));
-        Assert.Equal(16536u, Tiff.U32(aa, 12));
+        Assert.Equal(16u, TestTiff.U32(aa, 0));
+        Assert.Equal(24u, TestTiff.U32(aa, 4));
+        Assert.Equal(11024u, TestTiff.U32(aa, 8));
+        Assert.Equal(16536u, TestTiff.U32(aa, 12));
         // Post-release fix 8: DefaultCropOrigin is ActiveArea-relative (DNG spec) —
         // full-frame pair writes (0,0), never the pre-fix absolute (24,16).
-        Assert.Equal(0u, Tiff.U32(raw.Tags[50719].Value, 0));
-        Assert.Equal(0u, Tiff.U32(raw.Tags[50719].Value, 8));
-        Assert.Equal(16512u, Tiff.U32(raw.Tags[50720].Value, 0));
-        Assert.Equal(11008u, Tiff.U32(raw.Tags[50720].Value, 8));
+        Assert.Equal(0u, TestTiff.U32(raw.Tags[50719].Value, 0));
+        Assert.Equal(0u, TestTiff.U32(raw.Tags[50719].Value, 8));
+        Assert.Equal(16512u, TestTiff.U32(raw.Tags[50720].Value, 0));
+        Assert.Equal(11008u, TestTiff.U32(raw.Tags[50720].Value, 8));
         Assert.Equal(9u, ifd0.Tags[50721].Count); // ColorMatrix1 (SRATIONAL×9)
-        Assert.Equal(21u, Tiff.U16(ifd0.Tags[50778].Value, 0)); // CalibrationIlluminant1 = D65
+        Assert.Equal(21u, TestTiff.U16(ifd0.Tags[50778].Value, 0)); // CalibrationIlluminant1 = D65
         Assert.True(ifd0.Tags.ContainsKey(50730), "BaselineExposure missing");
         Assert.True(ifd0.Tags.ContainsKey(50731), "BaselineNoise missing");
         Assert.True(ifd0.Tags.ContainsKey(50732), "BaselineSharpness missing");
@@ -257,14 +247,14 @@ public class E2eTests
         // AsShotNeutral = backend camera profile [0.560175, 1.0, 0.557734] (probe fact #8)
         var asn = ifd0.Tags[50728].Value;
         Assert.Equal(3u, ifd0.Tags[50728].Count);
-        Assert.InRange(Tiff.U32(asn, 0) / 1e6, 0.560175 - 1e-4, 0.560175 + 1e-4);
-        Assert.InRange(Tiff.U32(asn, 8) / 1e6, 1.0 - 1e-4, 1.0 + 1e-4);
-        Assert.InRange(Tiff.U32(asn, 16) / 1e6, 0.557734 - 1e-4, 0.557734 + 1e-4);
+        Assert.InRange(TestTiff.U32(asn, 0) / 1e6, 0.560175 - 1e-4, 0.560175 + 1e-4);
+        Assert.InRange(TestTiff.U32(asn, 8) / 1e6, 1.0 - 1e-4, 1.0 + 1e-4);
+        Assert.InRange(TestTiff.U32(asn, 16) / 1e6, 0.557734 - 1e-4, 0.557734 + 1e-4);
 
         // EXIF carried from the reference NEF
         Assert.True(ifd0.Tags.ContainsKey(0x8769), "ExifIFD pointer missing");
-        var exif = Tiff.ParseIfd(file, Tiff.U32(ifd0.Tags[0x8769].Value, 0));
-        Assert.Equal(3200, Tiff.U16(exif.Tags[0x8827].Value, 0)); // ISOSpeedRatings
+        var exif = TestTiff.ParseIfd(file, TestTiff.U32(ifd0.Tags[0x8769].Value, 0));
+        Assert.Equal(3200, TestTiff.U16(exif.Tags[0x8827].Value, 0)); // ISOSpeedRatings
         Assert.True(exif.Tags.ContainsKey(0x829A), "ExposureTime missing");
         Assert.True(exif.Tags.ContainsKey(0x920A), "FocalLength missing");
         Assert.True(exif.Tags.ContainsKey(0x927C), "MakerNote not preserved");
@@ -272,27 +262,27 @@ public class E2eTests
         // Lens opcodes (NEF vignette ON → OpcodeList2, Z8 → WarpRectilinear OpcodeList3)
         Assert.True(raw.Tags.TryGetValue(51009, out var ol2), "OpcodeList2 missing");
         Assert.True(ol2.Value.Length >= 60, "OpcodeList2 too short");
-        Assert.Equal(1u, Tiff.Be32(ol2.Value, 0));
-        Assert.Equal(3u, Tiff.Be32(ol2.Value, 4));
+        Assert.Equal(1u, TestTiff.Be32(ol2.Value, 0));
+        Assert.Equal(3u, TestTiff.Be32(ol2.Value, 4));
         Assert.True(raw.Tags.TryGetValue(51022, out var ol3), "OpcodeList3 missing");
         Assert.True(ol3.Value.Length >= 160, "OpcodeList3 too short");
-        Assert.Equal(1u, Tiff.Be32(ol3.Value, 0));
-        Assert.Equal(1u, Tiff.Be32(ol3.Value, 4));
+        Assert.Equal(1u, TestTiff.Be32(ol3.Value, 0));
+        Assert.Equal(1u, TestTiff.Be32(ol3.Value, 4));
 
         // ≥2 JPEG previews (IFD0 thumbnail + SubIFD previews from the reference NEF)
         int previews = 0;
-        CountJpegPreviews(file, ifd0, ref previews);
+        TestTiff.CountJpegPreviews(file, ifd0, ref previews);
         uint subCount = ifd0.Tags[330].Count;
         for (int i = 1; i < subCount; i++)
-            CountJpegPreviews(file, Tiff.ParseIfd(file, Tiff.U32(v330, i * 4)), ref previews);
+            TestTiff.CountJpegPreviews(file, TestTiff.ParseIfd(file, TestTiff.U32(v330, i * 4)), ref previews);
         Assert.True(previews >= 2, $"expected ≥2 JPEG preview IFDs, found {previews}");
 
         // Pixel decode: one center tile through the LJ decoder → non-trivial statistics
-        int tw = Tiff.U16(raw.Tags[322].Value, 0), th = Tiff.U16(raw.Tags[323].Value, 0);
+        int tw = TestTiff.U16(raw.Tags[322].Value, 0), th = TestTiff.U16(raw.Tags[323].Value, 0);
         int tilesX = (16560 + tw - 1) / tw, tilesY = (11040 + th - 1) / th;
         int centerIndex = (tilesY / 2) * tilesX + tilesX / 2;
-        uint off = Tiff.U32(raw.Tags[324].Value, centerIndex * 4);
-        uint len = Tiff.U32(raw.Tags[325].Value, centerIndex * 4);
+        uint off = TestTiff.U32(raw.Tags[324].Value, centerIndex * 4);
+        uint len = TestTiff.U32(raw.Tags[325].Value, centerIndex * 4);
         var strip = new byte[len];
         Array.Copy(file, (long)off, strip, 0, len);
         var tile = new ushort[tw * th * 3];
@@ -329,15 +319,6 @@ public class E2eTests
         {
             Ev($"LibRaw 回读: 不支持 LinearRaw DNG（error={error}，后端原生产物同样被拒）");
         }
-    }
-
-    private static void CountJpegPreviews(byte[] file, Tiff.Ifd ifd, ref int count)
-    {
-        if (!ifd.Tags.TryGetValue(513, out var jif) || !ifd.Tags.TryGetValue(514, out var jlen))
-            return;
-        uint off = Tiff.U32(jif.Value, 0), len = Tiff.U32(jlen.Value, 0);
-        if (len < 4 || off + len > file.Length) return;
-        if (file[off] == 0xFF && file[off + 1] == 0xD8) count++;
     }
 
     // ---- Step 3b: stop mid-run kills the backend tree, keeps temp ----
@@ -523,49 +504,4 @@ public class E2eTests
         Ev($"success.log 待回填: {stdoutPath}");
     }
 
-    /// <summary>Minimal little-endian TIFF IFD walker (DngWriterTests/FinalizerTests parity).</summary>
-    private static class Tiff
-    {
-        internal sealed class Ifd
-        {
-            public Dictionary<ushort, (ushort Type, uint Count, byte[] Value)> Tags = new();
-        }
-
-        internal static ushort U16(byte[] b, int i) => (ushort)(b[i] | (b[i + 1] << 8));
-
-        internal static uint U32(byte[] b, int i) =>
-            (uint)(b[i] | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] << 24));
-
-        internal static uint Be32(byte[] b, int i) =>
-            (uint)((b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | (b[i + 3]));
-
-        internal static string Ascii(byte[] b) => Encoding.ASCII.GetString(b).TrimEnd('\0');
-
-        internal static Ifd ParseIfd(byte[] file, uint offset)
-        {
-            var ifd = new Ifd();
-            int count = U16(file, (int)offset);
-            for (int i = 0; i < count; i++)
-            {
-                long p = offset + 2 + i * 12L;
-                ushort tag = U16(file, (int)p);
-                ushort type = U16(file, (int)p + 2);
-                uint cnt = U32(file, (int)p + 4);
-                uint val = U32(file, (int)p + 8);
-                int typeSize = type switch
-                {
-                    1 or 2 or 6 or 7 => 1, 3 or 8 => 2, 4 or 9 or 11 or 13 => 4,
-                    5 or 10 or 12 => 8, _ => 1,
-                };
-                int size = typeSize * (int)cnt;
-                var data = new byte[Math.Max(size, 0)];
-                if (size <= 4)
-                    for (int j = 0; j < size; j++) data[j] = (byte)(val >> (8 * j));
-                else
-                    Array.Copy(file, val, data, 0, size);
-                ifd.Tags[tag] = (type, cnt, data);
-            }
-            return ifd;
-        }
-    }
 }

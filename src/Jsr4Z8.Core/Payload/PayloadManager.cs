@@ -23,8 +23,8 @@ namespace Jsr4Z8.Core.Payload;
 /// </summary>
 public sealed class PayloadManager
 {
-    public const string PayloadResourceName = "Jsr4Z8.Core.Payload.Embedded.payload.bin";
-    public const string ManifestResourceName = "Jsr4Z8.Core.Payload.Embedded.payload.manifest.json";
+    private const string PayloadResourceName = "Jsr4Z8.Core.Payload.Embedded.payload.bin";
+    private const string ManifestResourceName = "Jsr4Z8.Core.Payload.Embedded.payload.manifest.json";
     public const string IncompleteMarkerName = ".incomplete";
 
     /// <summary>Production backend root base: %LOCALAPPDATA%\JSR4Z8\backend.</summary>

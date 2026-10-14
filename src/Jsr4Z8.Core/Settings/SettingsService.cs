@@ -42,9 +42,6 @@ public sealed class SettingsService
         Load();
     }
 
-    /// <summary>The settings file path: baseDir\JSR4Z8\settings.json.</summary>
-    public string SettingsPath => _settingsPath;
-
     /// <summary>In-memory current settings — set by every Load/Save; the basis of the
     /// UI-side ISettingsProvider adapter.</summary>
     public AppSettings Current => _current;

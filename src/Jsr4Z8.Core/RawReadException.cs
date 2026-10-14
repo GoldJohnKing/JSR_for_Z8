@@ -7,11 +7,8 @@ namespace Jsr4Z8.Core;
 /// </summary>
 public sealed class RawReadException : Exception
 {
-    public int? ErrorCode { get; }
-
-    public RawReadException(string message, int? errorCode = null, Exception? inner = null)
+    public RawReadException(string message, Exception? inner = null)
         : base(message, inner)
     {
-        ErrorCode = errorCode;
     }
 }

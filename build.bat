@@ -20,11 +20,8 @@ REM   build\publish                  single-file publish staging
 REM   out\                           FINAL distributable
 REM Steps 0-3 are incremental: existing artifacts are skipped (delete to rebuild).
 REM Step 4 skips while BOTH payload.bin and payload.manifest.json exist
-REM (delete src\Jsr4Z8.Core\Payload\Embedded\payload.bin to force a re-pack).
-REM NOTE: while the packed pair sits in Payload\Embedded\ every Core build embeds
-REM ~493 MB (slow dev/test). Restore fast dev builds after a release run with:
-REM   del src\Jsr4Z8.Core\Payload\Embedded\payload.bin src\Jsr4Z8.Core\Payload\Embedded\payload.manifest.json
-REM (out\ is unaffected - the exe already carries the payload.)
+REM (delete src\Jsr4Z8.Core\Payload\Embedded\payload.bin to force a re-pack;
+REM see the footer NOTE about restoring fast dev builds afterwards).
 REM Prereq: VS 2022/2026 + .NET 8 SDK + git (submodules) + CMake
 REM Steps 0-3 ported from Save_Z8 build.bat; Steps 4-6 mirror its Step 4
 REM (single-file publish, native DLLs compressed inside the bundle).
@@ -147,6 +144,8 @@ if errorlevel 1 (echo ERROR: payload packing failed & exit /b 1)
 REM --- Step 5: single-file publish (Release, self-contained, payload embedded) ---
 cd /d %ROOT%
 echo [5/6] Publishing single-file exe (embeds + compresses ~493 MB payload, takes a few minutes)...
+REM Clear any inherited Platform env var (e.g. x64 from a VS developer prompt): MSBuild
+REM would otherwise treat it as a global platform and break the Any CPU publish below.
 set Platform=
 if exist "%PUB%" rmdir /s /q "%PUB%"
 dotnet publish src\Jsr4Z8.UI\Jsr4Z8.UI.csproj -c Release -r win-x64 --self-contained true ^
