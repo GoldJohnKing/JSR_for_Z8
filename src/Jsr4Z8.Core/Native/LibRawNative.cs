@@ -50,6 +50,13 @@ public static class LibRawNative
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     private static extern float lr_get_iso(IntPtr handle);
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int lr_get_bits_per_sample(IntPtr handle);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int lr_get_compression(IntPtr handle);
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int lr_get_nef_compression(IntPtr handle);
 
     /// <summary>Native LibRaw version string (e.g. "0.21.3-Release"), reported by the
     /// --selftest release QA path and the E2E evidence log.</summary>
@@ -87,6 +94,20 @@ public static class LibRawNative
     /// <summary>White level (LibRaw imgdata.color.maximum).</summary>
     public static int GetWhiteLevel(IntPtr handle)
         => lr_get_white_level(handle);
+
+    /// <summary>TIFF BitsPerSample of the raw strip (14 for Z8 NEF; 12 in high-speed readout).</summary>
+    public static int GetBitsPerSample(IntPtr handle)
+        => lr_get_bits_per_sample(handle);
+
+    /// <summary>TIFF Compression code of the raw strip (34713 = Nikon lossless NEF; other codes = HE/HE*/uncompressed variants).</summary>
+    public static int GetCompression(IntPtr handle)
+        => lr_get_compression(handle);
+
+    /// <summary>Nikon MakerNote NEFCompression: 3 = lossless compressed, 13 = High
+    /// Efficiency, 14 = High Efficiency*. HE/HE* carry the SAME TIFF Compression code
+    /// (34713) as lossless — this field is the only reliable discriminator.</summary>
+    public static int GetNefCompression(IntPtr handle)
+        => lr_get_nef_compression(handle);
 
     /// <summary>2×2 CFA filter codes in row-major order (0,1,3,2 = RGGB).</summary>
     public static byte[] GetCfaPattern(IntPtr handle)

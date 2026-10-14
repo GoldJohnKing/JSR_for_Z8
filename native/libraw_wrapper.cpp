@@ -194,6 +194,30 @@ EXPORT float lr_get_iso(void* handle) {
     return lr->imgdata.other.iso_speed;
 }
 
+// TIFF-level raw IFD facts (identify-time), used by the 5-dimension capture
+// consistency contract: tiff_bps = BitsPerSample, tiff_compress = the raw
+// strip's Compression tag (34713 = NEF family). NOTE: tiff_compress CANNOT
+// separate lossless NEF from HE/HE* — all Z8 NEFs carry 34713 there; the real
+// discriminator is the Nikon MakerNote NEFCompression field below.
+EXPORT int lr_get_bits_per_sample(void* handle) {
+    LibRaw *lr = ((lr_handle_t*)handle)->lr;
+    return (int)lr->get_internal_data_pointer()->unpacker_data.tiff_bps;
+}
+
+EXPORT int lr_get_compression(void* handle) {
+    LibRaw *lr = ((lr_handle_t*)handle)->lr;
+    return (int)lr->get_internal_data_pointer()->unpacker_data.tiff_compress;
+}
+
+// Nikon MakerNote NEFCompression (tag 0x0051/0x0093, parsed by identify):
+// 3 = lossless compressed (the profile the preset dark table measured on),
+// 13 = High Efficiency, 14 = High Efficiency* — the ONLY reliable way to
+// tell HE from lossless, both of which share TIFF Compression 34713.
+EXPORT int lr_get_nef_compression(void* handle) {
+    LibRaw *lr = ((lr_handle_t*)handle)->lr;
+    return (int)lr->imgdata.makernotes.nikon.NEFCompression;
+}
+
 EXPORT void lr_close(void* handle) {
     if (!handle) return;
     lr_handle_t *h = (lr_handle_t*)handle;

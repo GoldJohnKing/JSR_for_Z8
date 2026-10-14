@@ -24,7 +24,7 @@ public static class RawMetadataReader
 
         string make, model;
         double iso;
-        int width, height, blackLevel, whiteLevel;
+        int width, height, blackLevel, whiteLevel, bitsPerSample, compression, nefCompression;
         double[] camMul;
         byte[] cfaPattern;
         try
@@ -36,6 +36,9 @@ public static class RawMetadataReader
             height = LibRawNative.GetHeight(handle);
             blackLevel = LibRawNative.GetBlackLevel(handle);
             whiteLevel = LibRawNative.GetWhiteLevel(handle);
+            bitsPerSample = LibRawNative.GetBitsPerSample(handle);
+            compression = LibRawNative.GetCompression(handle);
+            nefCompression = LibRawNative.GetNefCompression(handle);
             camMul = Array.ConvertAll(LibRawNative.GetCamMul(handle), v => (double)v);
             cfaPattern = LibRawNative.GetCfaPattern(handle);
 
@@ -65,6 +68,9 @@ public static class RawMetadataReader
             Iso = iso,
             BlackLevel = blackLevel,
             WhiteLevel = whiteLevel,
+            BitsPerSample = bitsPerSample,
+            Compression = compression,
+            NefCompression = nefCompression,
             Width = width,
             Height = height,
             CamMul = camMul,

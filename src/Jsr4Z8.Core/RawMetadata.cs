@@ -22,6 +22,20 @@ public sealed record RawMetadata
     /// <summary>White level (LibRaw imgdata.color.maximum).</summary>
     public required int WhiteLevel { get; init; }
 
+    /// <summary>TIFF BitsPerSample of the raw strip (LibRaw tiff_bps): 14 standard,
+    /// 12 in high-speed readout modes.</summary>
+    public required int BitsPerSample { get; init; }
+
+    /// <summary>TIFF Compression code of the raw strip (LibRaw tiff_compress).
+    /// NOTE: every Z8 NEF — lossless AND HE/HE* — carries 34713 here; see
+    /// <see cref="NefCompression"/> for the real discriminator.</summary>
+    public required int Compression { get; init; }
+
+    /// <summary>Nikon MakerNote NEFCompression: 3 = lossless, 13 = HE, 14 = HE*.
+    /// HE/HE* share the TIFF Compression code with lossless (34713) — this is the
+    /// only reliable discriminator (gates the preset dark table).</summary>
+    public required int NefCompression { get; init; }
+
     /// <summary>Padded raw sensor width (LibRaw raw_width, e.g. 8280 for Z 8).</summary>
     public required int Width { get; init; }
 
