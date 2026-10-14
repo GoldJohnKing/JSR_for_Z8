@@ -76,4 +76,28 @@ public sealed record DngWriteOptions
     /// DefaultScale(1,1)/CropOrigin/CropSize pair; null = derive the crop from
     /// the largest embedded preview (Save_Z8 behavior).</summary>
     public (uint X, uint Y, uint W, uint H)? DefaultCrop { get; init; }
+
+    // ---- diagnostic seams (ACR bisection, post-release fix 4) ----
+    // These four toggles exist so the bisection harness (tools/finalize-variant)
+    // can emit cumulative strip-down variants of the product file
+    // (V0 minimal → full) and isolate which Save_Z8-lineage wrapper feature,
+    // if any, breaks ACR. Defaults true = product behavior unchanged; product
+    // callers never set them.
+
+    /// <summary>false = emit no DefaultScale/DefaultCropOrigin/DefaultCropSize
+    /// and no ActiveArea (readers then treat the full stored image as both the
+    /// active area and the default crop).</summary>
+    public bool IncludeGeometryTags { get; init; } = true;
+
+    /// <summary>false = emit no OpcodeList2/OpcodeList3 (lens vignette/warp
+    /// opcodes from the NEF's NEFInfo).</summary>
+    public bool IncludeOpcodes { get; init; } = true;
+
+    /// <summary>false = emit no preview SubIFDs (the IFD0 thumbnail stays).</summary>
+    public bool IncludePreviews { get; init; } = true;
+
+    /// <summary>false = emit no EXIF/GPS IFDs, no XMP/Software/Artist copy, no
+    /// forced Software attribution and no BaselineExposure/Noise/Sharpness —
+    /// the whole NEF-migration metadata block.</summary>
+    public bool IncludeExifGps { get; init; } = true;
 }

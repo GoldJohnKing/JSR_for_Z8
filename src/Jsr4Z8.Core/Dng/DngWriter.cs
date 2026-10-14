@@ -326,36 +326,39 @@ public class DngWriter
         // opcodes normalize radius over the active area, so this must match ADC's
         // convention (full 8280x5520) or the correction strength shifts. Task 9
         // overrides this with the ×2-scaled sensor active area (options.ActiveArea).
-        if (options.ActiveArea is { Length: 4 } aa)
-            RawLongs(TagActiveArea, aa);
-        else
-            RawLongs(TagActiveArea, new[] { 0u, 0u, (uint)height, (uint)width });
-
-        // DefaultCrop: ADC pairs the full ActiveArea with DefaultScale/Crop tags so the
-        // displayed image matches the NEF's framing (Z8: origin 12,8, size 8256x5504).
-        // Derived from the largest embedded preview (= camera's active crop), origin
-        // centered and CFA-phase-even. Task 9 overrides the pair explicitly
         // (options.DefaultCrop) for the backend's ×2 geometry.
-        if (options.DefaultCrop is { } crop)
+        //
+        // Diagnostic seam (post-release fix 4): IncludeGeometryTags=false emits none
+        // of the geometry quartet — ActiveArea/DefaultScale/CropOrigin/CropSize all
+        // absent (readers then default to the full stored image).
+        if (options.IncludeGeometryTags)
         {
-            RawRationals(TagDefaultScale, new[] { (1, 1), (1, 1) });
-            RawRationals(TagDefaultCropOrigin, new[] { ((int)crop.X, 1), ((int)crop.Y, 1) });
-            RawRationals(TagDefaultCropSize, new[] { ((int)crop.W, 1), ((int)crop.H, 1) });
-        }
-        else
-        {
-            var previews0 = originalMetadata?.Previews;
-            if (previews0 is { Count: > 0 })
+            if (options.ActiveArea is { Length: 4 } aa)
+                RawLongs(TagActiveArea, aa);
+            else
+                RawLongs(TagActiveArea, new[] { 0u, 0u, (uint)height, (uint)width });
+
+            if (options.DefaultCrop is { } crop)
             {
-                var active = previews0[^1];
-                if (active.Width <= width && active.Height <= height &&
-                    (active.Width < width || active.Height < height))
+                RawRationals(TagDefaultScale, new[] { (1, 1), (1, 1) });
+                RawRationals(TagDefaultCropOrigin, new[] { ((int)crop.X, 1), ((int)crop.Y, 1) });
+                RawRationals(TagDefaultCropSize, new[] { ((int)crop.W, 1), ((int)crop.H, 1) });
+            }
+            else
+            {
+                var previews0 = originalMetadata?.Previews;
+                if (previews0 is { Count: > 0 })
                 {
-                    uint ox = (uint)(((width - active.Width) / 2) & ~1);
-                    uint oy = (uint)(((height - active.Height) / 2) & ~1);
-                    RawRationals(TagDefaultScale, new[] { (1, 1), (1, 1) });
-                    RawRationals(TagDefaultCropOrigin, new[] { ((int)ox, 1), ((int)oy, 1) });
-                    RawRationals(TagDefaultCropSize, new[] { (active.Width, 1), (active.Height, 1) });
+                    var active = previews0[^1];
+                    if (active.Width <= width && active.Height <= height &&
+                        (active.Width < width || active.Height < height))
+                    {
+                        uint ox = (uint)(((width - active.Width) / 2) & ~1);
+                        uint oy = (uint)(((height - active.Height) / 2) & ~1);
+                        RawRationals(TagDefaultScale, new[] { (1, 1), (1, 1) });
+                        RawRationals(TagDefaultCropOrigin, new[] { ((int)ox, 1), ((int)oy, 1) });
+                        RawRationals(TagDefaultCropSize, new[] { ((int)active.Width, 1), ((int)active.Height, 1) });
+                    }
                 }
             }
         }
@@ -379,7 +382,11 @@ public class DngWriter
         }
 
         // ---- lens correction opcodes from Nikon NEFInfo (0xC7D5) ----
-        var correction = NikonLensCorrection.Decode(originalMetadata?.NefInfoData);
+        // Diagnostic seam (post-release fix 4): IncludeOpcodes=false skips both
+        // lists (and the NEFInfo decode entirely).
+        var correction = options.IncludeOpcodes
+            ? NikonLensCorrection.Decode(originalMetadata?.NefInfoData)
+            : null;
         if (correction?.Warp != null)
         {
             var opcodes = NikonLensCorrection.SerializeOpcodeList3(correction.Warp);
@@ -434,10 +441,13 @@ public class DngWriter
             foreach (var e in PreviewBlock(previews[0]).Entries)
                 ifd0.Entries.Add(e);
 
-            // SubIFDs: raw first (like ADC), then the remaining previews largest→smallest
+            // SubIFDs: raw first (like ADC), then the remaining previews largest→smallest.
+            // Diagnostic seam (post-release fix 4): IncludePreviews=false drops the
+            // preview SubIFDs but keeps this IFD0 thumbnail.
             subIfdTargets.Add(rawBlock);
-            for (int i = previews.Count - 1; i >= 1; i--)
-                subIfdTargets.Add(PreviewBlock(previews[i]));
+            if (options.IncludePreviews)
+                for (int i = previews.Count - 1; i >= 1; i--)
+                    subIfdTargets.Add(PreviewBlock(previews[i]));
         }
         else
         {
@@ -488,10 +498,15 @@ public class DngWriter
             Count = (uint)cmValues.Length, Blob = cm });
         AddShort(TagCalibrationIlluminant1, (ushort)CalibrationIlluminant1Value);
 
-        // Rendering parity with Adobe's Z8 defaults (measured from ADC 18.6 output)
-        AddRationals(TagBaselineExposure, TypeSRational, new[] { (20, 100) });     // +0.20 EV
-        AddRationals(TagBaselineNoise, TypeRational, new[] { (80, 100) });
-        AddRationals(TagBaselineSharpness, TypeRational, new[] { (100, 100) });
+        // Rendering parity with Adobe's Z8 defaults (measured from ADC 18.6 output).
+        // Diagnostic seam (post-release fix 4): Baseline* tags belong to the
+        // NEF-migration block and leave with IncludeExifGps=false.
+        if (options.IncludeExifGps)
+        {
+            AddRationals(TagBaselineExposure, TypeSRational, new[] { (20, 100) }); // +0.20 EV
+            AddRationals(TagBaselineNoise, TypeRational, new[] { (80, 100) });
+            AddRationals(TagBaselineSharpness, TypeRational, new[] { (100, 100) });
+        }
 
         // AsShotNeutral: per-shot camera white balance (inverse multipliers, like ADC).
         // options.AsShotNeutral (backend product value, Task 9) wins over cameraWb.
@@ -517,8 +532,10 @@ public class DngWriter
         }
 
         // ---- preserve original metadata (EXIF → Interop, GPS, safe IFD0 tags) ----
+        // Diagnostic seam (post-release fix 4): the whole NEF-migration block is
+        // suppressible via IncludeExifGps=false.
         IfdBlock? exifBlock = null, gpsBlock = null;
-        if (originalMetadata != null && originalMetadata.AllIfds.Count > 0)
+        if (options.IncludeExifGps && originalMetadata != null && originalMetadata.AllIfds.Count > 0)
         {
             var srcIfd0 = originalMetadata.AllIfds[0];
 
@@ -542,7 +559,9 @@ public class DngWriter
                 ifd0.Entries.Add(new Entry { Tag = TagGpsIFD, Type = TypeLong, Count = 1, SubBlock = gpsBlock });
         }
 
-        if (options.Software != null)
+        // Forced Software attribution is part of the suppressible block
+        // (V0 = no IFD0 attribution at all).
+        if (options.IncludeExifGps && options.Software != null)
             AddAscii(TagSoftware, options.Software);
 
         // SubIFDs pointer (raw + previews) — ADC topology

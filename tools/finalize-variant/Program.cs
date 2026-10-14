@@ -1,21 +1,30 @@
 // tools/finalize-variant — ACR-compatibility bisection harness (post-release
-// fix 3): runs the product finalizer (JsrDngFinalizer) on a real backend DNG
-// with a chosen raw storage layout and prints a structural summary of the
-// written file, so the two variants (S1 strips / S2 tiles) can be diffed and
-// ACR-tested. Not part of the solution/UI chain.
+// fix 3: raw-layout knob strips|tiles; fix 4: cumulative feature strip-down):
+// runs the product finalizer (JsrDngFinalizer) on a real backend DNG with a
+// chosen raw storage layout and feature-suppression level, then prints a
+// structural summary of the written file. Not part of the solution/UI chain.
 //
-// Usage: finalize-variant <backendDng> <referenceNef> <outDir> <strips|tiles>
+// Usage: finalize-variant <backendDng> <referenceNef> <outPath> [layout] [featureSet]
+//   layout      strips|tiles         (default tiles = product default)
+//   featureSet  V0|V1|V2|V3|full     (default full = product file)
+//     V0   raw + IFD0 thumbnail + DNG basics — all four seams suppressed
+//     V1   = V0 + geometry tags (ActiveArea + DefaultScale/CropOrigin/CropSize)
+//     V2   = V1 + lens opcodes (OpcodeList2/3)
+//     V3   = V2 + preview SubIFDs (IFD0 thumbnail is always present)
+//     full = V3 + EXIF/GPS/XMP/Software/Baseline migration block (= product)
 
 using System.Globalization;
 using Jsr4Z8.Core.Dng;
 
-if (args.Length != 4)
+if (args.Length is < 3 or > 5)
 {
-    Console.Error.WriteLine("usage: finalize-variant <backendDng> <referenceNef> <outDir> <strips|tiles>");
+    Console.Error.WriteLine(
+        "usage: finalize-variant <backendDng> <referenceNef> <outPath> [strips|tiles] [V0|V1|V2|V3|full]");
     return 2;
 }
 
-RawLayout? layout = args[3].ToLowerInvariant() switch
+string layoutArg = args.Length >= 4 ? args[3] : "tiles";
+RawLayout? layout = layoutArg.ToLowerInvariant() switch
 {
     "strips" => RawLayout.Strips,
     "tiles" => RawLayout.Tiles,
@@ -27,15 +36,46 @@ if (layout is null)
     return 2;
 }
 
-Console.WriteLine($"backend:  {args[0]}");
-Console.WriteLine($"ref NEF:  {args[1]}");
-Console.WriteLine($"layout:   {layout.Value}");
+string featureArg = args.Length >= 5 ? args[4] : "full";
+(bool Geom, bool Opcodes, bool Previews, bool ExifGps)? featureSet = featureArg.ToLowerInvariant() switch
+{
+    "v0" => (false, false, false, false),
+    "v1" => (true, false, false, false),
+    "v2" => (true, true, false, false),
+    "v3" => (true, true, true, false),
+    "full" => (true, true, true, true),
+    _ => null,
+};
+if (featureSet is null)
+{
+    Console.Error.WriteLine($"unknown featureSet '{args[4]}' (expected V0|V1|V2|V3|full)");
+    return 2;
+}
+var f = featureSet.Value;
 
-string output = JsrDngFinalizer.Finalize(args[0], args[1], args[2], layout: layout.Value);
-Console.WriteLine($"output:   {output}");
-Console.WriteLine($"size:     {new FileInfo(output).Length.ToString("N0", CultureInfo.InvariantCulture)} bytes");
+Console.WriteLine($"backend:    {args[0]}");
+Console.WriteLine($"ref NEF:    {args[1]}");
+Console.WriteLine($"layout:     {layout.Value}");
+Console.WriteLine($"features:   {featureArg.ToLowerInvariant()}  " +
+    $"geometry={f.Geom} opcodes={f.Opcodes} previews={f.Previews} exifGps={f.ExifGps}");
 
-Summarize(output);
+// Finalize names its output JSR_<基准帧名>.dng inside destDir; relocate it to
+// the caller's outPath (same directory ⇒ a local rename).
+string outPath = Path.GetFullPath(args[2]);
+string? destDir = Path.GetDirectoryName(outPath);
+if (string.IsNullOrEmpty(destDir)) destDir = ".";
+Directory.CreateDirectory(destDir);
+
+string produced = JsrDngFinalizer.Finalize(args[0], args[1], destDir, layout: layout.Value,
+    includeGeometryTags: f.Geom, includeOpcodes: f.Opcodes,
+    includePreviews: f.Previews, includeExifGps: f.ExifGps);
+if (!string.Equals(Path.GetFullPath(produced), outPath, StringComparison.OrdinalIgnoreCase))
+    File.Move(produced, outPath, overwrite: true);
+
+Console.WriteLine($"output:     {outPath}");
+Console.WriteLine($"size:       {new FileInfo(outPath).Length.ToString("N0", CultureInfo.InvariantCulture)} bytes");
+
+Summarize(outPath);
 return 0;
 
 /// <summary>Random-access TIFF walk of the raw SubIFD (IFD0 → SubIFDs[0]):
@@ -67,7 +107,7 @@ static void Summarize(string path)
     {
         if (e.Cnt == 1) return e.Val;
         long total = 0;
-        for (int i = 0; i < e.Cnt; i++) total += U32(e.Val);
+        for (int i = 0; i < e.Cnt; i++) total += U32(e.Val + (uint)(4 * i));
         return total;
     }
 

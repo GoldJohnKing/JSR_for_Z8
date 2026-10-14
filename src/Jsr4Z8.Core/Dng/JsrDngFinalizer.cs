@@ -30,9 +30,15 @@ public static class JsrDngFinalizer
     /// <paramref name="layout"/> selects the raw payload storage (default Tiles =
     /// the shipped product behavior; Strips = backend tifffile layout parity, the
     /// ACR-compatibility bisection knob).
+    /// The four <c>include*</c> toggles are diagnostic seams (ACR bisection,
+    /// post-release fix 4): they suppress groups of Save_Z8-lineage wrapper
+    /// features so the bisection harness can emit cumulative strip-down
+    /// variants (V0 minimal → full). Defaults true = product behavior unchanged.
     /// </summary>
     public static string Finalize(string backendDngPath, string referenceNefPath, string destDir,
-        Action<string>? log = null, RawLayout layout = RawLayout.Tiles)
+        Action<string>? log = null, RawLayout layout = RawLayout.Tiles,
+        bool includeGeometryTags = true, bool includeOpcodes = true,
+        bool includePreviews = true, bool includeExifGps = true)
     {
         var backend = BackendDngReader.Read(backendDngPath);
         if (backend.Photometric != 34892 || backend.Samples != 3)
@@ -70,6 +76,12 @@ public static class JsrDngFinalizer
             ActiveArea = activeArea,
             DefaultCrop = crop,
             Layout = layout,
+            // Diagnostic seams (post-release fix 4): pass-through of the
+            // bisection toggles; defaults true = the product file.
+            IncludeGeometryTags = includeGeometryTags,
+            IncludeOpcodes = includeOpcodes,
+            IncludePreviews = includePreviews,
+            IncludeExifGps = includeExifGps,
         };
 
         Directory.CreateDirectory(destDir);

@@ -51,6 +51,23 @@ public class FinalizerTests
         return (final, dir);
     });
 
+    /// <summary>ACR bisection V0 variant (post-release fix 4): all four
+    /// feature-suppression seams off — backend-like minimal output (raw +
+    /// thumbnail + DNG basics). Strip layout to mirror the harness's V0
+    /// artifact. One run per test session.</summary>
+    private static readonly Lazy<(string Final, string Dir)> FinalizedV0 = new(() =>
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "jsr4z8-finalizertests-v0");
+        try { Directory.Delete(dir, recursive: true); } catch { /* stale run */ }
+        Directory.CreateDirectory(dir);
+        string final = JsrDngFinalizer.Finalize(
+            FindFixture("roi_sample.dng"), SampleFiles.FindSample("DSC_7576.NEF"), dir,
+            layout: RawLayout.Strips,
+            includeGeometryTags: false, includeOpcodes: false,
+            includePreviews: false, includeExifGps: false);
+        return (final, dir);
+    });
+
     internal static string FindFixture(string name)
     {
         string? dir = AppContext.BaseDirectory;
@@ -280,6 +297,65 @@ public class FinalizerTests
                 Assert.Fail($"first pixel mismatch at {i}: backend {backend.Data[i]} vs strip-layout {finalPixels[i]}");
                 break;
             }
+    }
+
+    /// <summary>Post-release fix 4 — diagnostic seams: the four feature-suppression
+    /// toggles produce a backend-like minimal V0 (no geometry quartet, no opcodes,
+    /// no preview SubIFDs, no EXIF/GPS/XMP/Software/Baseline block) while the IFD0
+    /// thumbnail, the raw payload and the DNG basics stay; the default (full)
+    /// output is unchanged — the existing facts still hold on the same Lazy.</summary>
+    [Fact]
+    public void Finalize_V0_SuppressionSeams_DropWrapperFeatures_KeepThumbnailRawAndBasics()
+    {
+        var (v0, _) = FinalizedV0.Value;
+        byte[] file = File.ReadAllBytes(v0);
+        Assert.Equal(0x49, file[0]); Assert.Equal(0x49, file[1]);
+        Assert.Equal(42, Tiff.U16(file, 2));                    // file parses end-to-end
+
+        var ifd0 = Tiff.ParseIfd(file, Tiff.U32(file, 4));
+
+        // IFD0 stays the thumbnail (JPEG interchange pair intact)…
+        Assert.True(ifd0.Tags.ContainsKey(513), "IFD0 thumbnail must stay");
+        Assert.True(ifd0.Tags.ContainsKey(514), "IFD0 thumbnail length tag must stay");
+
+        // …but the SubIFDs list is raw-only: no preview IFDs.
+        Assert.Equal(1u, ifd0.Tags[330].Count);
+
+        // Whole NEF-migration block suppressed: no EXIF pointer (34665), no GPS
+        // (0x8825), no XMP (700), no Software (305)/Artist (315), no Baseline*.
+        foreach (ushort tag in new ushort[] { 34665, 0x8825, 700, 305, 315, 50730, 50731, 50732 })
+            Assert.False(ifd0.Tags.ContainsKey(tag), $"V0 IFD0 must not carry tag {tag}");
+
+        // DNG basics stay: identity + color/exposure calibration of the product.
+        Assert.Equal("Nikon Z 8", Tiff.Ascii(ifd0.Tags[272].Value));
+        Assert.True(ifd0.Tags.ContainsKey(50706), "DNGVersion must stay");
+        Assert.True(ifd0.Tags.ContainsKey(50708), "UniqueCameraModel must stay");
+        Assert.True(ifd0.Tags.ContainsKey(50721), "ColorMatrix1 must stay");
+        Assert.True(ifd0.Tags.ContainsKey(50728), "AsShotNeutral must stay");
+
+        var raw = Tiff.ParseIfd(file, Tiff.U32(ifd0.Tags[330].Value, 0));
+
+        // Geometry quartet + both opcode lists suppressed in the raw SubIFD.
+        foreach (ushort tag in new ushort[] { 50718, 50719, 50720, 50829, 51009, 51022 })
+            Assert.False(raw.Tags.ContainsKey(tag), $"V0 raw SubIFD must not carry tag {tag}");
+
+        // The payload itself is untouched: LinearRaw RGB, 16-bit, 12 strips of 128 rows.
+        Assert.Equal(34892, Tiff.U16(raw.Tags[262].Value, 0));
+        Assert.Equal(3, Tiff.U16(raw.Tags[277].Value, 0));
+        Assert.Equal(12u, raw.Tags[273].Count);
+        Assert.Equal(128u, Tiff.U32(raw.Tags[278].Value, 0));
+
+        // Full output (default seams = product file) still carries everything
+        // — same Lazy the pre-existing facts assert against.
+        var (full, _) = Finalized.Value;
+        byte[] fullFile = File.ReadAllBytes(full);
+        var fullIfd0 = Tiff.ParseIfd(fullFile, Tiff.U32(fullFile, 4));
+        var fullRaw = Tiff.ParseIfd(fullFile, Tiff.U32(fullIfd0.Tags[330].Value, 0));
+        Assert.True(fullIfd0.Tags.ContainsKey(34665), "full: EXIF pointer");
+        Assert.True(fullIfd0.Tags.ContainsKey(700), "full: XMP");
+        Assert.True(fullIfd0.Tags[330].Count >= 3, "full: raw + preview SubIFDs");
+        Assert.True(fullRaw.Tags.ContainsKey(50829), "full: ActiveArea");
+        Assert.True(fullRaw.Tags.ContainsKey(51009), "full: OpcodeList2");
     }
 
     [Fact]
