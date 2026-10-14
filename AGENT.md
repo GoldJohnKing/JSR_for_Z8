@@ -15,7 +15,7 @@
 
 | 动作 | 命令（Windows host） |
 |---|---|
-| 全量测试 | `dotnet test --nologo`（当前 **141/141**） |
+| 全量测试 | `dotnet test --nologo`（当前 **221/221**，含规范不变量/外来流真值/模糊/金丝雀等经验驱动套件） |
 | 一键发布 | `build.bat` → `out\Jsr4Z8_v<版本>.exe`（~537MB 单文件；载荷已打包时跳过打包段；改了 reference/ 后删 `src/Jsr4Z8.Core/Payload/Embedded/payload.*` 强制重打包） |
 | 无头自检 | `out\Jsr4Z8_v*.exe --selftest [file.nef]`（释放/校验载荷+LibRaw 冒烟） |
 | E2E（真 GPU，~6min/全幅） | cmd 脚本内 `set JSR4Z8_E2E=1` + `dotnet test --filter FullyQualifiedName~E2eTests.<名>`；门控见 `tests/Jsr4Z8.Tests/E2eTests.cs` |
