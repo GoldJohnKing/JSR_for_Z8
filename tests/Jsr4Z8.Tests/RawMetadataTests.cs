@@ -13,13 +13,84 @@ namespace Jsr4Z8.Tests;
 public class RawMetadataTests
 {
     [Fact]
+    public void Read_HiIsoDarkFrame_LibRawExpandsExif65535To102400()
+    {
+        // The preset dark table keys the Hi step as 102400; this locks the reader
+        // side of that contract (EXIF writes 65535, LibRaw reports the expansion).
+        RawMetadata m = RawMetadataReader.Read(FindSample(Path.Combine("dark_frames", "FX", "Lossless", "DSC_7642.NEF")));
+
+        Assert.Equal(102400d, m.Iso);
+        Assert.Equal(14, m.BitsPerSample);      // TIFF BitsPerSample of the raw strip
+        Assert.Equal(34713, m.Compression);     // TIFF Compression: the NEF family code
+        Assert.Equal(3, m.NefCompression);      // MakerNote NEFCompression: lossless
+        Assert.Equal(16383, m.WhiteLevel); // 14-bit full-frame readout, like every preset row
+    }
+
+    [Fact]
+    public void Read_HeDarkFrame_TiffCompressionCannotDiscriminate()
+    {
+        // The HE trap (found 2026-10-14): HE NEFs carry the SAME TIFF Compression
+        // (34713) and BitsPerSample (14) as lossless — only the MakerNote
+        // NEFCompression field (13 = HE, 14 = HE*) tells them apart. This locks
+        // the reader side of the discriminator the preset dark gate relies on.
+        RawMetadata m = RawMetadataReader.Read(FindSample(Path.Combine("dark_frames", "FX", "HE", "DSC_7662.NEF")));
+
+        Assert.Equal(64d, m.Iso);
+        Assert.Equal(14, m.BitsPerSample);
+        Assert.Equal(34713, m.Compression);     // identical to lossless — the trap
+        Assert.Equal(13, m.NefCompression);     // High Efficiency
+        Assert.Equal(1008, m.BlackLevel);
+        Assert.Equal(16383, m.WhiteLevel);
+        Assert.Equal(8280, m.Width);
+        Assert.Equal(5520, m.Height);
+    }
+
+    [Fact]
+    public void Read_HeStarDarkFrame_NefCompression14_SameTiffCode()
+    {
+        // HE* completes the compression trio: same TIFF Compression (34713) and
+        // 14-bit full-frame shape as lossless and HE — NEFCompression (14) is the
+        // only discriminator, exactly like the HE case.
+        RawMetadata m = RawMetadataReader.Read(FindSample(Path.Combine("dark_frames", "FX", "HE Star", "DSC_7696.NEF")));
+
+        Assert.Equal(64d, m.Iso);
+        Assert.Equal(14, m.BitsPerSample);
+        Assert.Equal(34713, m.Compression);
+        Assert.Equal(14, m.NefCompression);     // High Efficiency*
+        Assert.Equal(1008, m.BlackLevel);
+        Assert.Equal(16383, m.WhiteLevel);
+        Assert.Equal(8280, m.Width);
+        Assert.Equal(5520, m.Height);
+    }
+
+    [Fact]
+    public void Read_DxLosslessDarkFrame_5408x3608()
+    {
+        // DX crop (2026-10-14 samples): LibRaw padded dims 5408×3608 — the real
+        // DX window the preset table keys on (lossless NEFCompression 3 like FX).
+        RawMetadata m = RawMetadataReader.Read(FindSample(Path.Combine("dark_frames", "DX", "Lossless", "DSC_7733.NEF")));
+
+        Assert.Equal(64d, m.Iso);
+        Assert.Equal(14, m.BitsPerSample);
+        Assert.Equal(34713, m.Compression);
+        Assert.Equal(3, m.NefCompression);
+        Assert.Equal(1008, m.BlackLevel);
+        Assert.Equal(16383, m.WhiteLevel);
+        Assert.Equal(5408, m.Width);
+        Assert.Equal(3608, m.Height);
+    }
+
+    [Fact]
     public void Read_SampleNef()
     {
-        RawMetadata m = RawMetadataReader.Read(FindSample("DSC_7576.NEF"));
+        RawMetadata m = RawMetadataReader.Read(FindSample(Path.Combine("test_frames","FX","Lossless","DSC_7576.NEF")));
 
         Assert.Equal("NIKON CORPORATION", m.Make);
         Assert.Equal("NIKON Z 8", m.Model);
         Assert.Equal(3200d, m.Iso);
+        Assert.Equal(14, m.BitsPerSample);
+        Assert.Equal(34713, m.Compression);
+        Assert.Equal(3, m.NefCompression);
         Assert.Equal(1008, m.BlackLevel);
         Assert.Equal(16383, m.WhiteLevel);
         Assert.Equal(8280, m.Width);
@@ -44,7 +115,7 @@ public class RawMetadataTests
     [Fact]
     public void Extract_SampleNef_HasExifPreviewsNefInfo()
     {
-        NefAssets a = NefAssetExtractor.Extract(FindSample("DSC_7576.NEF"));
+        NefAssets a = NefAssetExtractor.Extract(FindSample(Path.Combine("test_frames","FX","Lossless","DSC_7576.NEF")));
 
         // EXIF source block covers IFD0 through the EXIF IFD, so it contains
         // the Make string data.
@@ -69,7 +140,7 @@ public class RawMetadataTests
     [Fact]
     public void Read_TruncatedNef_Throws()
     {
-        string src = FindSample("DSC_7576.NEF");
+        string src = FindSample(Path.Combine("test_frames","FX","Lossless","DSC_7576.NEF"));
         string dir = Path.Combine(Path.GetTempPath(), "jsr4z8-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
