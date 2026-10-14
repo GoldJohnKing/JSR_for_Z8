@@ -35,7 +35,7 @@ public class FinalizerTests
         try { Directory.Delete(dir, recursive: true); } catch { /* stale run */ }
         Directory.CreateDirectory(dir);
         string final = JsrDngFinalizer.Finalize(
-            FindFixture("roi_sample.dng"), SampleFiles.FindSample("DSC_7576.NEF"), dir);
+            FindFixture("roi_sample.dng"), SampleFiles.FindSample(Path.Combine("test_frames","FX","Lossless","DSC_7576.NEF")), dir);
         return (final, dir);
     });
 
@@ -48,7 +48,7 @@ public class FinalizerTests
         try { Directory.Delete(dir, recursive: true); } catch { /* stale run */ }
         Directory.CreateDirectory(dir);
         string final = JsrDngFinalizer.Finalize(
-            FindFixture("roi_sample.dng"), SampleFiles.FindSample("DSC_7576.NEF"), dir,
+            FindFixture("roi_sample.dng"), SampleFiles.FindSample(Path.Combine("test_frames","FX","Lossless","DSC_7576.NEF")), dir,
             layout: RawLayout.Strips);
         return (final, dir);
     });
@@ -64,7 +64,7 @@ public class FinalizerTests
         try { Directory.Delete(dir, recursive: true); } catch { /* stale run */ }
         Directory.CreateDirectory(dir);
         string final = JsrDngFinalizer.Finalize(
-            FindFixture("roi_sample.dng"), SampleFiles.FindSample("DSC_7576.NEF"), dir,
+            FindFixture("roi_sample.dng"), SampleFiles.FindSample(Path.Combine("test_frames","FX","Lossless","DSC_7576.NEF")), dir,
             layout: RawLayout.Strips,
             includeGeometryTags: false, includeOpcodes: false,
             includePreviews: false, includeExifGps: false);
@@ -80,7 +80,7 @@ public class FinalizerTests
         try { Directory.Delete(dir, recursive: true); } catch { /* stale run */ }
         Directory.CreateDirectory(dir);
         string final = JsrDngFinalizer.Finalize(
-            FindFixture("roi_sample.dng"), SampleFiles.FindSample("DSC_7576.NEF"), dir,
+            FindFixture("roi_sample.dng"), SampleFiles.FindSample(Path.Combine("test_frames","FX","Lossless","DSC_7576.NEF")), dir,
             layout: RawLayout.Strips, passthroughRawStreams: true);
         return (final, dir);
     });
@@ -90,7 +90,7 @@ public class FinalizerTests
     /// metadata + preview inventory only, no pixel decode.</summary>
     private static readonly Lazy<(RawMetadata Meta, NefAssets Assets)> Reference = new(() =>
     {
-        string nef = SampleFiles.FindSample("DSC_7576.NEF");
+        string nef = SampleFiles.FindSample(Path.Combine("test_frames","FX","Lossless","DSC_7576.NEF"));
         return (RawMetadataReader.Read(nef), NefAssetExtractor.Extract(nef));
     });
 

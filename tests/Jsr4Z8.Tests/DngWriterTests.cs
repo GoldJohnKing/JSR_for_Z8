@@ -23,7 +23,7 @@ public class DngWriterTests
         try { Directory.Delete(dir, recursive: true); } catch { /* stale run */ }
         Directory.CreateDirectory(dir);
         string dng = Path.Combine(dir, "DSC_7576.dng");
-        var result = NefToDngConverter.Convert(SampleFiles.FindSample("DSC_7576.NEF"), dng);
+        var result = NefToDngConverter.Convert(SampleFiles.FindSample(Path.Combine("test_frames","FX","Lossless","DSC_7576.NEF")), dng);
         return (dng, result);
     });
 
@@ -191,7 +191,7 @@ public class DngWriterTests
         // through LibRaw must return the exact samples LibRaw decodes from the NEF
         // (compressed DNG keeps the native 14-bit domain — no scaling anywhere).
         var (product, pw, ph, _, _, _, _) = LibRawNative.Decode(dng);
-        var (source, sw, sh, _, _, _, _) = LibRawNative.Decode(SampleFiles.FindSample("DSC_7576.NEF"));
+        var (source, sw, sh, _, _, _, _) = LibRawNative.Decode(SampleFiles.FindSample(Path.Combine("test_frames","FX","Lossless","DSC_7576.NEF")));
         Assert.Equal(sw, pw);
         Assert.Equal(sh, ph);
         Assert.Equal(source.Length, product.Length);

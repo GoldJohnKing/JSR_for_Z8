@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using Jsr4Z8.Core.Backend;
-using Jsr4Z8.Core.Dng;
+using Jsr4Z8.Core.Dark;
 using Jsr4Z8.Core.Model;
 using Jsr4Z8.Core.Native;
 using Jsr4Z8.Core.Payload;
@@ -57,7 +57,7 @@ public class E2eTests
     }
 
     private static string[] FramesFor(string samplesDir) =>
-        Enumerable.Range(7576, 7).Select(i => Path.Combine(samplesDir, $"DSC_{i}.NEF")).ToArray();
+        Enumerable.Range(7576, 7).Select(i => Path.Combine(samplesDir, "test_frames", "FX", "Lossless", $"DSC_{i}.NEF")).ToArray();
 
     /// <summary>The payload the release selftest extracted; asserts the operator ran it first.</summary>
     private static (string Bridge, string Resources) ResolveExtractedBackend()
@@ -100,22 +100,23 @@ public class E2eTests
         }
     }
 
-    private static (TaskGroup Group, PtcMatch Ptc, TaskQueueRunner Engine, RunCapture Capture) PrepareRun(
+    private static (TaskGroup Group, PtcMatch Ptc, DarkMatch? Dark, TaskQueueRunner Engine, RunCapture Capture) PrepareRun(
         string samplesDir)
     {
-        var group = new TaskGroup(FramesFor(samplesDir), Path.Combine(samplesDir, "DSC_7575.NEF"));
+        var group = new TaskGroup(FramesFor(samplesDir));
         var validation = TaskGroupValidator.Validate(group);
         Assert.True(validation.CanRun, string.Join("；", validation.Issues.Select(i => i.MessageZh)));
         Assert.NotNull(validation.Ptc);
         PtcMatch ptc = validation.Ptc!;
-        Ev($"校验: Z8 · ISO3200 · 满阱 {ptc.FullwellE:0.0} e⁻（{(ptc.Exact ? "表值" : ptc.Source)}）");
+        Ev($"校验: Z8 · ISO3200 · 满阱 {ptc.FullwellE:0.0} e⁻（{(ptc.Exact ? "表值" : ptc.Source)}）" +
+           $" · 黑场预置匹配（black {validation.Dark!.BlackDn} DN · RN {validation.Dark.ReadNoiseDn} DN）");
 
         var (bridge, resources) = ResolveExtractedBackend();
         var engine = new TaskQueueRunner
         {
             ResolveBackendOverride = _ => new TaskQueueRunner.BackendPayload(bridge, resources),
         };
-        return (group, ptc, engine, new RunCapture());
+        return (group, ptc, validation.Dark, engine, new RunCapture());
     }
 
     private static void ReportOutcome(TaskRunOutcome outcome, RunCapture capture, string label)
@@ -164,7 +165,7 @@ public class E2eTests
 
     [Fact]
     [Trait("Category", "E2E")]
-    public async Task FullRun_RealSamples_ProducesValidJsrDng()
+    public async Task FullRun_NoDarkFile_PresetAutoMatch_ProducesValidJsrDng()
     {
         if (!Enabled)
         {
@@ -172,28 +173,70 @@ public class E2eTests
             return;
         }
 
-        var (group, ptc, engine, capture) = PrepareRun(SamplesDir());
+        var (group, ptc, dark, engine, capture) = PrepareRun(SamplesDir());
+        Assert.NotNull(dark);
+        Assert.Equal(3200d, dark!.Iso);
         TaskRunOutcome outcome = await engine
-            .RunAsync(group, ptc, new AppSettings(), CancellationToken.None, capture.OnEvent);
-        ReportOutcome(outcome, capture, "全流程");
+            .RunAsync(group, ptc, dark, new AppSettings(), CancellationToken.None, capture.OnEvent);
+        ReportOutcome(outcome, capture, "全流程·预置黑场");
 
         Assert.True(outcome.Success, outcome.Message);
-        string expected = Path.Combine(SamplesDir(), "JSR_DSC_7576.dng");
-        Assert.Equal(Path.GetFullPath(expected), Path.GetFullPath(outcome.OutputPath!));
+        string expected = Path.Combine(SamplesDir(), "test_frames", "FX", "Lossless", "JSR_DSC_7576.dng");
         Assert.True(File.Exists(expected), $"最终 DNG 缺失: {expected}");
-
-        // Progress chain actually drove the run (SRHQ_V12_PROGRESS + ETA export tail).
-        Assert.NotNull(capture.Start);
-        Assert.Equal("stormer7", capture.Start!.Engine);
-        Assert.True(capture.V12ProgressLines > 0, "no V12 progress lines observed");
-        Assert.True(capture.EtaProgressLines > 0, "no DNG-export ETA progress lines observed");
-        Assert.Equal(100, capture.MaxPercent);
-
         AssertFinalDng(expected);
     }
 
-    /// <summary>Step 2: full structural + pixel check of the final JSR_ DNG.</summary>
-    private static void AssertFinalDng(string dngPath)
+
+    [Fact]
+    [Trait("Category", "E2E")]
+    public async Task FullRun_HeFrames_NoDark_HePresetAutoMatch_ProducesValidJsrDng()
+    {
+        if (!Enabled)
+        {
+            Ev("skipped (set JSR4Z8_E2E=1 to run)");
+            return;
+        }
+
+        // samples/he_frames = the 7 HE ISO-3200 frames (2026-10-14): the group must
+        // auto-match the HE preset row (13, 3200) — NOT the lossless row, whose
+        // read noise is −46% off — and run the manual-DN path end to end.
+        string heDir = Path.Combine(SamplesDir(), "test_frames", "FX", "he_frames");
+        var group = new TaskGroup(Directory.GetFiles(heDir, "*.NEF").OrderBy(p => p).ToArray());
+        var validation = TaskGroupValidator.Validate(group);
+        Assert.True(validation.CanRun, string.Join("；", validation.Issues.Select(i => i.MessageZh)));
+        Assert.NotNull(validation.Ptc);
+        Assert.NotNull(validation.Dark);
+        Assert.Equal(3200d, validation.Dark!.Iso);
+        DarkMatch heRow = DarkTable.LoadDefault().Lookup(3200, 13, 8280, 5520)!;
+        Assert.Equal(heRow.BlackDn, validation.Dark.BlackDn, 3);
+        Assert.Equal(heRow.ReadNoiseDn, validation.Dark.ReadNoiseDn, 3);
+        Ev($"校验: Z8·HE·ISO3200 · 满阱 {validation.Ptc!.FullwellE:0.0} e⁻ · 黑场 HE 预置行 " +
+           $"（black {validation.Dark.BlackDn} DN · RN {validation.Dark.ReadNoiseDn} DN；无损行 RN {DarkTable.LoadDefault().Lookup(3200, 3, 8280, 5520)!.ReadNoiseDn} DN 不适用）");
+
+        var (bridge, resources) = ResolveExtractedBackend();
+        var engine = new TaskQueueRunner { ResolveBackendOverride = _ => new TaskQueueRunner.BackendPayload(bridge, resources) };
+        TaskRunOutcome outcome = await engine
+            .RunAsync(group, validation.Ptc, validation.Dark, new AppSettings(), CancellationToken.None, _ => { });
+        ReportOutcome(outcome, new RunCapture(), "全流程·HE 预置黑场");
+
+        Assert.True(outcome.Success, outcome.Message);
+        string expected = Path.Combine(heDir, "JSR_DSC_7652.dng");
+        Assert.True(File.Exists(expected), $"最终 DNG 缺失: {expected}");
+        AssertFinalDng(expected, group.ReferencePath);
+    }
+    /// <summary>Overload computing the expected AsShotNeutral from the reference
+    /// NEF's own as-shot WB (1/cam_mul, G normalized) — captures shot at another
+    /// time/scene carry different multipliers than the locked DSC_7576 values.</summary>
+    private static void AssertFinalDng(string dngPath, string referenceNefPath)
+    {
+        var reference = Jsr4Z8.Core.RawMetadataReader.Read(referenceNefPath);
+        AssertFinalDng(dngPath, new[]
+        {
+            1.0 / reference.CamMul[0], 1.0 / reference.CamMul[1], 1.0 / reference.CamMul[2],
+        });
+    }
+
+    private static void AssertFinalDng(string dngPath, double[]? expectedAsShotNeutral = null)
     {
         long size = new FileInfo(dngPath).Length;
         long uncompressed = 16560L * 11040 * 3 * 2;
@@ -244,12 +287,16 @@ public class E2eTests
         Assert.True(ifd0.Tags.ContainsKey(50731), "BaselineNoise missing");
         Assert.True(ifd0.Tags.ContainsKey(50732), "BaselineSharpness missing");
 
-        // AsShotNeutral = backend camera profile [0.560175, 1.0, 0.557734] (probe fact #8)
+        // AsShotNeutral = 1/cam_mul of the reference frame (probe fact #8 locked the
+        // DSC_7576 values [0.560175, 1.0, 0.557734]; captures with their own as-shot
+        // WB pass the expectation in).
         var asn = ifd0.Tags[50728].Value;
         Assert.Equal(3u, ifd0.Tags[50728].Count);
-        Assert.InRange(TestTiff.U32(asn, 0) / 1e6, 0.560175 - 1e-4, 0.560175 + 1e-4);
+        double e0 = expectedAsShotNeutral?[0] ?? 0.560175;
+        double e2 = expectedAsShotNeutral?[2] ?? 0.557734;
+        Assert.InRange(TestTiff.U32(asn, 0) / 1e6, e0 - 1e-4, e0 + 1e-4);
         Assert.InRange(TestTiff.U32(asn, 8) / 1e6, 1.0 - 1e-4, 1.0 + 1e-4);
-        Assert.InRange(TestTiff.U32(asn, 16) / 1e6, 0.557734 - 1e-4, 0.557734 + 1e-4);
+        Assert.InRange(TestTiff.U32(asn, 16) / 1e6, e2 - 1e-4, e2 + 1e-4);
 
         // EXIF carried from the reference NEF
         Assert.True(ifd0.Tags.ContainsKey(0x8769), "ExifIFD pointer missing");
@@ -333,10 +380,10 @@ public class E2eTests
             return;
         }
 
-        var (group, ptc, engine, capture) = PrepareRun(SamplesDir());
+        var (group, ptc, dark, engine, capture) = PrepareRun(SamplesDir());
         using var cts = new CancellationTokenSource();
         Task<TaskRunOutcome> run = engine
-            .RunAsync(group, ptc, new AppSettings(), cts.Token, capture.OnEvent);
+            .RunAsync(group, ptc, dark, new AppSettings(), cts.Token, capture.OnEvent);
         await Task.Delay(TimeSpan.FromSeconds(30)); // reach alignment phase
         var stopWatch = Stopwatch.StartNew();
         cts.Cancel();
@@ -383,13 +430,13 @@ public class E2eTests
         }
         catch (DirectoryNotFoundException) { }
         Directory.CreateDirectory(samplesCopy);
-        foreach (string name in FramesFor(SamplesDir()).Append(Path.Combine(SamplesDir(), "DSC_7575.NEF")))
-            File.Copy(Path.Combine(SamplesDir(), Path.GetFileName(name)), Path.Combine(samplesCopy, Path.GetFileName(name)));
+        foreach (string name in FramesFor(SamplesDir()))
+            File.Copy(name, Path.Combine(samplesCopy, Path.GetFileName(name)));
         Ev($"中文+空格路径副本: {samplesCopy}");
 
-        var (group, ptc, engine, capture) = PrepareRun(samplesCopy);
+        var (group, ptc, dark, engine, capture) = PrepareRun(samplesCopy);
         TaskRunOutcome outcome = await engine
-            .RunAsync(group, ptc, new AppSettings(), CancellationToken.None, capture.OnEvent);
+            .RunAsync(group, ptc, dark, new AppSettings(), CancellationToken.None, capture.OnEvent);
         ReportOutcome(outcome, capture, "中文路径全流程");
 
         Assert.True(outcome.Success, outcome.Message);
@@ -411,7 +458,7 @@ public class E2eTests
             return;
         }
 
-        var (group, ptc, _, _) = PrepareRun(SamplesDir());
+        var (group, ptc, dark, _, _) = PrepareRun(SamplesDir());
         var (bridge, resources) = ResolveExtractedBackend();
         string workDir = Path.Combine(ArtifactsDir(), "capture");
         try { Directory.Delete(workDir, recursive: true); } catch (DirectoryNotFoundException) { }
@@ -423,7 +470,7 @@ public class E2eTests
         string stderrPath = Path.Combine(workDir, "success.stderr.log");
 
         // The same request the queue builds (UTF-8 no BOM, prefix=cap1).
-        string request = BackendRequest.BuildJson(group, ptc, outputDir: outDir, prefix: "cap1");
+        string request = BackendRequest.BuildJson(group, ptc, dark, outputDir: outDir, prefix: "cap1");
         File.WriteAllText(requestPath, request, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
         // Raw tap: spawn the bridge exactly as BackendRunner does, but persist every

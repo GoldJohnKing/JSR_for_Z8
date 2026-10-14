@@ -22,7 +22,7 @@ public class UncompressedPathTests
     /// payload, ~91 MB written) — reuses the NEF decode the writer path uses.</summary>
     private static readonly Lazy<(string Dng, ushort[] Source)> UncompressedCfa = new(() =>
     {
-        string nef = SampleFiles.FindSample("DSC_7576.NEF");
+        string nef = SampleFiles.FindSample(Path.Combine("test_frames", "FX", "Lossless", "DSC_7576.NEF"));
         var (src, w, h, _, _, cfa, _) = LibRawNative.Decode(nef);
         var payload = new RawPayload
         {
