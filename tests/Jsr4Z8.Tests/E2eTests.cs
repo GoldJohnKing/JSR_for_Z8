@@ -207,11 +207,11 @@ public class E2eTests
         Assert.NotNull(validation.Ptc);
         Assert.NotNull(validation.Dark);
         Assert.Equal(3200d, validation.Dark!.Iso);
-        DarkMatch heRow = DarkTable.LoadDefault().Lookup(3200, 13, 8280, 5520)!;
+        DarkMatch heRow = DarkTable.LoadDefault().Lookup(3200, 13)!;
         Assert.Equal(heRow.BlackDn, validation.Dark.BlackDn, 3);
         Assert.Equal(heRow.ReadNoiseDn, validation.Dark.ReadNoiseDn, 3);
         Ev($"校验: Z8·HE·ISO3200 · 满阱 {validation.Ptc!.FullwellE:0.0} e⁻ · 黑场 HE 预置行 " +
-           $"（black {validation.Dark.BlackDn} DN · RN {validation.Dark.ReadNoiseDn} DN；无损行 RN {DarkTable.LoadDefault().Lookup(3200, 3, 8280, 5520)!.ReadNoiseDn} DN 不适用）");
+           $"（black {validation.Dark.BlackDn} DN · RN {validation.Dark.ReadNoiseDn} DN；无损行 RN {DarkTable.LoadDefault().Lookup(3200, 3)!.ReadNoiseDn} DN 不适用）");
 
         var (bridge, resources) = ResolveExtractedBackend();
         var engine = new TaskQueueRunner { ResolveBackendOverride = _ => new TaskQueueRunner.BackendPayload(bridge, resources) };

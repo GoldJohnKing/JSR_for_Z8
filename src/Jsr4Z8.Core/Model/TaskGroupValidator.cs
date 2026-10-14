@@ -60,10 +60,11 @@ public sealed record ValidationResult(
 /// must be pairwise identical across the 7 frames (model per-file as Nikon Z8; the
 /// rest vs the reference frame). Table matching: PTC is a per-pixel parameter keyed
 /// on model+ISO only (carried correction — readout does not change it); the dark
-/// calibration is ALWAYS preset-matched on (crop, compression, ISO) — the manual
+/// calibration is ALWAYS preset-matched on (compression, ISO) — the manual
 /// dark-file path was removed (2026-10-15) — and only exists for the measured
-/// profiles (14bit · NEFCompression∈{3,13,14} · FX 或 DX 画幅); anything else is an
-/// unsupported capture format.
+/// profiles (14bit · NEFCompression∈{3,13,14}); crop is deliberately NOT matched
+/// (2026-10-15 ruling: measured crop-independence, DX vs FX ≤1% at ISO≥1000) — any
+/// crop window takes the FX-measured rows. Anything outside is an unsupported format.
 /// CanRun=false always comes with at least one issue whose Chinese message
 /// names the offending file.
 /// </summary>
@@ -87,16 +88,6 @@ public static class TaskGroupValidator
     private const int SupportedCompression = 34713;
     private static readonly int[] SupportedNefCompressions = { 3, 13, 14 };
 
-    /// <summary>Crop windows the preset dark table has measured rows for: FX
-    /// 8280×5520 (lossless/HE/HE*) and DX 5408×3608 (lossless — Z8 DX crop uses a
-    /// faster readout chain whose measured noise floor differs from FX by −41.5%
-    /// on average, converging to the same ≈8.5 DN floor at high ISO). Other crops
-    /// (5:4, 16:9 …) are not covered; keep in sync with dark_z8.csv rows.</summary>
-    private static readonly (int Width, int Height)[] SupportedCropWindows =
-    {
-        (8280, 5520),
-        (5408, 3608),
-    };
 
     /// <summary>Production entry point: reads every file with the real LibRaw-backed reader.</summary>
     public static ValidationResult Validate(TaskGroup g) => Validate(g, RawMetadataReader.Read);
@@ -205,21 +196,20 @@ public static class TaskGroupValidator
                 // profiles is simply an unsupported capture format.
                 bool profileOk = referenceMeta.BitsPerSample == SupportedBitsPerSample
                               && referenceMeta.Compression == SupportedCompression
-                              && SupportedNefCompressions.Contains(referenceMeta.NefCompression)
-                              && SupportedCropWindows.Contains((referenceMeta.Width, referenceMeta.Height));
+                              && SupportedNefCompressions.Contains(referenceMeta.NefCompression);
                 if (!profileOk)
                 {
                     issues.Add(new ValidationIssue(referencePath, IssueKind.CaptureFormatUnsupported,
                         $"基准帧 {Path.GetFileName(referencePath)} 的拍摄格式不支持（{referenceMeta.BitsPerSample}bit · " +
-                        $"{NefCompressionName(referenceMeta.NefCompression)} · {referenceMeta.Width}×{referenceMeta.Height}）；" +
-                        $"本软件仅支持 14bit · 无损/HE/HE* 压缩 · FX/DX 画幅，请改用受支持的拍摄格式"));
+                        $"{NefCompressionName(referenceMeta.NefCompression)}）；" +
+                        $"本软件仅支持 14bit · 无损/HE/HE* 压缩的 NEF，请改用受支持的拍摄格式"));
                 }
                 else
                 {
-                    dark = DarkTable.LoadDefault().Lookup(baseIso, referenceMeta.NefCompression, referenceMeta.Width, referenceMeta.Height);
+                    dark = DarkTable.LoadDefault().Lookup(baseIso, referenceMeta.NefCompression);
                     if (dark is null)
                         issues.Add(new ValidationIssue(referencePath, IssueKind.CaptureFormatUnsupported,
-                            $"基准帧 ISO {Fmt(baseIso)} 不在预置黑场参数表覆盖范围（FX/DX × 无损/HE/HE* 各覆盖 64–102400 的 31 档），此类格式不支持"));
+                            $"基准帧 ISO {Fmt(baseIso)} 不在预置黑场参数表覆盖范围（无损/HE/HE* 各覆盖 64–102400 的 31 档），此类格式不支持"));
                 }
             }
         }

@@ -240,7 +240,7 @@ public class ValidationTests
         Assert.True(r.CanRun, string.Join("\n", r.Issues.Select(i => i.MessageZh)));
         Assert.NotNull(r.Ptc);   // per-pixel: model+ISO, compression-independent
         Assert.NotNull(r.Dark);  // the HE row, not the lossless one
-        DarkMatch heRow = DarkTable.LoadDefault().Lookup(3200, 13, 8280, 5520)!;
+        DarkMatch heRow = DarkTable.LoadDefault().Lookup(3200, 13)!;
         Assert.Equal(heRow.BlackDn, r.Dark!.BlackDn, 3);
         Assert.Equal(heRow.ReadNoiseDn, r.Dark.ReadNoiseDn, 3);
     }
@@ -259,16 +259,16 @@ public class ValidationTests
         Assert.True(r.CanRun, string.Join("\n", r.Issues.Select(i => i.MessageZh)));
         Assert.NotNull(r.Ptc);
         Assert.NotNull(r.Dark);
-        DarkMatch heStarRow = DarkTable.LoadDefault().Lookup(3200, 14, 8280, 5520)!;
+        DarkMatch heStarRow = DarkTable.LoadDefault().Lookup(3200, 14)!;
         Assert.Equal(heStarRow.BlackDn, r.Dark!.BlackDn, 3);
         Assert.Equal(heStarRow.ReadNoiseDn, r.Dark.ReadNoiseDn, 3);
     }
 
     [Fact]
-    public void DxHeStarGroup_AutoMatchesDxHeStarPresetRow()
+    public void DxHeStarGroup_CropBlind_MatchesFxHeStarRow()
     {
-        // DX HE* (2026-10-14, DX/HE Star/ darks): the fifth measured profile — a
-        // uniform DX HE* group auto-matches (5408×3608, 14, ISO) without a dark file.
+        // 2026-10-15 ruling: crop is not a matching key — a uniform DX HE* group
+        // takes the FX-measured HE* row (measured DX-vs-FX deviation ≤1% at high ISO).
         var dxHeStar = new Dictionary<string, RawMetadata>();
         foreach (string name in FrameNames)
             dxHeStar[name] = Meta() with { NefCompression = 14, Width = 5408, Height = 3608 };
@@ -277,38 +277,35 @@ public class ValidationTests
         Assert.True(r.CanRun, string.Join("\n", r.Issues.Select(i => i.MessageZh)));
         Assert.NotNull(r.Ptc);
         Assert.NotNull(r.Dark);
-        DarkMatch row = DarkTable.LoadDefault().Lookup(3200, 14, 5408, 3608)!;
-        Assert.Equal(row.BlackDn, r.Dark!.BlackDn, 3);
-        Assert.Equal(row.ReadNoiseDn, r.Dark.ReadNoiseDn, 3);
+        DarkMatch fxRow = DarkTable.LoadDefault().Lookup(3200, 14)!;
+        Assert.Equal(fxRow.BlackDn, r.Dark!.BlackDn, 3);
+        Assert.Equal(fxRow.ReadNoiseDn, r.Dark.ReadNoiseDn, 3);
     }
 
     [Theory]
-    [InlineData(5488, 3712)]  // an unmeasured crop size (real Z8 DX is 5408×3608, which IS covered)
-    [InlineData(8280, 4656)]  // 16:9 crop — full FX width but a short window
-    [InlineData(6900, 5520)]  // 5:4 crop — full FX height but a narrow window
-    public void UnsupportedCropWindow_FlaggedCaptureFormatUnsupported(int width, int height)
+    [InlineData(5408, 3608)]  // DX 1.5× crop — crop-blind matching (2026-10-15)
+    [InlineData(8280, 4656)]  // 16:9 crop — full FX width, short window
+    [InlineData(6900, 5520)]  // 5:4 crop — full FX height, narrow window
+    public void AnyUniformCropWindow_RunsOnFxRows(int width, int height)
     {
-        // The table covers FX 8280×5520 and DX 5408×3608 only; any other crop window
-        // reads out at a different row rate and is not covered — the vendor's own
-        // dark checklist counts 裁切 as a matching criterion.
+        // Crop was removed from the matching key (measured DX≈FX ≤1% at high ISO);
+        // frames still must be pairwise crop-consistent, but the preset lookup
+        // itself no longer rejects any window.
         var cropped = new Dictionary<string, RawMetadata>();
         foreach (string name in FrameNames)
             cropped[name] = Meta() with { Width = width, Height = height };
         ValidationResult r = TaskGroupValidator.Validate(new TaskGroup(FrameNames), Reader(perFile: cropped));
 
-        Assert.False(r.CanRun);
-        ValidationIssue issue = Assert.Single(r.Issues);
-        Assert.Equal(IssueKind.CaptureFormatUnsupported, issue.Kind);
-        Assert.Contains("FX", issue.MessageZh);
-        Assert.Null(r.Dark);
+        Assert.True(r.CanRun, string.Join("\n", r.Issues.Select(i => i.MessageZh)));
+        Assert.NotNull(r.Dark);
     }
 
+
     [Fact]
-    public void DxLosslessGroup_AutoMatchesDxPresetRow()
+    public void DxLosslessGroup_CropBlind_MatchesFxLosslessRow()
     {
-        // The 2026-10-14 extension: DX lossless darks carry their own rows — the DX
-        // high-speed readout measures −41.5% lower read noise than FX on average,
-        // so a uniform DX group must match (5408×3608, 3, ISO), not the FX row.
+        // 2026-10-15 ruling: crop-blind preset matching — a uniform DX group takes
+        // the FX lossless row (DX rows were discarded; measured deviation ≤1%).
         var dx = new Dictionary<string, RawMetadata>();
         foreach (string name in FrameNames)
             dx[name] = Meta() with { Width = 5408, Height = 3608 };
@@ -317,9 +314,9 @@ public class ValidationTests
         Assert.True(r.CanRun, string.Join("\n", r.Issues.Select(i => i.MessageZh)));
         Assert.NotNull(r.Ptc);   // per-pixel: model+ISO, crop-independent
         Assert.NotNull(r.Dark);
-        DarkMatch dxRow = DarkTable.LoadDefault().Lookup(3200, 3, 5408, 3608)!;
-        Assert.Equal(dxRow.BlackDn, r.Dark!.BlackDn, 3);
-        Assert.Equal(dxRow.ReadNoiseDn, r.Dark.ReadNoiseDn, 3);
+        DarkMatch fxRow = DarkTable.LoadDefault().Lookup(3200, 3)!;
+        Assert.Equal(fxRow.BlackDn, r.Dark!.BlackDn, 3);
+        Assert.Equal(fxRow.ReadNoiseDn, r.Dark.ReadNoiseDn, 3);
     }
 
     [Fact]

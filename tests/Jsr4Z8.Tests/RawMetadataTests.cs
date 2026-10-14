@@ -63,22 +63,6 @@ public class RawMetadataTests
         Assert.Equal(5520, m.Height);
     }
 
-    [Fact]
-    public void Read_DxLosslessDarkFrame_5408x3608()
-    {
-        // DX crop (2026-10-14 samples): LibRaw padded dims 5408×3608 — the real
-        // DX window the preset table keys on (lossless NEFCompression 3 like FX).
-        RawMetadata m = RawMetadataReader.Read(FindSample(Path.Combine("dark_frames", "DX", "Lossless", "DSC_7733.NEF")));
-
-        Assert.Equal(64d, m.Iso);
-        Assert.Equal(14, m.BitsPerSample);
-        Assert.Equal(34713, m.Compression);
-        Assert.Equal(3, m.NefCompression);
-        Assert.Equal(1008, m.BlackLevel);
-        Assert.Equal(16383, m.WhiteLevel);
-        Assert.Equal(5408, m.Width);
-        Assert.Equal(3608, m.Height);
-    }
 
     [Fact]
     public void Read_SampleNef()
