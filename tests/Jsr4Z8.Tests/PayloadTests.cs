@@ -135,6 +135,49 @@ public class PayloadTests : IClassFixture<TestTemp>
     }
 
     [Fact]
+    public void EnsureExtracted_RenameTransientlyLocked_RetriesThenSucceeds()
+    {
+        FakePayload payload = PackFake();
+        string baseRoot = TempDir();
+        var manager = NewManager(baseRoot, payload);
+        int attempts = 0;
+        manager.DirectoryMoveHook = (source, dest) =>
+        {
+            attempts++;
+            if (attempts == 1) // AV scanner / indexer briefly holds the freshly-written tmp dir
+                throw new IOException("The process cannot access the file because it is being used by another process.");
+            Directory.Move(source, dest);
+        };
+
+        string backend = manager.EnsureExtracted();
+
+        Assert.Equal(2, attempts); // one transient failure, the retry landed the rename
+        Assert.Equal(Path.Combine(baseRoot, payload.Manifest.Hash[..16]), backend);
+        Assert.False(Directory.Exists(Path.Combine(baseRoot, payload.Manifest.Hash[..16] + ".tmp-" + Environment.ProcessId)), "tmp dir renamed away");
+        foreach (PayloadManifestEntry entry in payload.Manifest.Files)
+            Assert.Equal(
+                File.ReadAllBytes(Path.Combine(payload.SrcDir, entry.Path)),
+                File.ReadAllBytes(Path.Combine(backend, entry.Path)));
+    }
+
+    [Fact]
+    public void EnsureExtracted_RenameLockedForGood_ThrowsAfterRetryBudget()
+    {
+        FakePayload payload = PackFake();
+        string baseRoot = TempDir();
+        var manager = NewManager(baseRoot, payload);
+        int attempts = 0;
+        manager.DirectoryMoveHook = (_, _) =>
+        {
+            attempts++;
+            throw new UnauthorizedAccessException("locked for good");
+        };
+
+        Assert.Throws<UnauthorizedAccessException>(() => manager.EnsureExtracted());
+        Assert.Equal(PayloadManager.FsLockRetryAttempts, attempts); // full budget spent before giving up
+    }
+
+    [Fact]
     public void EnsureExtracted_MissingFile_SelfHealsFully()
     {
         FakePayload payload = PackFake();

@@ -191,8 +191,15 @@ public class BackendRunnerTests : IClassFixture<TestTemp>
             Assert.Contains(events, e => e is Started { Json: { Pid: > 0 } });
             Assert.IsType<Finished>(events[^1]);
 
-            // Within ~1.5s of the run ending the orphan must be dead: its heartbeat stopped.
+            // Wait until the orphan has provably started before the death assertions:
+            // under load its first tick write can lag, so poll bounded (same pattern as
+            // Cancel_StubKill above) instead of a one-shot existence check.
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+            while (!File.Exists(tick) && DateTime.UtcNow < deadline)
+                await Task.Delay(100);
             Assert.True(File.Exists(tick), "orphan child never started");
+
+            // Within ~1.5s of the run ending the orphan must be dead: its heartbeat stopped.
             await Task.Delay(TimeSpan.FromSeconds(1.5));
             DateTime lastWrite = File.GetLastWriteTimeUtc(tick);
             TimeSpan age = DateTime.UtcNow - lastWrite;

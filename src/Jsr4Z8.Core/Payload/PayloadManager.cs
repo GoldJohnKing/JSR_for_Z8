@@ -15,7 +15,10 @@ namespace Jsr4Z8.Core.Payload;
 ///  - Extraction is atomic: files are written into a sibling "&lt;hash&gt;.tmp-&lt;pid&gt;"
 ///    directory behind a ".incomplete" marker, hash-verified as they are written
 ///    (streaming SHA-256 while decompressing), then the marker is removed and the
-///    directory is renamed to its final name. A crash can therefore never leave a
+///    directory is renamed to its final name. Renames and cleanup-directory deletes
+///    retry on transient IOException/UnauthorizedAccessException — on Windows, AV
+///    scanners and the search indexer briefly lock freshly-written directories.
+///    A crash can therefore never leave a
 ///    half-written target; crashed ".tmp-*" siblings are cleaned up on the next run.
 /// </summary>
 public sealed class PayloadManager
@@ -30,6 +33,14 @@ public sealed class PayloadManager
         "JSR4Z8", "backend");
 
     private const int HashDirLength = 16;
+
+    /// <summary>Attempts for rename/cleanup-delete before giving up: AV scanners and the
+    /// Windows search indexer briefly lock freshly-written directories, surfacing as a
+    /// transient <see cref="IOException"/> or <see cref="UnauthorizedAccessException"/>.</summary>
+    internal const int FsLockRetryAttempts = 5;
+
+    /// <summary>Backoff between rename/cleanup-delete attempts, in milliseconds.</summary>
+    internal const int FsLockRetryBackoffMs = 200;
 
     private readonly string _backendRoot;
     private readonly Func<Stream> _openPayload;
@@ -68,6 +79,13 @@ public sealed class PayloadManager
     /// </summary>
     internal int ManifestVerifyPasses { get; private set; }
 
+    /// <summary>
+    /// Test hook: replaces the tmp→final directory rename (production: <see cref="Directory.Move"/>)
+    /// so tests can inject transient lock failures and assert the retry path. Receives
+    /// (source, target) and must perform or fail the move itself.
+    /// </summary>
+    internal Action<string, string>? DirectoryMoveHook { get; set; }
+
     /// <summary>Returns the verified backend root directory, extracting or self-healing it as needed. progress reports 0..1 over raw bytes written during extraction.</summary>
     public string EnsureExtracted(IProgress<double>? progress = null)
     {
@@ -102,7 +120,7 @@ public sealed class PayloadManager
             DeleteDirectory(tmp);
         // A failed extraction leaves tmp behind (still marked .incomplete) for the next run to clean.
         Extract(tmp, manifest, progress);
-        Directory.Move(tmp, target);
+        RetryOnTransientFsLock(() => MoveDirectory(tmp, target));
 
         _verifiedDir = target;
         return target;
@@ -124,6 +142,36 @@ public sealed class PayloadManager
                 return false;
         }
         return true;
+    }
+
+    /// <summary>tmp→final rename through the <see cref="DirectoryMoveHook"/> test seam (production: <see cref="Directory.Move"/>).</summary>
+    private void MoveDirectory(string source, string dest)
+    {
+        if (DirectoryMoveHook is { } move)
+            move(source, dest);
+        else
+            Directory.Move(source, dest);
+    }
+
+    /// <summary>
+    /// Runs <paramref name="action"/> retrying transient filesystem locks: IOException /
+    /// UnauthorizedAccessException are retried up to <see cref="FsLockRetryAttempts"/>
+    /// attempts spaced <see cref="FsLockRetryBackoffMs"/> ms apart; the final failure rethrows.
+    /// </summary>
+    private static void RetryOnTransientFsLock(Action action)
+    {
+        for (int attempt = 1; ; attempt++)
+        {
+            try
+            {
+                action();
+                return;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException && attempt < FsLockRetryAttempts)
+            {
+                Thread.Sleep(FsLockRetryBackoffMs);
+            }
+        }
     }
 
     /// <summary>Extracts the whole payload into <paramref name="tmp"/>, verifying SHA-256 while writing. Throws on any mismatch (corrupt embedded payload).</summary>
@@ -190,18 +238,18 @@ public sealed class PayloadManager
         return dest;
     }
 
-    /// <summary>Recursive delete that survives read-only attributes (license files in resources/ may carry them).</summary>
+    /// <summary>Recursive delete that survives read-only attributes (license files in resources/ may carry them) and transient AV/indexer locks.</summary>
     private static void DeleteDirectory(string path)
     {
         try
         {
-            Directory.Delete(path, recursive: true);
+            RetryOnTransientFsLock(() => Directory.Delete(path, recursive: true));
         }
         catch (UnauthorizedAccessException)
         {
             foreach (string file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
                 File.SetAttributes(file, FileAttributes.Normal);
-            Directory.Delete(path, recursive: true);
+            RetryOnTransientFsLock(() => Directory.Delete(path, recursive: true));
         }
     }
 }
