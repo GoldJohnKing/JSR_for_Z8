@@ -17,7 +17,7 @@ namespace Jsr4Z8.Tests.Settings;
 /// current, set on Save). SettingsViewModelTests drive the dialog VM headless
 /// (docs/design/settings.html option B, VRAM row removed post-release): exclusive
 /// radio pairs, live 示例输出 for both output modes, the IFolderPicker browse seam,
-/// Save (persist + SettingsChanged, LastDarkPath preserved via load-modify-save) and
+/// Save (persist + SettingsChanged) and
 /// Cancel (discard). SuccessGlobTests pin the Task 13 carried fix: the success-path
 /// product glob skips *.partial segments. Windows-host tests.
 /// </summary>
@@ -60,7 +60,7 @@ public class SettingsServiceTests
             var svc = new SettingsService(dir);
             var saved = new AppSettings(
                 OutputMode.Custom, @"D:\Photos\JSR 输出",
-                TempMode.Custom, @"E:\自定义临时", @"C:\Dark\DSC_7575.NEF");
+                TempMode.Custom, @"E:\自定义临时");
             svc.Save(saved);
 
             Assert.Equal(saved, svc.Load());                        // same instance re-reads disk
@@ -78,14 +78,14 @@ public class SettingsServiceTests
         string dir = NewBaseDir();
         Directory.CreateDirectory(Path.GetDirectoryName(SettingsFile(dir))!);
         File.WriteAllText(SettingsFile(dir),
-            """{ "VramGb": 8, "OutputMode": "Custom", "CustomOutputDir": "D:\\Photos\\JSR 输出", "TempMode": "Custom", "CustomTempDir": "E:\\自定义临时", "LastDarkPath": "C:\\Dark\\DSC_7575.NEF" }""");
+            """{ "VramGb": 8, "OutputMode": "Custom", "CustomOutputDir": "D:\\Photos\\JSR 输出", "TempMode": "Custom", "CustomTempDir": "E:\\自定义临时" }""");
         try
         {
             AppSettings loaded = new SettingsService(dir).Load();
 
             var expected = new AppSettings(
                 OutputMode.Custom, @"D:\Photos\JSR 输出",
-                TempMode.Custom, @"E:\自定义临时", @"C:\Dark\DSC_7575.NEF");
+                TempMode.Custom, @"E:\自定义临时");
             Assert.Equal(expected, loaded);
         }
         finally { Cleanup(dir); }
@@ -232,10 +232,10 @@ public class SettingsViewModelTests
     }
 
     [Fact]
-    public void Save_PersistsAllDialogFields_RaisesSettingsChanged_PreservesLastDarkPath()
+    public void Save_PersistsAllDialogFields_RaisesSettingsChanged()
     {
         var (vm, svc, dir) = MakeVm(new AppSettings(
-            OutputMode.SameAsInput, null, TempMode.Default, null, @"C:\Dark\DSC_7575.NEF"));
+            OutputMode.SameAsInput, null, TempMode.Default, null));
         try
         {
             vm.OutputCustom = true;
@@ -253,7 +253,6 @@ public class SettingsViewModelTests
             Assert.Equal(@"D:\O", loaded.CustomOutputDir);
             Assert.Equal(TempMode.Custom, loaded.TempMode);
             Assert.Equal(@"E:\T", loaded.CustomTempDir);
-            Assert.Equal(@"C:\Dark\DSC_7575.NEF", loaded.LastDarkPath);  // load-modify-save: not clobbered
         }
         finally { Cleanup(dir); }
     }
@@ -279,34 +278,6 @@ public class SettingsViewModelTests
         finally { Cleanup(dir); }
     }
 
-    /// <summary>Task 14 dark-picker memory: SelectDark persists LastDarkPath via
-    /// load-modify-save (every other field untouched) and exposes the folder as the
-    /// next picker's start dir.</summary>
-    [Fact]
-    public void NewTask_SelectDark_PersistsLastDarkPath_WithoutClobbering()
-    {
-        string dir = Path.Combine(Path.GetTempPath(), "jsr4z8_snt_" + Guid.NewGuid().ToString("N"));
-        try
-        {
-            var svc = new SettingsService(dir);
-            svc.Save(new AppSettings(OutputMode.Custom, @"D:\O", TempMode.Custom, @"E:\T"));
-            var vm = new NewTaskViewModel(read: _ => throw new RawReadException("mock"), settings: svc);
-
-            vm.SelectDark(@"C:\Dark2\DSC_7000.NEF");
-
-            AppSettings loaded = svc.Load();
-            Assert.Equal(@"C:\Dark2\DSC_7000.NEF", loaded.LastDarkPath);
-            Assert.Equal(OutputMode.Custom, loaded.OutputMode);      // untouched
-            Assert.Equal(@"D:\O", loaded.CustomOutputDir);
-            Assert.Equal(TempMode.Custom, loaded.TempMode);
-            Assert.Equal(@"E:\T", loaded.CustomTempDir);
-            Assert.Equal(@"C:\Dark2", vm.LastDarkDir);              // next picker's start folder
-
-            // A fresh VM (next app session) sees the persisted dir too.
-            Assert.Equal(@"C:\Dark2", new NewTaskViewModel(settings: svc).LastDarkDir);
-        }
-        finally { Cleanup(dir); }
-    }
 }
 
 /// <summary>Task 13 carried fix (done in Task 14): the success-path product glob must

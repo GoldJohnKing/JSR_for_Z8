@@ -8,9 +8,9 @@ namespace Jsr4Z8.UI.Views;
 /// <summary>
 /// 新建任务组 dialog (docs/design/add-task-flow-v3.html). Per the headless-VM contract
 /// this code-behind only wires interaction onto <see cref="NewTaskViewModel"/>: drag-drop
-/// and click-to-pick for the frame chips, the OS file picker for the dark frame (start
-/// dir = the persisted LastDarkPath's folder — Task 14), and chip clicks. All rules —
-/// filtering, ordering, validation, gating — live in the VM.
+/// and click-to-pick for the frame chips, and chip clicks. All rules — filtering,
+/// ordering, validation, gating — live in the VM. (The dark-frame picker was removed
+/// 2026-10-15: dark calibration is always preset-matched.)
 /// </summary>
 public partial class NewTaskDialog : Window
 {
@@ -48,20 +48,7 @@ public partial class NewTaskDialog : Window
             _ = PickFramesAsync(vm);
     }
 
-    /// <summary>Click a chip → swap it with the current ★基准 (与现任互换).</summary>
-    private void OnChipPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (sender is Control { DataContext: FrameChipVm chip } && Vm is { } vm)
-            vm.SetReferenceCommand.Execute(chip);
-    }
-
-    /// <summary>Both dark rows: empty dashed button and the set row's 更换… open the picker.</summary>
-    private void OnDarkRowPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (Vm is { } vm)
-            _ = PickDarkAsync(vm);
-    }
-
+    /// <summary>The empty drop zone's file picker (“或点击选择”).</summary>
     private async Task PickFramesAsync(NewTaskViewModel vm)
     {
         IReadOnlyList<IStorageFile> files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -73,18 +60,11 @@ public partial class NewTaskDialog : Window
         vm.HandleFilesDropped(files.Select(f => f.TryGetLocalPath()).OfType<string>());
     }
 
-    private async Task PickDarkAsync(NewTaskViewModel vm)
+    /// <summary>Click a chip → swap it with the current ★基准 (与现任互换).</summary>
+    private void OnChipPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        var options = new FilePickerOpenOptions
-        {
-            Title = "选择黑场文件（Nikon NEF）",
-            AllowMultiple = false,
-            FileTypeFilter = new[] { NefFile },
-        };
-        if (vm.LastDarkDir is { } dir && Directory.Exists(dir))
-            options.SuggestedStartLocation = await StorageProvider.TryGetFolderFromPathAsync(dir);
-        IReadOnlyList<IStorageFile> files = await StorageProvider.OpenFilePickerAsync(options);
-        if (files is [{ } picked] && picked.TryGetLocalPath() is { } path)
-            vm.SelectDark(path);   // SelectDark persists LastDarkPath (next picker starts in its folder)
+        if (sender is Control { DataContext: FrameChipVm chip } && Vm is { } vm)
+            vm.SetReferenceCommand.Execute(chip);
     }
+
 }

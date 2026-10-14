@@ -32,5 +32,4 @@ public sealed record AppSettings(
     OutputMode OutputMode = OutputMode.SameAsInput,
     string? CustomOutputDir = null,
     TempMode TempMode = TempMode.Default,
-    string? CustomTempDir = null,
-    string? LastDarkPath = null);
+    string? CustomTempDir = null);

@@ -19,7 +19,6 @@ public class NewTaskVmTests
     private static readonly string[] Frames =
         Enumerable.Range(7576, 7).Select(i => $@"C:\Photos\DSC_{i}.NEF").ToArray();
 
-    private const string DarkPath = @"C:\Photos\DSC_7575.NEF";
 
     private static RawMetadata Meta(
         double iso = 3200,
@@ -31,6 +30,9 @@ public class NewTaskVmTests
         Iso = iso,
         BlackLevel = 1008,
         WhiteLevel = 16383,
+        BitsPerSample = 14,
+        Compression = 34713,
+        NefCompression = 3,
         Width = 8280,
         Height = 5520,
         CamMul = new double[] { 1.785, 1.0, 1.793, 1.0 },
@@ -113,25 +115,18 @@ public class NewTaskVmTests
         Assert.True(vm.HasFrames);
     }
 
-    /// <summary>The dark frame is NOT auto-picked by a prefill — the user picks it on the
-    /// dialog's own 黑场 button; only then does the group validate and Create enable.</summary>
+    /// <summary>A prefill validates and enables 创建任务组 — the dark calibration is
+    /// preset auto-matched (the manual dark picker was removed 2026-10-15).</summary>
     [Fact]
-    public async Task Preload_DarkNotAutoPicked_CanRunOnlyAfterDarkSelected()
+    public async Task Preload_AutoMatchesPreset_CanRun()
     {
         var vm = Vm();
         vm.PreloadFiles(Frames);
         await vm.ValidationIdle;
 
-        Assert.False(vm.HasDark);                                     // 黑场留待用户选择
-        Assert.True(vm.HasNoDark);
-        Assert.Null(vm.DarkPath);
-        Assert.False(vm.State.CanRun);                                // 黑场文件未设置
-        Assert.Contains("黑场文件未设置", vm.State.IssuesText);
-
-        vm.SelectDark(DarkPath);
-        await vm.ValidationIdle;
         Assert.True(vm.State.CanRun);
         Assert.True(vm.CreateCommand.CanExecute(null));
+        Assert.Contains("自动匹配", vm.State.PtcInfoText);
     }
 
     /// <summary>8+ dropped files ALL become frames — exactly the in-dialog behavior — so
@@ -141,7 +136,6 @@ public class NewTaskVmTests
     {
         var vm = Vm();
         vm.PreloadFiles(Frames.Append(@"C:\Photos\DSC_7583.NEF"));  // 8 distinct NEF files
-        vm.SelectDark(DarkPath);
         await vm.ValidationIdle;
 
         Assert.Equal(8, vm.Frames.Count);
@@ -158,7 +152,6 @@ public class NewTaskVmTests
             [Frames[3]] = Meta(model: "NIKON Z 6_3"),
         }));
         vm.HandleFilesDropped(Frames);
-        vm.SelectDark(DarkPath);
         await vm.ValidationIdle;
 
         Assert.False(vm.State.CanRun);
@@ -168,23 +161,10 @@ public class NewTaskVmTests
     }
 
     [Fact]
-    public async Task DarkMissing_CreateDisabled()
-    {
-        var vm = Vm();
-        vm.HandleFilesDropped(Frames);
-        await vm.ValidationIdle;
-
-        Assert.False(vm.State.CanRun);
-        Assert.False(vm.CreateCommand.CanExecute(null));
-        Assert.Contains("黑场文件未设置", vm.State.IssuesText);
-    }
-
-    [Fact]
     public async Task RemoveOneFrame_FrameCountIssue()
     {
         var vm = Vm();
         vm.HandleFilesDropped(Frames);
-        vm.SelectDark(DarkPath);
         await vm.ValidationIdle;
         Assert.True(vm.State.CanRun);
 
@@ -211,27 +191,12 @@ public class NewTaskVmTests
         Assert.Contains("帧数不符", vm.State.IssuesText);
     }
 
-    /// <summary>Task 5 carried finding, enforced locally by the dialog (Core's validator does
-    /// not know the chip set): the dark picker must not accept a file already in the frame list.</summary>
-    [Fact]
-    public async Task DarkEqualsFrame_IssueAndCreateDisabled()
-    {
-        var vm = Vm();
-        vm.HandleFilesDropped(Frames);
-        vm.SelectDark(Frames[2]);
-        await vm.ValidationIdle;
-
-        Assert.False(vm.State.CanRun);
-        Assert.False(vm.CreateCommand.CanExecute(null));
-        Assert.Contains("黑场不能与帧文件相同", vm.State.IssuesText);
-    }
 
     [Fact]
     public async Task UnreadableFile_RedChipAndIssue()
     {
         var vm = Vm(Reader(unreadable: new HashSet<string> { Frames[5] }));
         vm.HandleFilesDropped(Frames);
-        vm.SelectDark(DarkPath);
         await vm.ValidationIdle;
 
         Assert.False(vm.State.CanRun);
@@ -248,7 +213,6 @@ public class NewTaskVmTests
     {
         var vm = Vm();
         vm.HandleFilesDropped(Frames);
-        vm.SelectDark(DarkPath);
         await vm.ValidationIdle;
         Assert.True(vm.State.CanRun);
 
@@ -269,7 +233,6 @@ public class NewTaskVmTests
         Assert.Equal(new[] { Frames[4], Frames[1], Frames[2], Frames[3], Frames[0], Frames[5], Frames[6] },
             created!.Group.FramePaths);
         Assert.Equal(Frames[4], created.Group.ReferencePath);
-        Assert.Equal(DarkPath, created.Group.DarkPath);
         Assert.True(created.Validation.CanRun);
     }
 
@@ -278,14 +241,12 @@ public class NewTaskVmTests
     {
         var vm = Vm();
         vm.HandleFilesDropped(Frames);
-        vm.SelectDark(DarkPath);
         await vm.ValidationIdle;
 
         Assert.True(vm.State.CanRun);
         Assert.Equal(string.Empty, vm.State.IssuesText);
-        Assert.Equal("✓ 8 个文件机型/ISO 一致 · PTC 匹配 Nikon Z8·ISO3200 → 满阱 1,102 e⁻（表值）",
+        Assert.Equal("✓ 7 个文件机型/ISO 一致 · PTC 匹配 Nikon Z8·ISO3200 → 满阱 1,102 e⁻（表值） · 黑场已按 ISO 自动匹配预置参数",
             vm.State.PtcInfoText);
-        Assert.Equal("Z8 · ISO 3200 · 1/8000s", vm.DarkInfoText);      // 黑场行 Z8·ISO·快门 标签
 
         CreatedTaskGroup? created = null;
         vm.CreateCompleted += (_, e) => created = e;
@@ -293,7 +254,6 @@ public class NewTaskVmTests
 
         Assert.NotNull(created);
         Assert.Equal(Frames, created!.Group.FramePaths);
-        Assert.Equal(DarkPath, created.Group.DarkPath);
         Assert.True(created.Validation.CanRun);
         Assert.Equal(1102.2, created.Validation.Ptc!.FullwellE, 1);    // ISO 3200 exact table hit
     }
@@ -338,39 +298,37 @@ public class NewTaskVmTests
 
         Assert.Equal(setB, vm.Frames.Select(f => f.Path).ToArray());
         Assert.Equal(7, reads);                                        // set A cancelled: only set B was read
-        Assert.False(vm.State.CanRun);                                 // still no dark selected
+        Assert.True(vm.State.CanRun);                                  // no dark needed: preset auto-match
     }
 
     [Fact]
     public void MainAddValidated_CreatesReadyAndBlockedCards()
     {
         var main = new MainViewModel();
-        main.AddValidated(new TaskGroup(Frames, DarkPath),
+        main.AddValidated(new TaskGroup(Frames),
             new ValidationResult(true, Array.Empty<ValidationIssue>(), new PtcMatch(1102.2, true, "table")));
         Assert.Equal(TaskState.Ready, Assert.Single(main.Tasks).State);
 
-        main.AddValidated(new TaskGroup(Frames, DarkPath),
+        main.AddValidated(new TaskGroup(Frames),
             new ValidationResult(false,
                 new[] { new ValidationIssue("", IssueKind.FrameCount, "帧数不符") }, null));
         Assert.Equal(TaskState.Blocked, main.Tasks[1].State);          // defensive: Create is gated on CanRun
     }
 
     /// <summary>Integration-style: production LibRaw reader on the real samples
-    /// (mockup v3 阶段二). All 8 files are Nikon Z 8 at ISO 3200 → exact PTC hit.</summary>
+    /// (mockup v3 阶段二). All 7 frames are Nikon Z 8 at ISO 3200 → exact PTC hit.</summary>
     [Fact]
     public async Task RealSamples_ProductionReader_CanRun()
     {
         var vm = new NewTaskViewModel();                               // real reader, real 300 ms debounce
         int[] shuffled = { 7582, 7576, 7579, 7577, 7581, 7578, 7580 };
-        vm.HandleFilesDropped(shuffled.Select(i => SampleFiles.FindSample($"DSC_{i}.NEF")));
-        vm.SelectDark(SampleFiles.FindSample("DSC_7575.NEF"));
+        vm.HandleFilesDropped(shuffled.Select(i => SampleFiles.FindSample(Path.Combine("test_frames", "FX", "Lossless", $"DSC_{i}.NEF"))));
         await vm.ValidationIdle;
 
         Assert.True(vm.State.CanRun);
         Assert.Equal(string.Empty, vm.State.IssuesText);
-        Assert.StartsWith("✓ 8 个文件机型/ISO 一致 · PTC 匹配 Nikon Z8·ISO3200 → 满阱 1,102 e⁻（表值）",
+        Assert.StartsWith("✓ 7 个文件机型/ISO 一致 · PTC 匹配 Nikon Z8·ISO3200 → 满阱 1,102 e⁻（表值）",
             vm.State.PtcInfoText);
-        Assert.StartsWith("Z8 · ISO 3200 · ", vm.DarkInfoText);
         Assert.All(vm.Frames, f => Assert.False(f.IsError));
         Assert.True(vm.CreateCommand.CanExecute(null));
     }

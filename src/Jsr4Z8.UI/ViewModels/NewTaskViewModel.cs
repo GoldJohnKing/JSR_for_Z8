@@ -55,7 +55,7 @@ public sealed record CreatedTaskGroup(TaskGroup Group, ValidationResult Validati
 /// <summary>
 /// Headless ViewModel of the 新建任务组 dialog (docs/design/add-task-flow-v3.html):
 /// one dashed drop zone whose 7 NEF frames live as chips (natural-sorted by file name,
-/// first = ★基准, click a chip to swap), an independent dark-frame picker, and live
+/// first = ★基准, click a chip to swap), and live
 /// validation debounced 300 ms on a background thread (result marshaled back through
 /// the injectable <c>post</c> seam — Dispatcher.UIThread in the app, inline in tests).
 /// All rules live here; NewTaskDialog code-behind only wires drag-drop, file pickers
@@ -102,13 +102,6 @@ public partial class NewTaskViewModel : ObservableObject
 
     [ObservableProperty] private bool _hasNoFrames = true;
     [ObservableProperty] private bool _hasFrames;
-    [ObservableProperty] private bool _hasDark;
-    [ObservableProperty] private bool _hasNoDark = true;
-    [ObservableProperty] private string? _darkPath;
-    [ObservableProperty] private string _darkName = "";
-
-    /// <summary>The set dark row's Z8·ISO·快门 tag (mockup: "Z8 · ISO 400 · 1/8000s").</summary>
-    [ObservableProperty] private string _darkInfoText = "";
 
     [ObservableProperty] private ValidationState _state = ValidationState.Empty;
 
@@ -134,31 +127,8 @@ public partial class NewTaskViewModel : ObservableObject
     /// <summary>Main-window drop prefill (post-release fix 2): the dialog opens with these
     /// files already loaded as chips — the exact HandleFilesDropped path (dedupe, .nef
     /// filter, natural sort, validation kickoff), so an 8+-file drop shows the same
-    /// 帧数不符 issue as an in-dialog drop. The dark frame is deliberately NOT picked —
-    /// it stays a user decision on the dialog's own 黑场 button.</summary>
+    /// 帧数不符 issue as an in-dialog drop.</summary>
     public void PreloadFiles(IEnumerable<string> paths) => HandleFilesDropped(paths);
-
-    /// <summary>Dark-frame picker completion; the black-frame-equals-a-frame rule is
-    /// enforced in the validation pass (Task 5 carried finding). Task 14: the selection
-    /// is remembered — load-modify-save persists LastDarkPath (only that field changes)
-    /// so the next dialog's picker starts in its folder.</summary>
-    public void SelectDark(string path)
-    {
-        DarkPath = path;
-        DarkName = Path.GetFileName(path);
-        HasDark = true;
-        HasNoDark = false;
-        if (_settings is { } settings)
-            settings.Save(settings.Load() with { LastDarkPath = path });
-        InvalidateAndSchedule();
-    }
-
-    /// <summary>Task 14: the dark picker's start folder — the persisted LastDarkPath's
-    /// dir (only the folder is reused, never the file itself).</summary>
-    public string? LastDarkDir =>
-        _settings is not null && _settings.Current.LastDarkPath is { Length: > 0 } last
-            ? Path.GetDirectoryName(last)
-            : null;
 
     /// <summary>Click on a chip: 与现任互换 — the new ★基准 takes slot 0, the old one its
     /// slot, everything else keeps order. Slot 0 is already the reference / not found: no-op.</summary>
@@ -192,9 +162,9 @@ public partial class NewTaskViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanCreate))]
     private void Create()
     {
-        if (_lastValidation is not { CanRun: true } || DarkPath is not { } dark)
+        if (_lastValidation is not { CanRun: true })
             return;
-        var group = new TaskGroup(Frames.Select(f => f.Path).ToArray(), dark);
+        var group = new TaskGroup(Frames.Select(f => f.Path).ToArray());
         CreateCompleted?.Invoke(this, new CreatedTaskGroup(group, _lastValidation));
     }
 
@@ -222,7 +192,6 @@ public partial class NewTaskViewModel : ObservableObject
     private void InvalidateAndSchedule()
     {
         State = ValidationState.Empty;
-        DarkInfoText = "";
         ScheduleValidation();
     }
 
@@ -250,23 +219,22 @@ public partial class NewTaskViewModel : ObservableObject
                 // Dialog robustness: an unexpected failure must not crash or hang the line.
                 var failure = new ValidationSnapshot(generation, false,
                     $"校验时发生错误：{ex.Message}", "", Array.Empty<string>(),
-                    "", new ValidationResult(false, Array.Empty<ValidationIssue>(), null));
+                    new ValidationResult(false, Array.Empty<ValidationIssue>(), null));
                 _post(() => ApplySnapshot(failure));
             }
         });
     }
 
     /// <summary>Background pass (no UI state touched): reads every file through the injectable
-    /// reader, runs TaskGroupValidator, appends the dialog-local dark-equals-frame rule and
-    /// renders the Chinese texts of mockup v3.</summary>
+    /// reader, runs TaskGroupValidator and renders the Chinese texts of mockup v3.</summary>
     private ValidationSnapshot ValidateNow(int generation)
     {
         // 阶段一空面板: no files at all → no validation line.
-        if (Frames.Count == 0 && DarkPath == null)
+        if (Frames.Count == 0)
             return new ValidationSnapshot(generation, false, "", "", Array.Empty<string>(),
-                "", new ValidationResult(false, Array.Empty<ValidationIssue>(), null));
+                new ValidationResult(false, Array.Empty<ValidationIssue>(), null));
 
-        var group = new TaskGroup(Frames.Select(f => f.Path).ToArray(), DarkPath ?? "");
+        var group = new TaskGroup(Frames.Select(f => f.Path).ToArray());
         var passMeta = new Dictionary<string, RawMetadata>(StringComparer.OrdinalIgnoreCase);
         var passErrors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         Func<string, RawMetadata> read = path =>
@@ -287,10 +255,6 @@ public partial class NewTaskViewModel : ObservableObject
         ValidationResult result = TaskGroupValidator.Validate(group, read);
 
         var issues = new List<string>(result.Issues.Select(i => i.MessageZh));
-        // Task 5 carried finding: Core's validator does not know the chip set, so the dialog
-        // enforces the dark picker contract itself.
-        if (DarkPath is { } dark && Frames.Any(f => string.Equals(f.Path, dark, StringComparison.OrdinalIgnoreCase)))
-            issues.Add("黑场不能与帧文件相同");
 
         bool canRun = result.CanRun && issues.Count == 0;
         string ptcInfo = "";
@@ -298,25 +262,14 @@ public partial class NewTaskViewModel : ObservableObject
             && Frames.Count == TaskGroupValidator.RequiredFrames
             && passMeta.TryGetValue(Frames[0].Path, out RawMetadata? reference))
         {
-            ptcInfo = $"✓ {Frames.Count + 1} 个文件机型/ISO 一致 · PTC 匹配 Nikon Z8·ISO{Fmt(reference.Iso)}" +
+            int fileCount = Frames.Count;
+            ptcInfo = $"✓ {fileCount} 个文件机型/ISO 一致 · PTC 匹配 Nikon Z8·ISO{Fmt(reference.Iso)}" +
                       $" → 满阱 {ptc.FullwellE.ToString("N0", CultureInfo.InvariantCulture)} e⁻（{(ptc.Exact ? "表值" : "拟合")}）";
+            if (result.Dark is { } preset)
+                ptcInfo += $" · 黑场已按 ISO 自动匹配预置参数";
         }
-
-        string darkInfo = "";
-        if (DarkPath != null && passMeta.TryGetValue(DarkPath, out RawMetadata? darkMeta))
-        {
-            var parts = new List<string>
-            {
-                TaskGroupValidator.NormalizeModel(darkMeta.Make, darkMeta.Model).ToUpperInvariant(),
-                $"ISO {Fmt(darkMeta.Iso)}",
-            };
-            if (darkMeta.ExposureTime > 0)
-                parts.Add(Shutter(darkMeta.ExposureTime));
-            darkInfo = string.Join(" · ", parts);
-        }
-
         return new ValidationSnapshot(generation, canRun, string.Join("\n", issues), ptcInfo,
-            passErrors, darkInfo, result);
+            passErrors, result);
     }
 
     /// <summary>Applies a settled pass — unless a newer mutation superseded it (generation
@@ -328,7 +281,6 @@ public partial class NewTaskViewModel : ObservableObject
         _lastValidation = snapshot.Result;
         foreach (FrameChipVm chip in Frames)
             chip.IsError = snapshot.ErrorPaths.Contains(chip.Path);
-        DarkInfoText = snapshot.DarkInfoText;
         State = new ValidationState(snapshot.CanRun, snapshot.IssuesText, snapshot.PtcInfoText);
     }
 
@@ -355,7 +307,6 @@ public partial class NewTaskViewModel : ObservableObject
         string IssuesText,
         string PtcInfoText,
         IReadOnlyCollection<string> ErrorPaths,
-        string DarkInfoText,
         ValidationResult Result);
 }
 

@@ -12,7 +12,7 @@
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
     <!-- 「新建任务组」v3 · A 风格芯片 + 黑场按钮 (docs/design/add-task-flow-v3.html).
          ALL logic lives in NewTaskViewModel; this view only binds and wires interaction
-         (drag-drop, click-to-pick, dark picker, closing) in the code-behind. -->
+         (drag-drop, click-to-pick, closing) in the code-behind. -->
     <Window.Styles>
         <!-- 投放区：Border 不支持虚线，用描边 Rectangle 模拟 -->
         <Style Selector="Rectangle.dropdash">
@@ -70,30 +70,6 @@
             <Setter Property="FontSize" Value="11" />
             <Setter Property="Opacity" Value="0.7" />
             <Setter Property="Foreground" Value="{DynamicResource SemiColorText}" />
-        </Style>
-        <!-- 黑场行：空 = 虚线暖橙选择按钮；已选 = 实心行 + Z8·ISO·快门 标签 + 更换… -->
-        <Style Selector="Rectangle.darkdash">
-            <Setter Property="Stroke" Value="#66FFB020" />
-            <Setter Property="StrokeThickness" Value="1.5" />
-            <Setter Property="StrokeDashArray" Value="6,6" />
-        </Style>
-        <Style Selector="Border.darkrow">
-            <Setter Property="BorderBrush" Value="{DynamicResource SemiColorBorder}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="10,7" />
-            <Setter Property="Background" Value="{DynamicResource SemiColorBackground}" />
-        </Style>
-        <Style Selector="Border.darktag">
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Padding" Value="6,1" />
-            <Setter Property="Margin" Value="8,0,0,0" />
-            <Setter Property="Background" Value="#26808080" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-        </Style>
-        <Style Selector="Border.darktag TextBlock">
-            <Setter Property="FontSize" Value="10.5" />
-            <Setter Property="Foreground" Value="#FFB020" />
         </Style>
         <!-- 校验行：绿 ✓ / 红问题 -->
         <Style Selector="TextBlock.ok">
@@ -156,33 +132,6 @@
             </Grid>
         </Grid>
 
-        <!-- 黑场：空 = 虚线按钮（📂 选择黑场文件…），已选 = 实心行（文件名 + Z8·ISO·快门 + 更换…） -->
-        <Grid Margin="18,10,18,0" MinHeight="36">
-            <Grid IsVisible="{Binding HasNoDark}" PointerPressed="OnDarkRowPointerPressed">
-                <Rectangle Classes="darkdash" RadiusX="8" RadiusY="8" />
-                <StackPanel Orientation="Horizontal" Spacing="6"
-                            HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <TextBlock Text="📂" FontSize="13" />
-                    <TextBlock Text="选择黑场文件…" FontSize="12" FontWeight="SemiBold"
-                               Foreground="#FFB020" />
-                </StackPanel>
-            </Grid>
-            <Border Classes="darkrow" IsVisible="{Binding HasDark}" PointerPressed="OnDarkRowPointerPressed">
-                <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="🕯 黑场" FontSize="12" Opacity="0.85" />
-                        <TextBlock Text="{Binding DarkName}" FontSize="12" FontWeight="SemiBold"
-                                   Margin="6,0,0,0" />
-                        <Border Classes="darktag"
-                                IsVisible="{Binding DarkInfoText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                            <TextBlock Text="{Binding DarkInfoText}" />
-                        </Border>
-                    </StackPanel>
-                    <TextBlock Grid.Column="1" Text="更换…" FontSize="12"
-                               Foreground="{DynamicResource SemiColorPrimary}" VerticalAlignment="Center" />
-                </Grid>
-            </Border>
-        </Grid>
 
         <!-- 校验行：绿 ✓（通过）或红问题（含文件名） -->
         <TextBlock Classes="ok" Text="{Binding State.PtcInfoText}"
