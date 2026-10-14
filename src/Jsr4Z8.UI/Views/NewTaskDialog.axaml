@@ -116,8 +116,10 @@
     </Window.Styles>
 
     <StackPanel>
-        <!-- 阶段一空提示 / 阶段二芯片墙：拖放 + 点击选择（代码后置接线） -->
-        <Grid x:Name="DropZone" Classes="dropzone" DragDrop.AllowDrop="True"
+        <!-- 阶段一空提示 / 阶段二芯片墙：拖放 + 点击选择（代码后置接线）。
+             Background=Transparent：Grid 默认 null 背景不可命中（Avalonia 11 命中测试规则），
+             虚线 Rectangle 只覆盖描边路径 —— 拖放事件需要一个铺满整个投放区的命中面 -->
+        <Grid x:Name="DropZone" Classes="dropzone" Background="Transparent" DragDrop.AllowDrop="True"
               PointerPressed="OnDropZonePointerPressed">
             <Rectangle Classes="dropdash" RadiusX="10" RadiusY="10" />
             <Grid Margin="10,6" VerticalAlignment="Center">

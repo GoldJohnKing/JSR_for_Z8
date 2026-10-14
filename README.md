@@ -9,8 +9,8 @@ Jiangtherapee Python 后端（stormer7 引擎，V15.3.5 Transformer），在 GPU
 
 - Windows 10/11 x64
 - 内存：重建与 DNG 完整化峰值内存占用约 2 GB，建议 8 GB 以上内存。
-- 支持 Vulkan 的 GPU（计算经 wgpu 走 Vulkan）。验收配置为 12 GB 显存预算；
-  预算不足（如 4 GB）会在对齐阶段失败并给出明确报错，不会损坏原片
+- 支持 Vulkan 的 GPU（计算经 wgpu 走 Vulkan）。不设显存预算，由显卡驱动自行分配；
+  建议 8GB+ 显存获得合理速度
 - 磁盘：程序本体约 **537 MB**（单文件 exe）；首次运行释放约 650 MB 载荷到
   `%LOCALAPPDATA%\JSR4Z8`；每个任务另需约 1–2 GB 临时空间。失败或停止的任务
   会保留约 3 GB 诊断目录于临时路径，连续失败时请确保系统盘（或自定义临时
@@ -26,7 +26,7 @@ Jiangtherapee Python 后端（stormer7 引擎，V15.3.5 Transformer），在 GPU
 3. 开始后卡片实时显示后端进度（对齐 → Transformer 重建 → DNG 导出），可随时
    停止——后端进程树随即终止，临时目录保留供诊断。
 4. 完成后在样张目录得到 `JSR_DSC_7576.dng`（330 MB 量级）。
-5. 设置中可调整显存预算（GB）。样张路径含中文与空格完全支持。
+5. 设置中可配置输出路径与临时路径。样张路径含中文与空格完全支持。
 
 ## SmartScreen 与杀毒软件说明
 

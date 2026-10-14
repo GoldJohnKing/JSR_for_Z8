@@ -1,4 +1,3 @@
-using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Jsr4Z8.Core.Settings;
@@ -7,12 +6,11 @@ using Jsr4Z8.UI.Services;
 namespace Jsr4Z8.UI.ViewModels;
 
 /// <summary>
-/// Headless ViewModel of the ⚙高级设置 dialog (docs/design/settings.html option B
-/// 滑块精调): 显存预算 slider 1–16 GB on a 0.5 grid + numeric box, both bound to
-/// VramGb with the live value next to the label; 输出路径 radio 与输入 RAW 同目录 /
-/// 自定义 + input + 浏览…; 临时文件路径 radio 系统默认（%TEMP%）/ 自定义 + input +
-/// 浏览…; a live 示例输出 line (custom dir, or 基准帧所在目录示意 — placeholder sample
-/// JSR_DSC_7576.dng); footer 取消/保存. Save writes through the shared
+/// Headless ViewModel of the ⚙高级设置 dialog (docs/design/settings.html option B —
+/// VRAM budget row removed post-release, user directive 始终不限制): 输出路径 radio
+/// 与输入 RAW 同目录 / 自定义 + input + 浏览…; 临时文件路径 radio 系统默认（%TEMP%）/
+/// 自定义 + input + 浏览…; a live 示例输出 line (custom dir, or 基准帧所在目录示意 —
+/// placeholder sample JSR_DSC_7576.dng); footer 取消/保存. Save writes through the shared
 /// SettingsService (load-modify: only the dialog's own fields change — LastDarkPath
 /// etc. survive) and raises SettingsChanged; Cancel discards. The folder picker is the
 /// IFolderPicker seam (fake-pickable in tests).
@@ -30,7 +28,6 @@ public partial class SettingsViewModel : ObservableObject
         _service = service;
         _picker = picker;
         AppSettings s = service.Load();
-        VramGb = s.VramGb;
         OutputSameAsInput = s.OutputMode == OutputMode.SameAsInput;
         OutputCustom = s.OutputMode == OutputMode.Custom;
         CustomOutputDir = s.CustomOutputDir ?? "";
@@ -45,32 +42,6 @@ public partial class SettingsViewModel : ObservableObject
 
     /// <summary>Raised by 取消; the dialog wiring closes without saving.</summary>
     public event EventHandler? CancelRequested;
-
-    private double _vramGb = 4.0;
-
-    /// <summary>Slider AND numeric box both bind here; the setter snaps to the 0.5
-    /// grid (AwayFromZero, like BuildJson's rounding) and clamps to [1,16].</summary>
-    public double VramGb
-    {
-        get => _vramGb;
-        set
-        {
-            double q = Quantize(value);
-            bool changed = SetProperty(ref _vramGb, q);
-            if (value != q)
-                // Off-grid push (e.g. 4.2 while stored 4.0): the field is unchanged so
-                // SetProperty raised nothing, yet the bound NumericUpDown/Slider still
-                // echoes the raw 4.2. Re-raise VramGb so the binding re-reads the
-                // quantized value; the echo push it sends back is on-grid and terminal
-                // (no event, no loop).
-                OnPropertyChanged(nameof(VramGb));
-            if (changed)
-                OnPropertyChanged(nameof(VramText));
-        }
-    }
-
-    /// <summary>The live value next to 显存预算（GB）— "4.0".</summary>
-    public string VramText => VramGb.ToString("0.0", CultureInfo.InvariantCulture);
 
     /// <summary>输出路径: 与输入 RAW 同目录 (bound to its radio).</summary>
     [ObservableProperty] private bool _outputSameAsInput;
@@ -155,7 +126,6 @@ public partial class SettingsViewModel : ObservableObject
     {
         _service.Save(_service.Current with
         {
-            VramGb = VramGb,
             OutputMode = OutputCustom ? OutputMode.Custom : OutputMode.SameAsInput,
             CustomOutputDir = NullIfBlank(CustomOutputDir),
             TempMode = TempCustom ? TempMode.Custom : TempMode.Default,
@@ -166,12 +136,6 @@ public partial class SettingsViewModel : ObservableObject
 
     [RelayCommand]
     private void Cancel() => CancelRequested?.Invoke(this, EventArgs.Empty);
-
-    /// <summary>Nearest 0.5 (AwayFromZero), clamped to the slider's [1,16] range.
-    /// NaN is guarded first — Math.Clamp passes NaN through (a NaN slider value
-    /// would otherwise poison the field), falling back to the 4 GB plan default.</summary>
-    private static double Quantize(double v) =>
-        double.IsNaN(v) ? 4.0 : Math.Clamp(Math.Round(v * 2, MidpointRounding.AwayFromZero) / 2, 1.0, 16.0);
 
     private static string? NullIfBlank(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }

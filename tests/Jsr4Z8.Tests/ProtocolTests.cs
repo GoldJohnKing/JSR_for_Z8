@@ -51,7 +51,7 @@ public class ProtocolTests
         var group = new TaskGroup(frames, @"D:\pics\dark\DSC_9000.NEF");
 
         string json = BackendRequest.BuildJson(group, new PtcMatch(1102.244, Exact: false, Source: "fit-high"),
-            vramGb: 12, outputDir: @"D:\pics\out", prefix: "jsr-001");
+            memoryGb: 12, outputDir: @"D:\pics\out", prefix: "jsr-001");
 
         Assert.DoesNotContain('\uFEFF', json); // payload must be BOM-free; the writer owns UTF-8-no-BOM
         using JsonDocument doc = JsonDocument.Parse(json);

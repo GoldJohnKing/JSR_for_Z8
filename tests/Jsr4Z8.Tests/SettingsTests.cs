@@ -11,15 +11,15 @@ namespace Jsr4Z8.Tests.Settings;
 /// <summary>
 /// Task 14: settings persistence + the ⚙高级设置 dialog. SettingsServiceTests cover the
 /// JSON file contract under %LOCALAPPDATA% (injectable base dir): defaults on missing
-/// file, full round-trip, corrupt → defaults rewritten, VramGb clamped [1,16] on load
-/// AND save, atomic save (tmp+rename, no leftovers), and the ISettingsProvider adapter
-/// (CurrentSettings is the shared service's in-memory current, set on Save).
-/// SettingsViewModelTests drive the dialog VM headless (docs/design/settings.html option
-/// B): 0.5-grid slider/numeric sync + live value, exclusive radio pairs, live 示例输出
-/// for both output modes, the IFolderPicker browse seam, Save (persist +
-/// SettingsChanged, LastDarkPath preserved via load-modify-save) and Cancel (discard).
-/// SuccessGlobTests pin the Task 13 carried fix: the success-path product glob skips
-/// *.partial segments. Windows-host tests.
+/// file, full round-trip, corrupt → defaults rewritten, legacy files with the removed
+/// VramGb field still load, atomic save (tmp+rename, no leftovers), and the
+/// ISettingsProvider adapter (CurrentSettings is the shared service's in-memory
+/// current, set on Save). SettingsViewModelTests drive the dialog VM headless
+/// (docs/design/settings.html option B, VRAM row removed post-release): exclusive
+/// radio pairs, live 示例输出 for both output modes, the IFolderPicker browse seam,
+/// Save (persist + SettingsChanged, LastDarkPath preserved via load-modify-save) and
+/// Cancel (discard). SuccessGlobTests pin the Task 13 carried fix: the success-path
+/// product glob skips *.partial segments. Windows-host tests.
 /// </summary>
 public class SettingsServiceTests
 {
@@ -59,12 +59,34 @@ public class SettingsServiceTests
         {
             var svc = new SettingsService(dir);
             var saved = new AppSettings(
-                6.5, OutputMode.Custom, @"D:\Photos\JSR 输出",
+                OutputMode.Custom, @"D:\Photos\JSR 输出",
                 TempMode.Custom, @"E:\自定义临时", @"C:\Dark\DSC_7575.NEF");
             svc.Save(saved);
 
             Assert.Equal(saved, svc.Load());                        // same instance re-reads disk
             Assert.Equal(saved, new SettingsService(dir).Load());   // fresh instance reads disk
+        }
+        finally { Cleanup(dir); }
+    }
+
+    /// <summary>Post-release VRAM-budget removal: a settings.json written by the old
+    /// build still carries a VramGb member — System.Text.Json ignores unknown members
+    /// by default, so the file loads cleanly and every surviving field is honored.</summary>
+    [Fact]
+    public void Load_LegacyFileWithVramGb_IgnoresUnknownField_LoadsTheRest()
+    {
+        string dir = NewBaseDir();
+        Directory.CreateDirectory(Path.GetDirectoryName(SettingsFile(dir))!);
+        File.WriteAllText(SettingsFile(dir),
+            """{ "VramGb": 8, "OutputMode": "Custom", "CustomOutputDir": "D:\\Photos\\JSR 输出", "TempMode": "Custom", "CustomTempDir": "E:\\自定义临时", "LastDarkPath": "C:\\Dark\\DSC_7575.NEF" }""");
+        try
+        {
+            AppSettings loaded = new SettingsService(dir).Load();
+
+            var expected = new AppSettings(
+                OutputMode.Custom, @"D:\Photos\JSR 输出",
+                TempMode.Custom, @"E:\自定义临时", @"C:\Dark\DSC_7575.NEF");
+            Assert.Equal(expected, loaded);
         }
         finally { Cleanup(dir); }
     }
@@ -86,37 +108,6 @@ public class SettingsServiceTests
         finally { Cleanup(dir); }
     }
 
-    [Theory]
-    [InlineData(99, 16)]
-    [InlineData(0, 1)]
-    public void Load_ClampsVramGb(double inFile, double expected)
-    {
-        string dir = NewBaseDir();
-        Directory.CreateDirectory(Path.GetDirectoryName(SettingsFile(dir))!);
-        File.WriteAllText(SettingsFile(dir), JsonSerializer.Serialize(new { VramGb = inFile }));
-        try
-        {
-            Assert.Equal(expected, new SettingsService(dir).Load().VramGb);
-        }
-        finally { Cleanup(dir); }
-    }
-
-    [Theory]
-    [InlineData(99, 16)]
-    [InlineData(0, 1)]
-    public void Save_ClampsVramGb_ReturnsClamped(double saved, double expected)
-    {
-        string dir = NewBaseDir();
-        try
-        {
-            var svc = new SettingsService(dir);
-
-            Assert.Equal(expected, svc.Save(new AppSettings(saved)).VramGb);
-            Assert.Equal(expected, svc.Load().VramGb);
-        }
-        finally { Cleanup(dir); }
-    }
-
     [Fact]
     public void Save_IsAtomic_NoTmpFileLeftBehind()
     {
@@ -124,11 +115,11 @@ public class SettingsServiceTests
         try
         {
             var svc = new SettingsService(dir);
-            svc.Save(new AppSettings(8.0));
+            svc.Save(new AppSettings());
 
             Assert.True(File.Exists(SettingsFile(dir)));
             Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(SettingsFile(dir))!, "*.tmp"));
-            Assert.Equal(8.0, svc.Load().VramGb);
+            Assert.Equal(new AppSettings(), svc.Load());
         }
         finally { Cleanup(dir); }
     }
@@ -142,11 +133,10 @@ public class SettingsServiceTests
             var svc = new SettingsService(dir);
             ISettingsProvider provider = new SettingsServiceProvider(svc);
 
-            Assert.Equal(4.0, provider.CurrentSettings.VramGb);    // ctor load → plan default
-            svc.Save(new AppSettings(12.0));
-            Assert.Equal(12.0, provider.CurrentSettings.VramGb);   // in-memory set on Save
-            svc.Save(new AppSettings(2.5));
-            Assert.Equal(2.5, provider.CurrentSettings.VramGb);
+            Assert.Equal(new AppSettings(), provider.CurrentSettings);   // ctor load → plan defaults
+            var custom = new AppSettings(OutputMode.Custom, @"D:\Photos");
+            svc.Save(custom);
+            Assert.Equal(custom, provider.CurrentSettings);              // in-memory set on Save
         }
         finally { Cleanup(dir); }
     }
@@ -180,60 +170,9 @@ public class SettingsViewModelTests
     }
 
     [Fact]
-    public void Vram_05Grid_Clamps_LiveTextFollows()
-    {
-        var (vm, _, dir) = MakeVm(new AppSettings(4.0));
-        try
-        {
-            Assert.Equal(4.0, vm.VramGb);                          // ctor loads from disk
-            Assert.Equal("4.0", vm.VramText);
-
-            vm.VramGb = 4.3;                                       // slider/numeric grid: nearest 0.5
-            Assert.Equal(4.5, vm.VramGb);
-            Assert.Equal("4.5", vm.VramText);
-            vm.VramGb = 0;                                         // clamp [1,16]
-            Assert.Equal(1.0, vm.VramGb);
-            vm.VramGb = 20;
-            Assert.Equal(16.0, vm.VramGb);
-            Assert.Equal("16.0", vm.VramText);
-            vm.VramGb = 4;
-            Assert.Equal("4.0", vm.VramText);
-            vm.VramGb = double.NaN;                                  // Math.Clamp passes NaN through — guarded
-            Assert.Equal(4.0, vm.VramGb);
-            Assert.Equal("4.0", vm.VramText);
-        }
-        finally { Cleanup(dir); }
-    }
-
-    /// <summary>Task 14 review fix: an off-grid push whose quantized value EQUALS the
-    /// stored one (4.2 → 4.0 while already 4.0) must still raise PropertyChanged for
-    /// VramGb — otherwise the bound NumericUpDown/Slider keeps echoing the raw 4.2
-    /// while VramText and Save use 4.0. The re-raise pushes the quantized value back;
-    /// the echo's second push is on-grid and raises nothing (converges, no loop).</summary>
-    [Fact]
-    public void Vram_OffGridInputEqualStoredValue_ReRaisesVramGb_DisplayConverges()
-    {
-        var (vm, _, dir) = MakeVm(new AppSettings(4.0));
-        try
-        {
-            int raised = 0;
-            vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(SettingsViewModel.VramGb)) raised++; };
-
-            vm.VramGb = 4.2;                                        // the raw push a bound control makes
-            Assert.Equal(4.0, vm.VramGb);                           // read back: quantized, not 4.2
-            Assert.Equal(1, raised);                                // …and the control was told to re-read it
-
-            vm.VramGb = vm.VramGb;                                  // the binding's echo push: on-grid, terminal
-            Assert.Equal(1, raised);                                // no further event — no ping-pong loop
-            Assert.Equal("4.0", vm.VramText);
-        }
-        finally { Cleanup(dir); }
-    }
-
-    [Fact]
     public void OutputRadio_Exclusive_TextBoxFlag_SampleTextLive()
     {
-        var (vm, _, dir) = MakeVm(new AppSettings(4.0, OutputMode.Custom, @"D:\Photos\JSR 输出"));
+        var (vm, _, dir) = MakeVm(new AppSettings(OutputMode.Custom, @"D:\Photos\JSR 输出"));
         try
         {
             Assert.True(vm.OutputCustom);
@@ -296,10 +235,9 @@ public class SettingsViewModelTests
     public void Save_PersistsAllDialogFields_RaisesSettingsChanged_PreservesLastDarkPath()
     {
         var (vm, svc, dir) = MakeVm(new AppSettings(
-            4.0, OutputMode.SameAsInput, null, TempMode.Default, null, @"C:\Dark\DSC_7575.NEF"));
+            OutputMode.SameAsInput, null, TempMode.Default, null, @"C:\Dark\DSC_7575.NEF"));
         try
         {
-            vm.VramGb = 8.5;
             vm.OutputCustom = true;
             vm.CustomOutputDir = @"D:\O";
             vm.TempCustom = true;
@@ -311,7 +249,6 @@ public class SettingsViewModelTests
 
             Assert.Equal(1, raised);
             AppSettings loaded = svc.Load();
-            Assert.Equal(8.5, loaded.VramGb);
             Assert.Equal(OutputMode.Custom, loaded.OutputMode);
             Assert.Equal(@"D:\O", loaded.CustomOutputDir);
             Assert.Equal(TempMode.Custom, loaded.TempMode);
@@ -324,10 +261,9 @@ public class SettingsViewModelTests
     [Fact]
     public void Cancel_Discards_NoPersistNoSettingsChanged()
     {
-        var (vm, svc, dir) = MakeVm(new AppSettings(2.0));
+        var (vm, svc, dir) = MakeVm(new AppSettings());
         try
         {
-            vm.VramGb = 16;
             vm.OutputCustom = true;
             int cancelled = 0, changed = 0;
             vm.CancelRequested += (_, _) => cancelled++;
@@ -337,8 +273,7 @@ public class SettingsViewModelTests
 
             Assert.Equal(1, cancelled);
             Assert.Equal(0, changed);
-            AppSettings loaded = svc.Load();
-            Assert.Equal(2.0, loaded.VramGb);                       // nothing persisted
+            AppSettings loaded = svc.Load();                        // nothing persisted
             Assert.Equal(OutputMode.SameAsInput, loaded.OutputMode);
         }
         finally { Cleanup(dir); }
@@ -354,15 +289,14 @@ public class SettingsViewModelTests
         try
         {
             var svc = new SettingsService(dir);
-            svc.Save(new AppSettings(6.0, OutputMode.Custom, @"D:\O", TempMode.Custom, @"E:\T"));
+            svc.Save(new AppSettings(OutputMode.Custom, @"D:\O", TempMode.Custom, @"E:\T"));
             var vm = new NewTaskViewModel(read: _ => throw new RawReadException("mock"), settings: svc);
 
             vm.SelectDark(@"C:\Dark2\DSC_7000.NEF");
 
             AppSettings loaded = svc.Load();
             Assert.Equal(@"C:\Dark2\DSC_7000.NEF", loaded.LastDarkPath);
-            Assert.Equal(6.0, loaded.VramGb);                       // untouched
-            Assert.Equal(OutputMode.Custom, loaded.OutputMode);
+            Assert.Equal(OutputMode.Custom, loaded.OutputMode);      // untouched
             Assert.Equal(@"D:\O", loaded.CustomOutputDir);
             Assert.Equal(TempMode.Custom, loaded.TempMode);
             Assert.Equal(@"E:\T", loaded.CustomTempDir);

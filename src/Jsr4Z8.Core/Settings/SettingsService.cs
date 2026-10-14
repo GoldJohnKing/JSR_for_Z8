@@ -9,12 +9,13 @@ namespace Jsr4Z8.Core.Settings;
 /// <c>%LOCALAPPDATA%\JSR4Z8\settings.json</c> (Task 14; <c>baseDir</c> injectable for
 /// tests). Robustness contract: a missing file is plain defaults (nothing written); a
 /// corrupt file is replaced with the defaults (best effort — a transient IO failure
-/// must never clobber the file); VramGb is clamped to [1,16] on BOTH load and save;
-/// Save is atomic (write *.tmp, then rename over) so a crash mid-write can never
-/// destroy the previous settings. The app composes ONE instance and adapts it to the
-/// UI's ISettingsProvider: <see cref="Current"/> is the in-memory last Load/Save, so
-/// every Save (settings dialog, dark-picker memory) is immediately visible to
-/// consumers that read CurrentSettings.
+/// must never clobber the file); legacy files still carrying a removed field (e.g.
+/// VramGb) load fine — System.Text.Json ignores unknown members; Save is atomic
+/// (write *.tmp, then rename over) so a crash mid-write can never destroy the previous
+/// settings. The app composes ONE instance and adapts it to the UI's ISettingsProvider:
+/// <see cref="Current"/> is the in-memory last Load/Save, so every Save (settings
+/// dialog, dark-picker memory) is immediately visible to consumers that read
+/// CurrentSettings.
 /// </summary>
 public sealed class SettingsService
 {
@@ -48,8 +49,8 @@ public sealed class SettingsService
     /// UI-side ISettingsProvider adapter.</summary>
     public AppSettings Current => _current;
 
-    /// <summary>Reads the file (defaults when missing or corrupt, clamped VramGb) and
-    /// updates <see cref="Current"/>. A corrupt file is rewritten with the defaults.</summary>
+    /// <summary>Reads the file (defaults when missing or corrupt) and updates
+    /// <see cref="Current"/>. A corrupt file is rewritten with the defaults.</summary>
     public AppSettings Load()
     {
         AppSettings loaded = new AppSettings();
@@ -58,7 +59,7 @@ public sealed class SettingsService
             if (File.Exists(_settingsPath))
             {
                 string json = File.ReadAllText(_settingsPath);
-                loaded = Clamp(JsonSerializer.Deserialize<AppSettings>(json, Options) ?? new AppSettings());
+                loaded = JsonSerializer.Deserialize<AppSettings>(json, Options) ?? new AppSettings();
             }
         }
         catch (Exception ex) when (ex is JsonException or InvalidOperationException or NotSupportedException)
@@ -75,21 +76,18 @@ public sealed class SettingsService
         return loaded;
     }
 
-    /// <summary>Clamps VramGb, atomically writes the file and updates
-    /// <see cref="Current"/>. Returns the clamped record that was persisted.</summary>
+    /// <summary>Atomically writes the file and updates <see cref="Current"/>.
+    /// Returns the record that was persisted.</summary>
     public AppSettings Save(AppSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        AppSettings clamped = Clamp(settings);
         lock (_writeLock)
         {
-            WriteAtomic(clamped);
+            WriteAtomic(settings);
         }
-        _current = clamped;
-        return clamped;
+        _current = settings;
+        return settings;
     }
-
-    private static AppSettings Clamp(AppSettings s) => s with { VramGb = Math.Clamp(s.VramGb, 1.0, 16.0) };
 
     /// <summary>tmp + rename: the destination is only ever replaced by a fully written
     /// file; the tmp file is removed even when the move fails.</summary>

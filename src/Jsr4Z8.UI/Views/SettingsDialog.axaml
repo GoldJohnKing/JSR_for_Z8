@@ -3,25 +3,23 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Jsr4Z8.UI.ViewModels"
-        mc:Ignorable="d" d:DesignWidth="460" d:DesignHeight="540"
+        mc:Ignorable="d" d:DesignWidth="460" d:DesignHeight="400"
         x:Class="Jsr4Z8.UI.Views.SettingsDialog"
         x:DataType="vm:SettingsViewModel"
         x:CompileBindings="True"
         Title="⚙ 高级设置"
         Width="460" SizeToContent="Height" CanResize="False"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
-    <!-- ⚙高级设置 (docs/design/settings.html option B 滑块精调). Per the headless-VM
-         contract every rule lives in SettingsViewModel; this view only binds — the
-         folder picker arrives as IFolderPicker from the App composition root, and
-         取消/保存 close through the VM's events. -->
+    <!-- ⚙高级设置 (docs/design/settings.html option B). The 显存预算 slider row was
+         removed post-release (user directive 始终不限制); mockup B's other settings stay.
+         Per the headless-VM contract every rule lives in SettingsViewModel; this view
+         only binds — the folder picker arrives as IFolderPicker from the App composition
+         root, and 取消/保存 close through the VM's events. Alignment follows the mockup:
+         section label, both radio rows and the input+浏览 row share one left edge. -->
     <Window.Styles>
         <Style Selector="TextBlock.seclab">
             <Setter Property="FontSize" Value="11" />
             <Setter Property="Opacity" Value="0.6" />
-        </Style>
-        <Style Selector="TextBlock.tick">
-            <Setter Property="FontSize" Value="9.5" />
-            <Setter Property="Opacity" Value="0.45" />
         </Style>
         <Style Selector="RadioButton.pick">
             <Setter Property="FontSize" Value="12" />
@@ -41,30 +39,13 @@
     </Window.Styles>
 
     <StackPanel Margin="16,14,16,16">
-        <!-- 显存预算（GB）: live value + 滑块 (0.5 grid, snapped in the VM) + 刻度 + 数值框 -->
-        <Grid ColumnDefinitions="*,Auto">
-            <TextBlock Text="显存预算（GB）" Classes="seclab" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="1" Text="{Binding VramText}" FontSize="12.5" FontWeight="SemiBold"
-                       Foreground="#2B4ACB" />
-        </Grid>
-        <Slider Minimum="1" Maximum="16" Value="{Binding VramGb}" Margin="0,10,0,2" />
-        <Grid ColumnDefinitions="*,*,*,*,*">
-            <TextBlock Classes="tick" Text="1" />
-            <TextBlock Classes="tick" Grid.Column="1" Text="4" HorizontalAlignment="Center" />
-            <TextBlock Classes="tick" Grid.Column="2" Text="8" HorizontalAlignment="Center" />
-            <TextBlock Classes="tick" Grid.Column="3" Text="12" HorizontalAlignment="Center" />
-            <TextBlock Classes="tick" Grid.Column="4" Text="16" HorizontalAlignment="Right" />
-        </Grid>
-        <NumericUpDown Minimum="1" Maximum="16" Increment="0.5" FormatString="0.0"
-                       Value="{Binding VramGb}" Width="96" HorizontalAlignment="Left" Margin="0,6,0,0" />
-
         <!-- 输出路径：与输入 RAW 同目录 / 自定义（输入框+浏览 仅自定义时可用） -->
-        <TextBlock Classes="seclab" Text="输出路径" Margin="0,16,0,0" />
+        <TextBlock Classes="seclab" Text="输出路径" Margin="0,2,0,0" />
         <RadioButton Classes="pick" GroupName="output" Content="与输入 RAW 同目录"
                      IsChecked="{Binding OutputSameAsInput}" />
-        <RadioButton Classes="pick" GroupName="output" Content="自定义" Margin="18,0,0,0"
+        <RadioButton Classes="pick" GroupName="output" Content="自定义"
                      IsChecked="{Binding OutputCustom}" />
-        <Grid ColumnDefinitions="*,Auto" Margin="34,4,0,0" IsEnabled="{Binding OutputCustom}">
+        <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0" IsEnabled="{Binding OutputCustom}">
             <TextBox Text="{Binding CustomOutputDir}" Watermark="D:\Photos\JSR 输出" />
             <Button Grid.Column="1" Content="浏览…" MinWidth="64" Margin="6,0,0,0"
                     Command="{Binding BrowseOutputCommand}" />
@@ -74,9 +55,9 @@
         <TextBlock Classes="seclab" Text="临时文件路径" Margin="0,14,0,0" />
         <RadioButton Classes="pick" GroupName="temp" Content="系统默认（%TEMP%）"
                      IsChecked="{Binding TempDefault}" />
-        <RadioButton Classes="pick" GroupName="temp" Content="自定义" Margin="18,0,0,0"
+        <RadioButton Classes="pick" GroupName="temp" Content="自定义"
                      IsChecked="{Binding TempCustom}" />
-        <Grid ColumnDefinitions="*,Auto" Margin="34,4,0,0" IsEnabled="{Binding TempCustom}">
+        <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0" IsEnabled="{Binding TempCustom}">
             <TextBox Text="{Binding CustomTempDir}" Watermark="E:\Jsr4Z8 临时" />
             <Button Grid.Column="1" Content="浏览…" MinWidth="64" Margin="6,0,0,0"
                     Command="{Binding BrowseTempCommand}" />

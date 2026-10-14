@@ -45,8 +45,8 @@ public sealed record BackendFinished(RunnerResult Result) : QueueEvent;
 /// ② per-run temp dir &lt;TempBase&gt;\Jsr4Z8\&lt;jobId&gt;\ with its own cfg\ config dir
 /// (protocol fact #3: the backend locks its config dir exclusively, so it must be
 /// unique per run), ③ request.json via <see cref="BackendRequest.BuildJson"/>
-/// (memory = settings VramGb, fullwell = the validated PTC match, output = the job
-/// dir, prefix = jobId), ④ <see cref="BackendRunner.RunAsync"/> with events forwarded,
+/// (memory = fixed 64 GB — no VRAM budget, the driver allocates; fullwell = the
+/// validated PTC match; output = the job dir, prefix = jobId), ④ <see cref="BackendRunner.RunAsync"/> with events forwarded,
 /// ⑤ on backend success the newest &lt;prefix&gt;*.dng under the job dir (the backend
 /// nests it in &lt;prefix&gt;_V15_3_5_K7_&lt;ts&gt;_&lt;n&gt;\) is finalized via
 /// <see cref="JsrDngFinalizer.Finalize"/> into JSR_&lt;基准帧名&gt;.dng next to the
@@ -133,10 +133,10 @@ public sealed class TaskQueueRunner
             string logFile = Path.Combine(jobDir, "job.log");
 
             // ③ request.json: UTF-8 without BOM (backend contract), output = job dir, prefix = jobId.
-            // VramGb rounds AwayFromZero — the same convention as BuildJson's fullwell
-            // (Task 13 carried review fix).
-            string request = BackendRequest.BuildJson(
-                g, ptc, (int)Math.Round(settings.VramGb, MidpointRounding.AwayFromZero), jobDir, jobId);
+            // memory is fixed at 64 GB — the VRAM budget feature was removed post-release
+            // (user directive 始终不限制); the backend/driver now owns allocation, and
+            // driver-level OOM errors flow through the generic humanized failure path.
+            string request = BackendRequest.BuildJson(g, ptc, memoryGb: 64, jobDir, jobId);
             File.WriteAllText(requestPath, request, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
             // ④ backend run; events forwarded for the UI to map onto the card.

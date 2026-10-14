@@ -196,35 +196,6 @@ public class QueueRunnerTests
         }
     }
 
-    /// <summary>Final-review finding 3 (plan fact #7): a VRAM-budget failure must
-    /// guide the user to raise the budget — the hint is keyed on the backend's own
-    /// budget/MemoryError wording in the distilled message and must NOT fire for an
-    /// unrelated failure. stub_fail_envelope reproduces the real 4 GB alignment
-    /// failure message; stub_fail's distilled message is 模拟失败原因 (unrelated).</summary>
-    [Fact]
-    public async Task BudgetFailureMessage_AppendsVramBudgetHint_UnrelatedFailureDoesNot()
-    {
-        var h = new Harness("stub_fail_envelope.bat", "stub_fail.bat");
-        TaskGroupViewModel budget = Card(h.Mediator), unrelated = Card(h.Mediator);
-        try
-        {
-            await budget.StartAsync();
-
-            Assert.Equal(TaskState.Failed, budget.State);
-            Assert.Contains("budget", budget.ErrorText, StringComparison.OrdinalIgnoreCase);
-            Assert.EndsWith("\n建议：在 ⚙ 高级设置 中调高显存预算后重试", budget.ErrorText, StringComparison.Ordinal);
-
-            await unrelated.StartAsync();
-
-            Assert.Equal(TaskState.Failed, unrelated.State);
-            Assert.DoesNotContain("调高显存预算", unrelated.ErrorText);
-        }
-        finally
-        {
-            try { Directory.Delete(h.TempBase, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
-        }
-    }
-
     // ---------------------------------------------------------------- engine: stale diagnostic-dir sweep
 
     /// <summary>Final-review finding 4: failed/stopped runs keep ~3 GB diagnostic dirs
@@ -264,15 +235,14 @@ public class QueueRunnerTests
 
     // ---------------------------------------------------------------- engine: settings → request.json
 
-    /// <summary>Task 14 review fix: VramGb → request.json memory uses AwayFromZero —
-    /// 4.5 is the midpoint case where default banker's rounding would write 4 instead
-    /// of 5 (BackendRequest.cs `memory`). stub_backend completes WITHOUT a product DNG,
-    /// so the run fails and the job dir (with request.json) is kept for inspection.</summary>
+    /// <summary>Post-release VRAM-budget removal: request.json's memory is now a fixed
+    /// 64 GB (始终不限制 — the driver allocates); it no longer derives from any user
+    /// setting. stub_backend completes WITHOUT a product DNG, so the run fails and the
+    /// job dir (with request.json) is kept for inspection.</summary>
     [Fact]
-    public async Task VramGb45_WritesMemory5AwayFromZero_InRequestJson()
+    public async Task RequestJson_MemoryIsFixed64_IgnoringSettings()
     {
         var h = new Harness("stub_backend.bat");
-        h.Settings.CurrentSettings = h.Settings.CurrentSettings with { VramGb = 4.5 }; // mediator reads it per run
         TaskGroupViewModel vm = Card(h.Mediator);
         try
         {
@@ -281,9 +251,9 @@ public class QueueRunnerTests
             Assert.Equal(TaskState.Failed, vm.State);   // expected: no product DNG → temp kept
             string jobDir = Assert.Single(Directory.GetDirectories(h.JsrTempRoot));
             string json = File.ReadAllText(Path.Combine(jobDir, "request.json"));
-            Assert.Contains("\"memory\":5", json);                      // literal evidence
-            using JsonDocument doc = JsonDocument.Parse(json);             // exact value: 4.5 → 5,
-            Assert.Equal(5, doc.RootElement                               // banker's rounding would give 4
+            Assert.Contains("\"memory\":64", json);                     // literal evidence
+            using JsonDocument doc = JsonDocument.Parse(json);
+            Assert.Equal(64, doc.RootElement
                 .GetProperty("parameters").GetProperty("memory").GetInt32());
         }
         finally
@@ -446,7 +416,10 @@ public class QueueRunnerTests
 
 /// <summary>Task 13: QueueMediator's RunnerEvent → card mapping (headless, synchronous
 /// dispatcher): payload 0-5%, backend percent 5-100, log lines, stage text, terminal
-/// states with humanized messages.</summary>
+/// states with humanized messages. progressGate: TimeSpan.Zero disables the UI
+/// throttle — these tests pin the pure event→percent mapping over a fast stub whose
+/// lines all arrive inside the default 200 ms gate; the throttle itself is pinned by
+/// ProgressThrottleTests.</summary>
 public class QueueMediatorTests
 {
     private static readonly string[] Frames =
@@ -503,7 +476,7 @@ public class QueueMediatorTests
         };
         engine.FinalizeOverride = (backendDng, referenceNef, destDir) => Path.Combine(destDir, "JSR_fake.dng");
         var settings = new FakeSettingsProvider();
-        return (new QueueMediator(engine, settings, new SyncDispatcher()), tempBase);
+        return (new QueueMediator(engine, settings, new SyncDispatcher(), progressGate: TimeSpan.Zero), tempBase);
     }
 
     private sealed class FakeSettingsProvider : ISettingsProvider

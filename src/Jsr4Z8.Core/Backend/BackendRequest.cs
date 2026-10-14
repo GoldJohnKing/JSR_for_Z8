@@ -20,8 +20,10 @@ public static class BackendRequest
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    /// <summary>fullwell = ptc.FullwellE rounded to 1 decimal (AwayFromZero); memory = vramGb in GB.</summary>
-    public static string BuildJson(TaskGroup g, PtcMatch ptc, int vramGb, string outputDir, string prefix)
+    /// <summary>fullwell = ptc.FullwellE rounded to 1 decimal (AwayFromZero); memory =
+    /// the request's GB ceiling — fixed by the caller (64: no VRAM budget, the driver
+    /// allocates; user directive 始终不限制).</summary>
+    public static string BuildJson(TaskGroup g, PtcMatch ptc, int memoryGb, string outputDir, string prefix)
     {
         double fullwell = Math.Round(ptc.FullwellE, 1, MidpointRounding.AwayFromZero);
         var request = new
@@ -42,7 +44,7 @@ public static class BackendRequest
                 tiff = false,
                 preview = false,
                 deghost = false,
-                memory = vramGb,
+                memory = memoryGb,
             },
         };
         return JsonSerializer.Serialize(request, Options);

@@ -17,9 +17,9 @@ namespace Jsr4Z8.Tests;
 /// real extracted backend payload, a real GPU run and the real finalizer
 /// product. Opt-in via environment variable JSR4Z8_E2E=1; with it unset every
 /// test returns early and passes (normal CI stays fast and GPU-free). With it
-/// set, the five tests of this class run sequentially (single xUnit class =
-/// single collection) and cost ~20 min of GPU time: three full ~5.5 min runs
-/// plus one 4 GB alignment failure plus one 30 s cancel.
+/// set, the four tests of this class run sequentially (single xUnit class =
+/// single collection) and cost ~17 min of GPU time: three full ~5.5 min runs
+/// plus one 30 s cancel.
 ///
 /// Payload note: the queue's payload phase is pointed at the payload the
 /// release exe's --selftest extracted into %LOCALAPPDATA%\JSR4Z8\backend\
@@ -184,8 +184,8 @@ public class E2eTests
 
         var (group, ptc, engine, capture) = PrepareRun(SamplesDir());
         TaskRunOutcome outcome = await engine
-            .RunAsync(group, ptc, new AppSettings(VramGb: 12), CancellationToken.None, capture.OnEvent);
-        ReportOutcome(outcome, capture, "全流程(12GB)");
+            .RunAsync(group, ptc, new AppSettings(), CancellationToken.None, capture.OnEvent);
+        ReportOutcome(outcome, capture, "全流程");
 
         Assert.True(outcome.Success, outcome.Message);
         string expected = Path.Combine(SamplesDir(), "JSR_DSC_7576.dng");
@@ -338,43 +338,6 @@ public class E2eTests
         if (file[off] == 0xFF && file[off + 1] == 0xD8) count++;
     }
 
-    // ---- Step 1 (取证): 4 GB budget fails in alignment with a clear message ----
-
-    [Fact]
-    [Trait("Category", "E2E")]
-    public async Task Vram4Gb_FailsInAlignment_WithBudgetMessage_KeepsDiagnosticDir()
-    {
-        if (!Enabled)
-        {
-            Ev("skipped (set JSR4Z8_E2E=1 to run)");
-            return;
-        }
-
-        var (group, ptc, engine, capture) = PrepareRun(SamplesDir());
-        TaskRunOutcome outcome = await engine
-            .RunAsync(group, ptc, new AppSettings(VramGb: 4), CancellationToken.None, capture.OnEvent);
-        ReportOutcome(outcome, capture, "4GB 预算");
-
-        Assert.False(outcome.Success);
-        Assert.False(outcome.Cancelled);
-        // Distilled failure message = the backend's own bare SRHQ_NET_ABORT alignment-budget
-        // line (envelope JSON must not leak into the user-facing message — Task 16 fix).
-        Assert.Contains("Alignment cannot fit", outcome.Message);
-        Assert.Contains("budget", outcome.Message);
-        Assert.DoesNotContain("ASSISTANT_JSR_", outcome.Message);
-        Assert.DoesNotContain("exit_code", outcome.Message);
-        Ev($"4GB 失败文案（用户所见）: {outcome.Message}");
-
-        // Failure keeps the job temp dir for diagnosis (job.log inside it)
-        Assert.NotNull(outcome.DiagnosticDir);
-        Assert.True(Directory.Exists(outcome.DiagnosticDir), "诊断目录应保留");
-        string jobLog = Path.Combine(outcome.DiagnosticDir!, "job.log");
-        Assert.True(File.Exists(jobLog), $"job.log 缺失: {jobLog}");
-        string[] tail = File.ReadAllLines(jobLog)[^8..];
-        Ev("job.log 末 8 行:\n    " + string.Join("\n    ", tail));
-        Assert.Contains("MemoryError", File.ReadAllText(jobLog), StringComparison.Ordinal);
-    }
-
     // ---- Step 3b: stop mid-run kills the backend tree, keeps temp ----
 
     [Fact]
@@ -390,7 +353,7 @@ public class E2eTests
         var (group, ptc, engine, capture) = PrepareRun(SamplesDir());
         using var cts = new CancellationTokenSource();
         Task<TaskRunOutcome> run = engine
-            .RunAsync(group, ptc, new AppSettings(VramGb: 12), cts.Token, capture.OnEvent);
+            .RunAsync(group, ptc, new AppSettings(), cts.Token, capture.OnEvent);
         await Task.Delay(TimeSpan.FromSeconds(30)); // reach alignment phase
         var stopWatch = Stopwatch.StartNew();
         cts.Cancel();
@@ -443,8 +406,8 @@ public class E2eTests
 
         var (group, ptc, engine, capture) = PrepareRun(samplesCopy);
         TaskRunOutcome outcome = await engine
-            .RunAsync(group, ptc, new AppSettings(VramGb: 12), CancellationToken.None, capture.OnEvent);
-        ReportOutcome(outcome, capture, "中文路径全流程(12GB)");
+            .RunAsync(group, ptc, new AppSettings(), CancellationToken.None, capture.OnEvent);
+        ReportOutcome(outcome, capture, "中文路径全流程");
 
         Assert.True(outcome.Success, outcome.Message);
         string expected = Path.Combine(samplesCopy, "JSR_DSC_7576.dng");
@@ -476,8 +439,8 @@ public class E2eTests
         string stdoutPath = Path.Combine(workDir, "success.log");
         string stderrPath = Path.Combine(workDir, "success.stderr.log");
 
-        // The same request the queue builds (UTF-8 no BOM, memory=12, prefix=cap1).
-        string request = BackendRequest.BuildJson(group, ptc, vramGb: 12, outputDir: outDir, prefix: "cap1");
+        // The same request the queue builds (UTF-8 no BOM, memory=64, prefix=cap1).
+        string request = BackendRequest.BuildJson(group, ptc, memoryGb: 64, outputDir: outDir, prefix: "cap1");
         File.WriteAllText(requestPath, request, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
         // Raw tap: spawn the bridge exactly as BackendRunner does, but persist every
