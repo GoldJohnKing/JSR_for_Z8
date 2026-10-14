@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <OutputType>WinExe</OutputType>
-    <Version>1.0.1</Version>
+    <Version>0.1.0</Version>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Jsr4Z8.Core\Jsr4Z8.Core.csproj" />
