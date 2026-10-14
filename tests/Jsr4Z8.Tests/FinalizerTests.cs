@@ -68,6 +68,20 @@ public class FinalizerTests
         return (final, dir);
     });
 
+    /// <summary>Passthrough variant (post-release fix 5): the backend's own
+    /// LJ strip bytes verbatim inside the product wrapper — no decode, no
+    /// re-encode. One run per test session.</summary>
+    private static readonly Lazy<(string Final, string Dir)> FinalizedPassthrough = new(() =>
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "jsr4z8-finalizertests-passthrough");
+        try { Directory.Delete(dir, recursive: true); } catch { /* stale run */ }
+        Directory.CreateDirectory(dir);
+        string final = JsrDngFinalizer.Finalize(
+            FindFixture("roi_sample.dng"), SampleFiles.FindSample("DSC_7576.NEF"), dir,
+            layout: RawLayout.Strips, passthroughRawStreams: true);
+        return (final, dir);
+    });
+
     internal static string FindFixture(string name)
     {
         string? dir = AppContext.BaseDirectory;
@@ -356,6 +370,43 @@ public class FinalizerTests
         Assert.True(fullIfd0.Tags[330].Count >= 3, "full: raw + preview SubIFDs");
         Assert.True(fullRaw.Tags.ContainsKey(50829), "full: ActiveArea");
         Assert.True(fullRaw.Tags.ContainsKey(51009), "full: OpcodeList2");
+    }
+
+    /// <summary>Post-release fix 5 — passthrough seam: Finalize with
+    /// passthroughRawStreams re-emits the backend's own strip bytes verbatim
+    /// (every strip byte-identical, strip count/geometry unchanged) while the
+    /// wrapper stays the full product file (EXIF, previews, geometry).</summary>
+    [Fact]
+    public void Finalize_Passthrough_BackendStripBytesVerbatimInsideFullWrapper()
+    {
+        var (final, _) = FinalizedPassthrough.Value;
+
+        // The artifact's strips must be the fixture's own bytes — no re-encode.
+        var (_, srcStreams) = BackendDngReader.ReadStrips(FindFixture("roi_sample.dng"));
+        var (artInfo, artStreams) = BackendDngReader.ReadStrips(final);
+        Assert.Equal(FixtureW, artInfo.W);
+        Assert.Equal(FixtureH, artInfo.H);
+        Assert.Equal(3, artInfo.Samples);
+        Assert.Equal(srcStreams.Length, artStreams.Length);
+        Assert.Equal(12, artStreams.Length);                 // 1536 rows / 128
+        for (int i = 0; i < srcStreams.Length; i++)
+            Assert.True(srcStreams[i].AsSpan().SequenceEqual(artStreams[i]),
+                $"strip {i} bytes differ — passthrough must be byte-identical");
+
+        // The wrapper is still the full product file: EXIF + previews carried,
+        // raw SubIFD in strips layout with the geometry quartet.
+        byte[] file = File.ReadAllBytes(final);
+        var ifd0 = Tiff.ParseIfd(file, Tiff.U32(file, 4));
+        Assert.True(ifd0.Tags.ContainsKey(34665), "EXIF pointer missing — wrapper must stay full");
+        Assert.True(ifd0.Tags.ContainsKey(700), "XMP missing — wrapper must stay full");
+        Assert.True(ifd0.Tags[330].Count >= 3, "raw + preview SubIFDs missing");
+        var (_, _, v330) = ifd0.Tags[330];
+        var raw = Tiff.ParseIfd(file, Tiff.U32(v330, 0));
+        Assert.Equal(7, Tiff.U16(raw.Tags[259].Value, 0));   // lossless JPEG
+        Assert.Equal(34892, Tiff.U16(raw.Tags[262].Value, 0));
+        Assert.Equal(128u, Tiff.U32(raw.Tags[278].Value, 0));
+        Assert.True(raw.Tags.ContainsKey(50829), "ActiveArea missing — wrapper must stay full");
+        Assert.True(raw.Tags.ContainsKey(51009), "OpcodeList2 missing — wrapper must stay full");
     }
 
     [Fact]

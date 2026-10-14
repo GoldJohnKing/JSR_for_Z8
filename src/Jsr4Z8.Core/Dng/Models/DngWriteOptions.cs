@@ -100,4 +100,17 @@ public sealed record DngWriteOptions
     /// forced Software attribution and no BaselineExposure/Noise/Sharpness —
     /// the whole NEF-migration metadata block.</summary>
     public bool IncludeExifGps { get; init; } = true;
+
+    // ---- diagnostic seams (ACR bisection, post-release fix 5) ----
+
+    /// <summary>Pre-encoded lossless-JPEG strip streams emitted VERBATIM
+    /// (passthrough seam): when set, the writer skips encoding and writes these
+    /// bytes as the strips payload — the backend's own entropy bytes inside the
+    /// product wrapper, isolating re-encode-vs-wrapper in the ACR bisection.
+    /// Valid only on the compressed LinearRaw strips path (Compress=true,
+    /// Layout=Strips, no CfaPattern); the pixel array is then ignored (may be
+    /// empty) and stream boundaries must match the writer's RowsPerStrip=128
+    /// bands (ceil(H/128) streams, short final band — the backend tifffile
+    /// convention; the writer validates the count).</summary>
+    public IReadOnlyList<byte[]>? RawStreams { get; init; }
 }

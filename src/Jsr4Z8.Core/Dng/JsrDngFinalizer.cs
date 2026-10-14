@@ -34,13 +34,50 @@ public static class JsrDngFinalizer
     /// post-release fix 4): they suppress groups of Save_Z8-lineage wrapper
     /// features so the bisection harness can emit cumulative strip-down
     /// variants (V0 minimal → full). Defaults true = product behavior unchanged.
+    /// <paramref name="passthroughRawStreams"/> and <paramref name="cropW"/>/
+    /// <paramref name="cropH"/> are diagnostic seams (post-release fix 5):
+    /// passthrough re-emits the backend's own LJ strip bytes verbatim (no decode/
+    /// re-encode; requires Strips layout), crop truncates the decoded image to
+    /// W×H from origin (0,0) before finalizing — the size ladder probing ACR's
+    /// dimension threshold; the dims-mismatch fallback then yields a full-image
+    /// ActiveArea/DefaultCrop pair. Harness-only; the product calls neither.
     /// </summary>
     public static string Finalize(string backendDngPath, string referenceNefPath, string destDir,
         Action<string>? log = null, RawLayout layout = RawLayout.Tiles,
         bool includeGeometryTags = true, bool includeOpcodes = true,
-        bool includePreviews = true, bool includeExifGps = true)
+        bool includePreviews = true, bool includeExifGps = true,
+        bool passthroughRawStreams = false, int? cropW = null, int? cropH = null)
     {
-        var backend = BackendDngReader.Read(backendDngPath);
+        if (passthroughRawStreams && (cropW != null || cropH != null))
+            throw new ArgumentException("passthrough 与 crop 互斥（passthrough 不解码，无像素可裁）");
+        if (cropW.HasValue != cropH.HasValue)
+            throw new ArgumentException("cropW/cropH 必须成对设置");
+        if (passthroughRawStreams && layout != RawLayout.Strips)
+            throw new ArgumentException("passthroughRawStreams 只支持 RawLayout.Strips（条带字节逐条搬运）");
+
+        BackendDng backend;
+        byte[][]? rawStreams = null;
+        if (passthroughRawStreams)
+        {
+            // No pixel decode: metadata + the encoded strip bytes verbatim.
+            (backend, rawStreams) = BackendDngReader.ReadStrips(backendDngPath);
+        }
+        else
+        {
+            backend = BackendDngReader.Read(backendDngPath);
+            if (cropW is int cw && cropH is int ch)
+            {
+                if (cw <= 0 || ch <= 0 || cw > backend.W || ch > backend.H)
+                    throw new ArgumentOutOfRangeException(
+                        $"crop {cw}×{ch} 越界（后端 {backend.W}×{backend.H}）");
+                // Top-left crop: rows [0,ch) × cols [0,cw) repacked row-major.
+                var cropped = new ushort[(long)cw * ch * backend.Samples];
+                for (int row = 0; row < ch; row++)
+                    Array.Copy(backend.Data, (long)row * backend.W * backend.Samples,
+                        cropped, (long)row * cw * backend.Samples, (long)cw * backend.Samples);
+                backend = backend with { Data = cropped, W = cw, H = ch };
+            }
+        }
         if (backend.Photometric != 34892 || backend.Samples != 3)
             throw new InvalidDataException(
                 $"后端 DNG 不是 LinearRaw RGB（Photometric={backend.Photometric}, Samples={backend.Samples}）");
@@ -54,7 +91,7 @@ public static class JsrDngFinalizer
 
         var payload = new RawPayload
         {
-            Data = backend.Data,
+            Data = backend.Data,               // empty in passthrough mode (RawStreams carries the bytes)
             W = backend.W,
             H = backend.H,
             Samples = backend.Samples,
@@ -76,6 +113,9 @@ public static class JsrDngFinalizer
             ActiveArea = activeArea,
             DefaultCrop = crop,
             Layout = layout,
+            // Diagnostic seam (post-release fix 5): passthrough strips — the
+            // backend's own encoded stream bytes instead of a re-encode.
+            RawStreams = rawStreams,
             // Diagnostic seams (post-release fix 4): pass-through of the
             // bisection toggles; defaults true = the product file.
             IncludeGeometryTags = includeGeometryTags,

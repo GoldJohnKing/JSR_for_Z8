@@ -42,6 +42,8 @@ public sealed record BackendDng
 /// finalizer carries forward. Strip storage only, both compressed
 /// (lossless JPEG, any predictor 1-7 — decoded via libjpeg-turbo through
 /// <see cref="DngLjpegNative.ljd_decode_stream"/>) and uncompressed.
+/// <see cref="ReadStrips"/> is the no-decode variant (post-release fix 5):
+/// metadata + the encoded strip bytes verbatim, for passthrough re-emission.
 /// </summary>
 public static class BackendDngReader
 {
@@ -64,46 +66,112 @@ public static class BackendDngReader
     public static BackendDng Read(string backendDngPath)
     {
         using var reader = new TiffReader(backendDngPath);
+        var (ifd0, rawIfd) = OpenRawIfd(reader);
+        var d = ReadDomain(reader, rawIfd);
+        Validate(d);
 
-        var ifd0 = reader.ParseIfd(reader.If0Offset);
-        uint[] subOffsets = ifd0.TryGetValue(TagSubIfds, out var subList)
-            ? subList.ToArray()
-            : Array.Empty<uint>();
-        var rawIfd = FindRawIfd(reader, ifd0, subOffsets);
-
-        int w = (int)(reader.EntryU32(rawIfd, TagImageWidth, required: true) ?? 0);
-        int h = (int)(reader.EntryU32(rawIfd, TagImageLength, required: true) ?? 0);
-        ushort compression = reader.EntryU16(rawIfd, TagCompression, required: true) ?? 0;
-        ushort photometric = reader.EntryU16(rawIfd, TagPhotometric, required: true) ?? 0;
-        int samples = reader.EntryU16(rawIfd, TagSamplesPerPixel, required: false) ?? 1;
-        int rowsPerStrip = (int)(reader.EntryU32(rawIfd, TagRowsPerStrip, required: false) ?? (uint)h);
-        int blackLevel = reader.EntryU16(rawIfd, TagBlackLevel, required: false) ?? 0;
-        int whiteLevel = (int)(reader.EntryU32(rawIfd, TagWhiteLevel, required: false) ?? 65535);
-
-        if (w <= 0 || h <= 0 || samples is < 1 or > 4)
-            throw new InvalidDataException($"后端 DNG raw IFD 无效尺寸/采样: {w}×{h}×{samples}");
-        if (rowsPerStrip <= 0)
-            throw new InvalidDataException($"后端 DNG RowsPerStrip 无效: {rowsPerStrip}");
-
-        var data = compression == 7
-            ? ReadCompressedStrips(reader, rawIfd, w, h, samples, rowsPerStrip)
-            : compression == 1
-                ? ReadUncompressedStrips(reader, rawIfd, w, h, samples, rowsPerStrip)
-                : throw new NotSupportedException($"后端 DNG Compression={compression} 不受支持（仅 1/7）");
+        var data = d.Compression == 7
+            ? ReadCompressedStrips(reader, rawIfd, d.W, d.H, d.Samples, d.RowsPerStrip)
+            : d.Compression == 1
+                ? ReadUncompressedStrips(reader, rawIfd, d.W, d.H, d.Samples, d.RowsPerStrip)
+                : throw new NotSupportedException($"后端 DNG Compression={d.Compression} 不受支持（仅 1/7）");
 
         return new BackendDng
         {
             Data = data,
-            W = w,
-            H = h,
-            Samples = samples,
-            Photometric = photometric,
-            BlackLevel = blackLevel,
-            WhiteLevel = whiteLevel,
-            CfaPattern = photometric == 32803 ? ReadCfaPattern(reader, rawIfd) : null,
+            W = d.W,
+            H = d.H,
+            Samples = d.Samples,
+            Photometric = d.Photometric,
+            BlackLevel = d.BlackLevel,
+            WhiteLevel = d.WhiteLevel,
+            CfaPattern = d.Photometric == 32803 ? ReadCfaPattern(reader, rawIfd) : null,
             AsShotNeutral = ReadAsShotNeutral(reader, ifd0),
             ColorMatrix1 = ReadColorMatrix1(reader, ifd0),
         };
+    }
+
+    /// <summary>
+    /// Passthrough read (post-release fix 5 bisection seam): the raw SubIFD's
+    /// domain tags plus every strip's encoded bytes VERBATIM — no pixel
+    /// decode. Pairs with <see cref="DngWriteOptions.RawStreams"/>: the caller
+    /// re-emits the backend's own entropy bytes inside the product wrapper.
+    /// <see cref="BackendDng.Data"/> comes back empty (nothing was decoded).
+    /// </summary>
+    public static (BackendDng Info, byte[][] Streams) ReadStrips(string backendDngPath)
+    {
+        using var reader = new TiffReader(backendDngPath);
+        var (ifd0, rawIfd) = OpenRawIfd(reader);
+        var d = ReadDomain(reader, rawIfd);
+        Validate(d);
+        if (d.Compression != 7)
+            throw new NotSupportedException($"passthrough 只支持 LJ 条带（Compression=7），遇到 {d.Compression}");
+
+        var offsets = reader.EntryU32Array(rawIfd, TagStripOffsets);
+        var counts = reader.EntryU32Array(rawIfd, TagStripByteCounts);
+        int strips = Math.Min(offsets.Count, counts.Count);
+        int expectedStrips = (d.H + d.RowsPerStrip - 1) / d.RowsPerStrip;
+        if (strips < expectedStrips)
+            throw new InvalidDataException($"条带不足: {strips} < {expectedStrips} (H={d.H}, RPS={d.RowsPerStrip})");
+
+        var streams = new byte[expectedStrips][];
+        for (int i = 0; i < expectedStrips; i++)
+        {
+            streams[i] = new byte[counts[i]];
+            reader.ReadBytes(offsets[i], streams[i], 0, counts[i]);
+        }
+
+        return (new BackendDng
+        {
+            Data = Array.Empty<ushort>(),
+            W = d.W,
+            H = d.H,
+            Samples = d.Samples,
+            Photometric = d.Photometric,
+            BlackLevel = d.BlackLevel,
+            WhiteLevel = d.WhiteLevel,
+            CfaPattern = null,
+            AsShotNeutral = ReadAsShotNeutral(reader, ifd0),
+            ColorMatrix1 = ReadColorMatrix1(reader, ifd0),
+        }, streams);
+    }
+
+    /// <summary>Opens the file and resolves (IFD0, raw SubIFD).</summary>
+    private static (Dictionary<ushort, List<uint>> Ifd0, Dictionary<ushort, List<uint>> RawIfd) OpenRawIfd(
+        TiffReader reader)
+    {
+        var ifd0 = reader.ParseIfd(reader.If0Offset);
+        uint[] subOffsets = ifd0.TryGetValue(TagSubIfds, out var subList)
+            ? subList.ToArray()
+            : Array.Empty<uint>();
+        return (ifd0, FindRawIfd(reader, ifd0, subOffsets));
+    }
+
+    /// <summary>Scalar domain tags of the raw SubIFD (shared by the decode and
+    /// passthrough read paths).</summary>
+    private sealed record RawDomain(int W, int H, ushort Compression, ushort Photometric, int Samples,
+        int RowsPerStrip, int BlackLevel, int WhiteLevel);
+
+    private static RawDomain ReadDomain(TiffReader reader, Dictionary<ushort, List<uint>> rawIfd)
+    {
+        int h = (int)(reader.EntryU32(rawIfd, TagImageLength, required: true) ?? 0);
+        return new RawDomain(
+            W: (int)(reader.EntryU32(rawIfd, TagImageWidth, required: true) ?? 0),
+            H: h,
+            Compression: reader.EntryU16(rawIfd, TagCompression, required: true) ?? 0,
+            Photometric: reader.EntryU16(rawIfd, TagPhotometric, required: true) ?? 0,
+            Samples: reader.EntryU16(rawIfd, TagSamplesPerPixel, required: false) ?? 1,
+            RowsPerStrip: (int)(reader.EntryU32(rawIfd, TagRowsPerStrip, required: false) ?? (uint)h),
+            BlackLevel: reader.EntryU16(rawIfd, TagBlackLevel, required: false) ?? 0,
+            WhiteLevel: (int)(reader.EntryU32(rawIfd, TagWhiteLevel, required: false) ?? 65535));
+    }
+
+    private static void Validate(RawDomain d)
+    {
+        if (d.W <= 0 || d.H <= 0 || d.Samples is < 1 or > 4)
+            throw new InvalidDataException($"后端 DNG raw IFD 无效尺寸/采样: {d.W}×{d.H}×{d.Samples}");
+        if (d.RowsPerStrip <= 0)
+            throw new InvalidDataException($"后端 DNG RowsPerStrip 无效: {d.RowsPerStrip}");
     }
 
     /// <summary>Picks the raw SubIFD: LinearRaw (34892) when present, else the

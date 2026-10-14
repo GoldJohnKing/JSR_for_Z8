@@ -138,6 +138,12 @@ public class DngWriter
                 "RawLayout.Strips is a compressed LinearRaw profile (backend tifffile parity): " +
                 $"requires Compress=true and a non-CFA payload (got Compress={compress}, CFA={isCfa})",
                 nameof(options));
+        // Passthrough seam (post-release fix 5): pre-encoded streams are valid
+        // only on that same compressed LinearRaw strips path.
+        if (options.RawStreams is { Count: > 0 } && (!compress || !strips || isCfa))
+            throw new ArgumentException(
+                $"RawStreams is a passthrough seam for the compressed LinearRaw strips path only " +
+                $"(Compress={compress}, Layout={options.Layout}, CFA={isCfa})", nameof(options));
 
         // ================= lossless-JPEG streams (Compression=7, ADC -c profile) =====
         // 256x256 tiles, each an independent SOF3 stream: 16-bit, interleaved
@@ -150,6 +156,8 @@ public class DngWriter
         // SOF3 stream over the full image width — backend parity (tifffile writes
         // ceil(H/128) strips, final band = actual remaining rows: 11040 rows → 87
         // strips, last = 32 rows). Strip geometry is exact, no edge padding.
+        // Passthrough seam (post-release fix 5): DngWriteOptions.RawStreams set ⇒
+        // the caller's pre-encoded strip bytes replace the encode step verbatim.
         // Stream offsets follow the ADC layout: sequential, each start 2-byte
         // aligned.
         const int TileSide = 256;
@@ -159,6 +167,23 @@ public class DngWriter
         if (compress)
         {
             if (strips)
+            {
+            if (options.RawStreams is { Count: > 0 } passthrough)
+            {
+                // Passthrough seam (post-release fix 5): the caller's
+                // pre-encoded strip bytes (the backend's own LJ streams) are
+                // emitted verbatim — no encode. The writer still declares
+                // RowsPerStrip=128, so the stream boundaries must be 128-row
+                // bands (short final band); a foreign strip grid would make
+                // the emitted file incoherent, hence the count guard.
+                int expectedStrips = (height + StripRows - 1) / StripRows;
+                if (passthrough.Count != expectedStrips)
+                    throw new ArgumentException(
+                        $"RawStreams passthrough: {passthrough.Count} streams != ceil(H/{StripRows})={expectedStrips} " +
+                        "— boundaries incompatible with the writer's RowsPerStrip", nameof(options));
+                streams = new List<byte[]>(passthrough);
+            }
+            else
             {
             // Encoder geometry: one strip = full image width × band rows, the
             // interleaved samples as channels (RGB: width × 3).
@@ -196,6 +221,7 @@ public class DngWriter
             srcBuf.Dispose();
             outBuf.Dispose();
             streams = new List<byte[]>(stripArr);
+            }
             }
             else
             {

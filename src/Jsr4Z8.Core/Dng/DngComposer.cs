@@ -90,6 +90,9 @@ public static class DngComposer
     /// IFD0 attribution (Software/OmitIfd0Artist), AsShotNeutral/ColorMatrix1
     /// and geometry overrides. Task 9's LinearRaw RGB fusion entry: the backend
     /// product's payload + the reference NEF's metadata blocks.
+    /// Diagnostic seam (post-release fix 5): <see cref="DngWriteOptions.RawStreams"/>
+    /// set ⇒ the payload's pixel array is bypassed (may be empty) and the
+    /// pre-encoded strip streams are emitted verbatim.
     /// </summary>
     public static void Compose(RawPayload payload, RawMetadata meta, NefAssets assets, string destDngPath,
         DngWriteOptions options)
@@ -103,7 +106,8 @@ public static class DngComposer
         if ((options.CfaPattern != null) != payload.IsCfa)
             throw new ArgumentException(
                 $"payload.IsCfa={payload.IsCfa} 与 CfaPattern {(options.CfaPattern == null ? "缺失" : "多出")}不一致");
-        if (payload.Data.Length != (long)payload.W * payload.H * options.SamplesPerPixel)
+        if (options.RawStreams is not { Count: > 0 } &&
+            payload.Data.Length != (long)payload.W * payload.H * options.SamplesPerPixel)
             throw new ArgumentException(
                 $"payload.Data.Length {payload.Data.Length} != W·H·Samples {payload.W}×{payload.H}×{options.SamplesPerPixel}");
 
