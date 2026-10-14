@@ -27,8 +27,9 @@ public class FinalizerTests
     private const int FixtureW = 2048;
     private const int FixtureH = 1536;
 
-    /// <summary>One Finalize per test run (full fixture LJ decode + re-encode).</summary>
-    private static readonly Lazy<(string Final, string Dir)> Finalized = new(() =>
+    /// <summary>One Finalize per test run (full fixture LJ decode + re-encode).
+    /// Internal: DngSpecInvariantsTests reuses the same artifact.</summary>
+    internal static readonly Lazy<(string Final, string Dir)> Finalized = new(() =>
     {
         string dir = Path.Combine(Path.GetTempPath(), "jsr4z8-finalizertests");
         try { Directory.Delete(dir, recursive: true); } catch { /* stale run */ }
@@ -40,8 +41,8 @@ public class FinalizerTests
 
     /// <summary>Strip-layout variant (ACR bisection: RawLayout.Strips = backend
     /// tifffile storage parity instead of tiles). Same fixture, one run per
-    /// test session.</summary>
-    private static readonly Lazy<(string Final, string Dir)> FinalizedStrips = new(() =>
+    /// test session. Internal: DngSpecInvariantsTests reuses the artifact.</summary>
+    internal static readonly Lazy<(string Final, string Dir)> FinalizedStrips = new(() =>
     {
         string dir = Path.Combine(Path.GetTempPath(), "jsr4z8-finalizertests-strips");
         try { Directory.Delete(dir, recursive: true); } catch { /* stale run */ }
@@ -55,8 +56,9 @@ public class FinalizerTests
     /// <summary>ACR bisection V0 variant (post-release fix 4): all four
     /// feature-suppression seams off — backend-like minimal output (raw +
     /// thumbnail + DNG basics). Strip layout to mirror the harness's V0
-    /// artifact. One run per test session.</summary>
-    private static readonly Lazy<(string Final, string Dir)> FinalizedV0 = new(() =>
+    /// artifact. One run per test session. Internal: reused by the
+    /// spec-invariants suite.</summary>
+    internal static readonly Lazy<(string Final, string Dir)> FinalizedV0 = new(() =>
     {
         string dir = Path.Combine(Path.GetTempPath(), "jsr4z8-finalizertests-v0");
         try { Directory.Delete(dir, recursive: true); } catch { /* stale run */ }

@@ -15,8 +15,9 @@ namespace Jsr4Z8.Tests;
 /// </summary>
 public class DngWriterTests
 {
-    /// <summary>One conversion per test run (full 8280×5520 LJPEG encode, ~seconds).</summary>
-    private static readonly Lazy<(string Dng, NefToDngResult Result)> Converted = new(() =>
+    /// <summary>One conversion per test run (full 8280×5520 LJPEG encode, ~seconds).
+    /// Internal: DngSpecInvariantsTests reuses the same artifact.</summary>
+    internal static readonly Lazy<(string Dng, NefToDngResult Result)> Converted = new(() =>
     {
         string dir = Path.Combine(Path.GetTempPath(), "jsr4z8-dngtests");
         try { Directory.Delete(dir, recursive: true); } catch { /* stale run */ }
