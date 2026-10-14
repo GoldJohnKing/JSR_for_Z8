@@ -37,6 +37,20 @@ public class FinalizerTests
         return (final, dir);
     });
 
+    /// <summary>Strip-layout variant (ACR bisection: RawLayout.Strips = backend
+    /// tifffile storage parity instead of tiles). Same fixture, one run per
+    /// test session.</summary>
+    private static readonly Lazy<(string Final, string Dir)> FinalizedStrips = new(() =>
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "jsr4z8-finalizertests-strips");
+        try { Directory.Delete(dir, recursive: true); } catch { /* stale run */ }
+        Directory.CreateDirectory(dir);
+        string final = JsrDngFinalizer.Finalize(
+            FindFixture("roi_sample.dng"), SampleFiles.FindSample("DSC_7576.NEF"), dir,
+            layout: RawLayout.Strips);
+        return (final, dir);
+    });
+
     internal static string FindFixture(string name)
     {
         string? dir = AppContext.BaseDirectory;
@@ -221,6 +235,54 @@ public class FinalizerTests
     }
 
     [Fact]
+    public void Finalize_StripLayout_RawSubIfdUsesStripTags_NoTileTags()
+    {
+        var (final, _) = FinalizedStrips.Value;
+        byte[] file = File.ReadAllBytes(final);
+        Assert.Equal(0x49, file[0]); Assert.Equal(0x49, file[1]);
+        Assert.Equal(42, Tiff.U16(file, 2));                  // file parses end-to-end
+
+        var ifd0 = Tiff.ParseIfd(file, Tiff.U32(file, 4));
+        var (_, _, v330) = ifd0.Tags[330];                    // SubIFDs: raw first
+        var raw = Tiff.ParseIfd(file, Tiff.U32(v330, 0));
+
+        // Strip layout: 273/278/279 present, tile tags absent entirely
+        Assert.Equal(7, Tiff.U16(raw.Tags[259].Value, 0));    // still lossless JPEG
+        Assert.Equal(34892, Tiff.U16(raw.Tags[262].Value, 0));
+        Assert.True(raw.Tags.ContainsKey(273), "StripOffsets (273) missing");
+        Assert.Equal(128u, Tiff.U32(raw.Tags[278].Value, 0)); // RowsPerStrip = 128 (backend parity)
+        Assert.True(raw.Tags.ContainsKey(279), "StripByteCounts (279) missing");
+        foreach (ushort tileTag in new ushort[] { 322, 323, 324, 325 })
+            Assert.False(raw.Tags.ContainsKey(tileTag), $"tile tag {tileTag} must be absent in strip layout");
+
+        // Fixture geometry: 1536 rows / 128 = 12 strips exactly
+        Assert.Equal(12u, raw.Tags[273].Count);
+        Assert.Equal(12u, raw.Tags[279].Count);
+        uint strip0 = Tiff.U32(raw.Tags[273].Value, 0);
+        Assert.Equal(0xFF, file[strip0]); Assert.Equal(0xD8, file[strip0 + 1]);   // SOI
+    }
+
+    [Fact]
+    public void Finalize_StripLayout_PixelRoundTripExact()
+    {
+        var (final, _) = FinalizedStrips.Value;
+        var backend = BackendDngReader.Read(FindFixture("roi_sample.dng"));
+
+        var finalPixels = DecodeFinalRawStrips(final, out int fw, out int fh, out int fs);
+        Assert.Equal(FixtureW, fw);
+        Assert.Equal(FixtureH, fh);
+        Assert.Equal(3, fs);
+        Assert.Equal(backend.Data.Length, finalPixels.Length);
+
+        for (int i = 0; i < backend.Data.Length; i++)
+            if (backend.Data[i] != finalPixels[i])
+            {
+                Assert.Fail($"first pixel mismatch at {i}: backend {backend.Data[i]} vs strip-layout {finalPixels[i]}");
+                break;
+            }
+    }
+
+    [Fact]
     public void DecodeStream_MalformedStrip_IsContained_ReturnsErrorCode()
     {
         // Regression lock for the ljd_decode_stream error containment fix
@@ -279,6 +341,42 @@ public class FinalizerTests
                     Array.Copy(tile, (long)r * tw * samples,
                         pixels, ((long)(ty * th + r) * w + tx * tw) * samples, copyW);
             }
+        return pixels;
+    }
+
+        /// <summary>Decodes the finalized DNG's raw SubIFD strip array back to the
+    /// full interleaved sample plane (ljd_decode_stream per 128-row strip; the
+    /// final partial strip carries its actual row count, like the backend).</summary>
+    private static ushort[] DecodeFinalRawStrips(string path, out int w, out int h, out int samples)
+    {
+        byte[] file = File.ReadAllBytes(path);
+        var ifd0 = Tiff.ParseIfd(file, Tiff.U32(file, 4));
+        var (_, _, v330) = ifd0.Tags[330];
+        var raw = Tiff.ParseIfd(file, Tiff.U32(v330, 0));
+        w = (int)Tiff.U32(raw.Tags[256].Value, 0);
+        h = (int)Tiff.U32(raw.Tags[257].Value, 0);
+        samples = Tiff.U16(raw.Tags[277].Value, 0);
+        int rowsPerStrip = (int)Tiff.U32(raw.Tags[278].Value, 0);
+
+        var offsets = raw.Tags[273].Value;                          // StripOffsets blob
+        var counts = raw.Tags[279].Value;                           // StripByteCounts blob
+        var pixels = new ushort[(long)w * h * samples];
+        var strip = new ushort[(long)w * rowsPerStrip * samples];
+        for (int i = 0; i < raw.Tags[273].Count; i++)
+        {
+            int rows = Math.Min(rowsPerStrip, h - i * rowsPerStrip);
+            uint off = Tiff.U32(offsets, i * 4), len = Tiff.U32(counts, i * 4);
+            long decoded = DngLjpegNative.DecodeStream(file[(int)off..(int)(off + len)], strip, 0,
+                out uint sw, out uint sh, out uint sc);
+            Assert.Equal((long)w * rows * samples, decoded);
+            Assert.Equal((uint)w, sw);
+            Assert.Equal((uint)rows, sh);
+            Assert.Equal((uint)samples, sc);
+
+            // Strips tile the image vertically: band rows are contiguous row-major.
+            Array.Copy(strip, 0, pixels, (long)i * rowsPerStrip * w * samples,
+                (long)rows * w * samples);
+        }
         return pixels;
     }
 

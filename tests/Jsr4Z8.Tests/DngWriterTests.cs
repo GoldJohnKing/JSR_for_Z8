@@ -200,6 +200,65 @@ public class DngWriterTests
             { Assert.Fail($"first pixel mismatch at {i}: NEF {source[i]} vs DNG {product[i]}"); break; }
     }
 
+    [Fact]
+    public void LinearRaw_StripLayout_PartialLastStripEncodesActualRows()
+    {
+        // RawLayout.Strips (backend tifffile parity): 128-row LJ bands, final band
+        // = actual remaining rows (backend writes 87 strips for 11040 rows, last
+        // = 32 rows). Exercised here with 200 rows → 2 strips: 128 + 72.
+        const int W = 64, H = 200;
+        var pixels = new ushort[(long)W * H * 3];
+        for (int i = 0; i < pixels.Length; i++)
+            pixels[i] = (ushort)((i * 1103515245 + 12345) & 0xFFFF);
+
+        string dir = Path.Combine(Path.GetTempPath(), "jsr4z8-dngtests-strips");
+        Directory.CreateDirectory(dir);
+        string path = Path.Combine(dir, "linearraw_strips.dng");
+        DngWriter.Write(path, pixels, W, H, new DngWriteOptions
+        {
+            Compress = true,
+            SamplesPerPixel = 3,
+            PhotometricInterpretation = 34892,
+            BlackLevel = 0,
+            WhiteLevel = 65535,
+            Layout = RawLayout.Strips,
+        }, originalMetadata: null);
+
+        byte[] file = File.ReadAllBytes(path);
+        Assert.Equal(0x49, file[0]); Assert.Equal(0x49, file[1]);
+        var raw = Tiff.ParseIfd(file, Tiff.U32(file, 4));     // no previews → raw in IFD0
+
+        Assert.Equal(7, Tiff.U16(raw.Tags[259].Value, 0));
+        Assert.Equal(34892, Tiff.U16(raw.Tags[262].Value, 0));
+        Assert.Equal(3, Tiff.U16(raw.Tags[277].Value, 0));
+        Assert.Equal(128u, Tiff.U32(raw.Tags[278].Value, 0));
+        Assert.Equal(2u, raw.Tags[273].Count);                // ceil(200/128)
+        Assert.Equal(2u, raw.Tags[279].Count);
+        foreach (ushort tileTag in new ushort[] { 322, 323, 324, 325 })
+            Assert.False(raw.Tags.ContainsKey(tileTag), $"tile tag {tileTag} must be absent in strip layout");
+
+        // Round-trip: each strip decodes to its own geometry, second = 72 rows
+        var offsets = raw.Tags[273].Value;
+        var counts = raw.Tags[279].Value;
+        var decoded = new ushort[(long)W * H * 3];
+        var band = new ushort[(long)W * 128 * 3];
+        for (int i = 0; i < 2; i++)
+        {
+            int rows = Math.Min(128, H - i * 128);
+            uint off = Tiff.U32(offsets, i * 4), len = Tiff.U32(counts, i * 4);
+            long n = DngLjpegNative.DecodeStream(file[(int)off..(int)(off + len)], band, 0,
+                out uint sw, out uint sh, out uint sc);
+            Assert.Equal((long)W * rows * 3, n);
+            Assert.Equal((uint)W, sw);
+            Assert.Equal((uint)rows, sh);
+            Assert.Equal(3u, sc);
+            Array.Copy(band, 0, decoded, (long)i * 128 * W * 3, (long)rows * W * 3);
+        }
+        for (int i = 0; i < pixels.Length; i++)
+            if (pixels[i] != decoded[i])
+            { Assert.Fail($"first pixel mismatch at {i}: src {pixels[i]} vs strip {decoded[i]}"); break; }
+    }
+
     private static void CountJpegPreviews(byte[] file, Tiff.Ifd ifd, ref int count)
     {
         if (!ifd.Tags.TryGetValue(513, out var jif) || !ifd.Tags.TryGetValue(514, out var jlen))

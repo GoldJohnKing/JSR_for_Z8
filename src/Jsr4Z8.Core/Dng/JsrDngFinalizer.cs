@@ -27,9 +27,12 @@ public static class JsrDngFinalizer
     /// receives the AsShotNeutral cross-check warnings — null keeps the CLI/selftest
     /// behavior of writing them to Console.Error; the queue runner routes them into the
     /// job log so they are visible in the GUI's kept diagnostic dirs.
+    /// <paramref name="layout"/> selects the raw payload storage (default Tiles =
+    /// the shipped product behavior; Strips = backend tifffile layout parity, the
+    /// ACR-compatibility bisection knob).
     /// </summary>
     public static string Finalize(string backendDngPath, string referenceNefPath, string destDir,
-        Action<string>? log = null)
+        Action<string>? log = null, RawLayout layout = RawLayout.Tiles)
     {
         var backend = BackendDngReader.Read(backendDngPath);
         if (backend.Photometric != 34892 || backend.Samples != 3)
@@ -66,6 +69,7 @@ public static class JsrDngFinalizer
             ColorMatrix1 = backend.ColorMatrix1,
             ActiveArea = activeArea,
             DefaultCrop = crop,
+            Layout = layout,
         };
 
         Directory.CreateDirectory(destDir);

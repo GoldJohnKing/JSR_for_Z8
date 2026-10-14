@@ -1,5 +1,16 @@
 namespace Jsr4Z8.Core.Dng;
 
+/// <summary>Storage layout of the compressed raw payload.
+/// Tiles = 256×256 LJ tiles (ADC -c profile, the CFA product); Strips =
+/// 128-row LJ strips (backend tifffile LinearRaw parity — the ACR-accepted
+/// layout of the backend's own product). Strips is valid only for compressed
+/// non-CFA payloads (the writer rejects other combinations).</summary>
+public enum RawLayout
+{
+    Tiles,
+    Strips,
+}
+
 /// <summary>
 /// Output-domain parameters for <see cref="DngWriter"/>. Everything Save_Z8's
 /// writer hardcoded per CFA/compressed mode is parameterized here so the same
@@ -10,6 +21,12 @@ public sealed record DngWriteOptions
 {
     /// <summary>true = 256×256 lossless-JPEG tiles (Compression=7); false = uncompressed strips.</summary>
     public bool Compress { get; init; } = true;
+
+    /// <summary>Raw payload storage layout (see <see cref="RawLayout"/>).
+    /// Default <see cref="RawLayout.Tiles"/> preserves the ADC -c tiled
+    /// profile; LinearRaw callers may opt into <see cref="RawLayout.Strips"/>
+    /// for backend layout parity.</summary>
+    public RawLayout Layout { get; init; } = RawLayout.Tiles;
 
     /// <summary>Samples per pixel (1 = CFA, 3 = LinearRaw RGB).</summary>
     public int SamplesPerPixel { get; init; } = 1;

@@ -112,7 +112,7 @@ public class DngWriter
         public byte[]? Blob;        // >4 bytes, little-endian, final (Inline gets blob offset)
         public IfdBlock? SubBlock;  // tag value = offset of this block
         public List<IfdBlock>? SubBlockList; // tag value = offset of uint[] array (SubIFDs)
-        public List<byte[]>? TileData;       // compressed: value = offset of tile-offset array; array filled at layout phase 3
+        public List<byte[]>? StreamData;     // compressed: value = offset of stream-offset array (tiles or strips); filled at layout phase 3
         public bool IsPixelData;    // tag value = pixel data offset
     }
 
@@ -130,22 +130,75 @@ public class DngWriter
         bool compress = options.Compress;
         int samples = options.SamplesPerPixel;
         bool isCfa = options.CfaPattern != null;
+        bool strips = options.Layout == RawLayout.Strips;
         if (isCfa && options.CfaPattern!.Length != 4)
             throw new ArgumentException("CFA pattern must hold 4 colors (2×2)", nameof(options));
+        if (strips && (!compress || isCfa))
+            throw new ArgumentException(
+                "RawLayout.Strips is a compressed LinearRaw profile (backend tifffile parity): " +
+                $"requires Compress=true and a non-CFA payload (got Compress={compress}, CFA={isCfa})",
+                nameof(options));
 
-        // ================= lossless-JPEG tiles (Compression=7, ADC -c profile) =====
+        // ================= lossless-JPEG streams (Compression=7, ADC -c profile) =====
         // 256x256 tiles, each an independent SOF3 stream: 16-bit, interleaved
         // components (CFA mosaic column pairs feed the interleaver as 2
         // components with PSV=1 — the ADC profile; LinearRaw RGB as 3 components
         // with PSV=4 Ra+Rb-Rc, parity with the backend's tifffile encoding),
-        // per-tile optimized Huffman tables (encoder side). Edge tiles are
-        // zero-padded to full geometry (decoder crops via TIFF tile grid). Tile
-        // offsets follow the ADC layout: sequential, each tile start 2-byte aligned.
+        // per-stream optimized Huffman tables (encoder side). Edge tiles are
+        // zero-padded to full geometry (decoder crops via TIFF tile grid).
+        // Strips (LinearRaw only, RawLayout.Strips): 128-row bands, each one
+        // SOF3 stream over the full image width — backend parity (tifffile writes
+        // ceil(H/128) strips, final band = actual remaining rows: 11040 rows → 87
+        // strips, last = 32 rows). Strip geometry is exact, no edge padding.
+        // Stream offsets follow the ADC layout: sequential, each start 2-byte
+        // aligned.
         const int TileSide = 256;
+        const int StripRows = 128;
         uint predictor = isCfa ? 1u : 4u;
-        List<byte[]>? tiles = null;
+        List<byte[]>? streams = null;    // tiles or strips: independent LJ streams
         if (compress)
         {
+            if (strips)
+            {
+            // Encoder geometry: one strip = full image width × band rows, the
+            // interleaved samples as channels (RGB: width × 3).
+            uint encCols = (uint)width;
+            uint encChannels = (uint)samples;
+            int n = (height + StripRows - 1) / StripRows;
+            var stripArr = new byte[n][];
+            // Per-thread scratch buffers: band rows (interleaved samples) and the
+            // encoded-stream capacity (2× input bytes, the tile convention).
+            // Encoding is pure/deterministic per strip, so parallel scheduling
+            // yields byte-identical output to sequential.
+            var srcBuf = new ThreadLocal<ushort[]>(() => new ushort[(long)width * StripRows * samples]);
+            var outBuf = new ThreadLocal<byte[]>(() => new byte[(long)width * StripRows * samples * 4]);
+            Parallel.For(0, n, i =>
+            {
+                int rows = Math.Min(StripRows, height - i * StripRows);   // final band = remainder
+                var stripSrc = srcBuf.Value!;
+                var stripOut = outBuf.Value!;
+                Array.Copy(pixels, (long)i * StripRows * width * samples, stripSrc, 0,
+                    (long)rows * width * samples);
+                long encoded;
+                unsafe
+                {
+                    fixed (ushort* sp = stripSrc)
+                    fixed (byte* op = stripOut)
+                    {
+                        encoded = Native.DngLjpegNative.lje_encode_tile(sp, (uint)rows, encCols,
+                            encChannels, 16, op, (nuint)stripOut.Length, predictor);
+                    }
+                }
+                if (encoded <= 0)
+                    throw new IOException($"lossless JPEG strip encode failed (strip {i}, code {encoded})");
+                stripArr[i] = stripOut[..(int)encoded];
+            });
+            srcBuf.Dispose();
+            outBuf.Dispose();
+            streams = new List<byte[]>(stripArr);
+            }
+            else
+            {
             // Encoder geometry: per-component width × component count must equal
             // the samples per tile row (CFA: TileSide/2 × 2; RGB: TileSide × 3).
             uint encCols = isCfa ? (uint)TileSide / 2 : (uint)TileSide;
@@ -192,7 +245,8 @@ public class DngWriter
             });
             srcBuf.Dispose();
             outBuf.Dispose();
-            tiles = new List<byte[]>(tileArr);
+            streams = new List<byte[]>(tileArr);
+            }
         }
 
         // ================= raw IFD =================
@@ -239,8 +293,16 @@ public class DngWriter
         RawShort(TagSamplesPerPixel, (ushort)samples);
         if (compress)
         {
-            RawShort(TagTileWidth, TileSide);
-            RawShort(TagTileLength, TileSide);
+            if (strips)
+            {
+                // Strip layout: RowsPerStrip=128 (backend parity), no tile tags.
+                RawLong(TagRowsPerStrip, StripRows);
+            }
+            else
+            {
+                RawShort(TagTileWidth, TileSide);
+                RawShort(TagTileLength, TileSide);
+            }
         }
         else
         {
@@ -301,11 +363,14 @@ public class DngWriter
         // Strip data location — real entries, values resolved by the layout pass
         if (compress)
         {
-            // Value field points to a u32 array of tile offsets; array content is
-            // resolved at layout phase 3 (depends on pixelOffset + prefix sizes).
-            rawBlock.Entries.Add(new Entry { Tag = TagTileOffsets, Type = TypeLong,
-                Count = (uint)tiles!.Count, Blob = new byte[tiles.Count * 4], TileData = tiles });
-            RawLongs(TagTileByteCounts, tiles.Select(t => (uint)t.Length).ToArray());
+            // Value field points to a u32 array of stream offsets (tiles or
+            // strips); array content is resolved at layout phase 3 (depends on
+            // pixelOffset + prefix sizes).
+            rawBlock.Entries.Add(new Entry { Tag = strips ? TagStripOffsets : TagTileOffsets,
+                Type = TypeLong, Count = (uint)streams!.Count, Blob = new byte[streams.Count * 4],
+                StreamData = streams });
+            RawLongs(strips ? TagStripByteCounts : TagTileByteCounts,
+                streams.Select(s => (uint)s.Length).ToArray());
         }
         else
         {
@@ -537,15 +602,16 @@ public class DngWriter
             foreach (var e in block.Entries)
                 if (e.IsPixelData) e.Inline = BitConverter.GetBytes(pixelOffset);
                 else if (e.SubBlock != null) e.Inline = BitConverter.GetBytes(e.SubBlock.Offset);
-                else if (e.TileData != null)
+                else if (e.StreamData != null)
                 {
-                    // Tile offsets: sequential from pixelOffset, each start 2-byte aligned
-                    // (matches the serializer's packing rule below).
+                    // Stream offsets (tiles or strips): sequential from pixelOffset,
+                    // each start 2-byte aligned (matches the serializer's packing
+                    // rule below).
                     uint off = pixelOffset;
-                    for (int i = 0; i < e.TileData.Count; i++)
+                    for (int i = 0; i < e.StreamData.Count; i++)
                     {
                         BitConverter.GetBytes(off).CopyTo(e.Blob!, i * 4);
-                        off += (uint)e.TileData[i].Length;
+                        off += (uint)e.StreamData[i].Length;
                         off += (off & 1); // pad to even
                     }
                 }
@@ -599,12 +665,13 @@ public class DngWriter
             }
             if (compress)
             {
-                // Tile streams are pre-encoded; write sequentially, each start 2-byte
-                // aligned (same rule as the phase-3 offset computation).
-                foreach (var tile in tiles!)
+                // Tile/strip streams are pre-encoded; write sequentially, each
+                // start 2-byte aligned (same rule as the phase-3 offset
+                // computation).
+                foreach (var stream in streams!)
                 {
                     if ((fs.Position & 1) == 1) bw.Write((byte)0);
-                    bw.Write(tile);
+                    bw.Write(stream);
                 }
             }
             else
