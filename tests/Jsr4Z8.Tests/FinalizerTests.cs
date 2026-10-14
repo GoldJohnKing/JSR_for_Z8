@@ -19,7 +19,8 @@ namespace Jsr4Z8.Tests;
 /// AsShotNeutral=[0.560175,1.0,0.557734], ColorMatrix1 = Z8 profile;
 /// file size 9,574,372 bytes. The ROI sits inside the sensor's active area,
 /// so the finalized product carries the full-image ActiveArea/DefaultCrop
-/// pair (full-frame products get the ×2-scaled (24,16,16512,11008) pair).
+/// pair (full-frame products get the ×2-scaled ActiveArea
+/// (16,24,11024,16536) with the ActiveArea-relative crop (0,0,16512,11008)).
 /// </summary>
 public class FinalizerTests
 {
@@ -80,6 +81,15 @@ public class FinalizerTests
             FindFixture("roi_sample.dng"), SampleFiles.FindSample("DSC_7576.NEF"), dir,
             layout: RawLayout.Strips, passthroughRawStreams: true);
         return (final, dir);
+    });
+
+    /// <summary>Reference-frame metadata/assets for the geometry-pair facts
+    /// (post-release fix 8): reads the real sample NEF once per test session —
+    /// metadata + preview inventory only, no pixel decode.</summary>
+    private static readonly Lazy<(RawMetadata Meta, NefAssets Assets)> Reference = new(() =>
+    {
+        string nef = SampleFiles.FindSample("DSC_7576.NEF");
+        return (RawMetadataReader.Read(nef), NefAssetExtractor.Extract(nef));
     });
 
     internal static string FindFixture(string name)
@@ -210,6 +220,70 @@ public class FinalizerTests
         Assert.True(ol3.Value.Length >= 160, "OpcodeList3 too short");
         Assert.Equal(1u, Tiff.Be32(ol3.Value, 0));
         Assert.Equal(1u, Tiff.Be32(ol3.Value, 4));                  // WarpRectilinear
+    }
+
+    /// <summary>Post-release fix 8 — full-dims (×2) path: the ActiveArea keeps
+    /// the nonzero sensor-margin origin, and DefaultCropOrigin must be expressed
+    /// relative to it (DNG spec), not in absolute stored-frame coordinates.</summary>
+    [Fact]
+    public void Geometry_FullDimsPair_ActiveAreaRelativeCropOrigin()
+    {
+        var (meta, assets) = Reference.Value;
+        var (activeArea, crop) = JsrDngFinalizer.Geometry(2 * meta.Width, 2 * meta.Height, meta, assets);
+
+        // Z8 ×2: padded frame 16560×11040, sensor active 8256×5504, margins
+        // even-centered (24,16) → ActiveArea=(top,left,bottom,right).
+        Assert.Equal(new uint[] { 16, 24, 11024, 16536 }, activeArea);
+        Assert.Equal(0u, crop.X);                                   // ActiveArea-relative
+        Assert.Equal(0u, crop.Y);
+        Assert.Equal(16512u, crop.W);
+        Assert.Equal(11008u, crop.H);
+        AssertCropWithinActiveArea(crop, activeArea);
+    }
+
+    /// <summary>Dims-mismatch fallback (ROI products, harness crop ladder):
+    /// full-image ActiveArea/DefaultCrop pair — ActiveArea origin (0,0) so the
+    /// relative and absolute crop origins coincide; the invariant holds.</summary>
+    [Fact]
+    public void Geometry_DimsMismatchFallback_FullImagePair_InvariantHolds()
+    {
+        var (meta, assets) = Reference.Value;
+        var (activeArea, crop) = JsrDngFinalizer.Geometry(FixtureW, FixtureH, meta, assets);
+
+        Assert.Equal(new uint[] { 0, 0, (uint)FixtureH, (uint)FixtureW }, activeArea);
+        Assert.Equal(0u, crop.X);
+        Assert.Equal(0u, crop.Y);
+        Assert.Equal((uint)FixtureW, crop.W);
+        Assert.Equal((uint)FixtureH, crop.H);
+        AssertCropWithinActiveArea(crop, activeArea);
+    }
+
+    /// <summary>Regression lock for post-release fix 8 (root cause of the ACR
+    /// full-frame rejection): DefaultCropOrigin is an ActiveArea-relative
+    /// offset. At full size the pre-fix absolute origin (24,16) made
+    /// CropOrigin+CropSize overflow the ActiveArea edge → invalid geometry.</summary>
+    [Fact]
+    public void CropOrigin_MustBeActiveAreaRelative_FullSizeNoOverflow()
+    {
+        var (meta, assets) = Reference.Value;
+        var (activeArea, crop) = JsrDngFinalizer.Geometry(2 * meta.Width, 2 * meta.Height, meta, assets);
+
+        // CropOrigin+CropSize must stay inside the ActiveArea extents …
+        AssertCropWithinActiveArea(crop, activeArea);
+        // … i.e. the relative origin is (0,0), never the absolute (24,16).
+        Assert.Equal(0u, crop.X);
+        Assert.Equal(0u, crop.Y);
+    }
+
+    /// <summary>DNG invariant: DefaultCropOrigin+DefaultCropSize must fit
+    /// inside the ActiveArea ([top,left,bottom,right]); the crop origin is
+    /// ActiveArea-relative (post-release fix 8).</summary>
+    private static void AssertCropWithinActiveArea((uint X, uint Y, uint W, uint H) crop, uint[] activeArea)
+    {
+        Assert.True(crop.X + crop.W <= activeArea[3] - activeArea[1],
+            $"CropOrigin.X {crop.X} + CropSize.W {crop.W} exceeds ActiveArea width {activeArea[3] - activeArea[1]}");
+        Assert.True(crop.Y + crop.H <= activeArea[2] - activeArea[0],
+            $"CropOrigin.Y {crop.Y} + CropSize.H {crop.H} exceeds ActiveArea height {activeArea[2] - activeArea[0]}");
     }
 
     [Fact]

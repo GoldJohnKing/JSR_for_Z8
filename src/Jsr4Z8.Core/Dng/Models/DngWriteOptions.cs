@@ -73,8 +73,11 @@ public sealed record DngWriteOptions
     public uint[]? ActiveArea { get; init; }
 
     /// <summary>Explicit DefaultCrop (origin X,Y + size W,H), emitted as a
-    /// DefaultScale(1,1)/CropOrigin/CropSize pair; null = derive the crop from
-    /// the largest embedded preview (Save_Z8 behavior).</summary>
+    /// DefaultScale(1,1)/CropOrigin/CropSize pair; the origin is relative to
+    /// the ActiveArea origin (DNG spec — post-release fix 8), so
+    /// origin+size must fit inside the ActiveArea. null = derive the crop
+    /// from the largest embedded preview (Save_Z8 behavior, ActiveArea origin
+    /// (0,0) → relative and absolute origins coincide).</summary>
     public (uint X, uint Y, uint W, uint H)? DefaultCrop { get; init; }
 
     // ---- diagnostic seams (ACR bisection, post-release fix 4) ----

@@ -161,11 +161,17 @@ public static class JsrDngFinalizer
     /// ActiveArea/DefaultCrop pair in the backend's ×2 domain. The reference
     /// frame's active crop (largest NEF preview = camera active area, origin
     /// centered &amp; even in the padded frame: Z8 (12,8,8256,5504)) scales ×2
-    /// for full-frame backend products (16560×11040 → (24,16,16512,11008)).
-    /// ROI products are interior crops of the active area — every stored pixel
-    /// is active — so they get the full-image pair.
+    /// for full-frame backend products (16560×11040 → ActiveArea
+    /// (16,24,11024,16536), crop origin (0,0) size (16512,11008)). ROI products
+    /// are interior crops of the active area — every stored pixel is active —
+    /// so they get the full-image pair. DefaultCropOrigin is expressed
+    /// RELATIVE to the ActiveArea origin per the DNG spec (post-release fix 8:
+    /// the absolute convention made CropOrigin+CropSize overflow the
+    /// ActiveArea edge → invalid geometry, ACR rejected the full-frame file;
+    /// the fallback pair, ActiveArea origin (0,0), was accidentally valid).
+    /// Invariant: crop origin + size ≤ ActiveArea width/height.
     /// </summary>
-    private static (uint[] ActiveArea, (uint X, uint Y, uint W, uint H) Crop) Geometry(
+    internal static (uint[] ActiveArea, (uint X, uint Y, uint W, uint H) Crop) Geometry(
         int backendW, int backendH, RawMetadata meta, NefAssets assets)
     {
         uint x = 0, y = 0, w = (uint)backendW, h = (uint)backendH;
@@ -190,6 +196,15 @@ public static class JsrDngFinalizer
 
         // DNG ActiveArea order: top, left, bottom, right.
         uint[] activeArea = { y, x, y + h, x + w };
-        return (activeArea, (x, y, w, h));
+
+        // Post-release fix 8: DefaultCropOrigin must be relative to the
+        // ActiveArea origin, not to the stored frame. The default crop
+        // coincides with the active area, so the relative origin collapses to
+        // (0,0); the pre-fix absolute (x,y) made CropOrigin+CropSize run past
+        // the ActiveArea edge (Z8 ×2: 24+16512 > 16536−24) → invalid geometry,
+        // ACR rejected the full-frame product.
+        uint cropOriginX = x - activeArea[1];   // cropAbsX − activeLeft
+        uint cropOriginY = y - activeArea[0];   // cropAbsY − activeTop
+        return (activeArea, (cropOriginX, cropOriginY, w, h));
     }
 }
