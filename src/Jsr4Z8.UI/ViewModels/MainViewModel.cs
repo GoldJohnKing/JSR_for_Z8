@@ -24,6 +24,12 @@ public partial class MainViewModel : ObservableObject
 
     public event EventHandler? AddTaskRequested;
 
+    /// <summary>Main-window drag-drop (post-release fix 2): RAW files dropped anywhere on
+    /// the shell raise this with their local paths; App answers with the same NewTaskDialog
+    /// flow as ＋添加任务组, pre-filled with the files (the dark frame stays a user choice).
+    /// The window's drag wiring only forwards payloads carrying at least one .NEF.</summary>
+    public event EventHandler<IReadOnlyList<string>>? DropFilesRequested;
+
     public event EventHandler? OpenSettingsRequested;
 
     public MainViewModel(ThemeService? theme = null, ITaskRunner? runner = null)
@@ -38,7 +44,8 @@ public partial class MainViewModel : ObservableObject
     public ThemeService Theme => _theme;
 
     /// <summary>True while the list is empty — drives the dashed drop-hint overlay
-    /// (drop wiring itself is Task 12; the hint is visual only).</summary>
+    /// (visual only; dropping files anywhere on the window is handled by the shell's
+    /// drag wiring and reaches <see cref="DropFiles"/>).</summary>
     [ObservableProperty] private bool _hasNoTasks = true;
 
     /// <summary>Entry point for new cards: wires the card's RemoveRequested back into
@@ -64,6 +71,16 @@ public partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void AddTask() => AddTaskRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Code-behind entry for a main-window file drop: forwards the local paths to
+    /// <see cref="DropFilesRequested"/>. A prefilter happens in the window (payload must
+    /// carry a .NEF); an empty call is a no-op so a stray drop cannot open an empty dialog.</summary>
+    public void DropFiles(IReadOnlyList<string> paths)
+    {
+        if (paths.Count == 0)
+            return;
+        DropFilesRequested?.Invoke(this, paths);
+    }
 
     /// <summary>Test seam: the queue-level token source of an in-flight 全部开始 run
     /// (null while none is running). Cancelling it stops the CURRENT card within the

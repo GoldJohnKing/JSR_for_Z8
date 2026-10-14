@@ -233,35 +233,6 @@ public class QueueRunnerTests
         }
     }
 
-    // ---------------------------------------------------------------- engine: settings → request.json
-
-    /// <summary>Post-release VRAM-budget removal: request.json's memory is now a fixed
-    /// 64 GB (始终不限制 — the driver allocates); it no longer derives from any user
-    /// setting. stub_backend completes WITHOUT a product DNG, so the run fails and the
-    /// job dir (with request.json) is kept for inspection.</summary>
-    [Fact]
-    public async Task RequestJson_MemoryIsFixed64_IgnoringSettings()
-    {
-        var h = new Harness("stub_backend.bat");
-        TaskGroupViewModel vm = Card(h.Mediator);
-        try
-        {
-            await vm.StartAsync();
-
-            Assert.Equal(TaskState.Failed, vm.State);   // expected: no product DNG → temp kept
-            string jobDir = Assert.Single(Directory.GetDirectories(h.JsrTempRoot));
-            string json = File.ReadAllText(Path.Combine(jobDir, "request.json"));
-            Assert.Contains("\"memory\":64", json);                     // literal evidence
-            using JsonDocument doc = JsonDocument.Parse(json);
-            Assert.Equal(64, doc.RootElement
-                .GetProperty("parameters").GetProperty("memory").GetInt32());
-        }
-        finally
-        {
-            try { Directory.Delete(h.TempBase, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
-        }
-    }
-
     // ---------------------------------------------------------------- queue: sequential + continuation
 
     [Fact]

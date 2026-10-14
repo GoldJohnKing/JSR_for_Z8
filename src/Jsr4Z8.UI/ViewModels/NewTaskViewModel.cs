@@ -132,6 +132,13 @@ public partial class NewTaskViewModel : ObservableObject
         InvalidateAndSchedule();
     }
 
+    /// <summary>Main-window drop prefill (post-release fix 2): the dialog opens with these
+    /// files already loaded as chips — the exact HandleFilesDropped path (dedupe, .nef
+    /// filter, natural sort, validation kickoff), so an 8+-file drop shows the same
+    /// 帧数不符 issue as an in-dialog drop. The dark frame is deliberately NOT picked —
+    /// it stays a user decision on the dialog's own 黑场 button.</summary>
+    public void PreloadFiles(IEnumerable<string> paths) => HandleFilesDropped(paths);
+
     /// <summary>Dark-frame picker completion; the black-frame-equals-a-frame rule is
     /// enforced in the validation pass (Task 5 carried finding). Task 14: the selection
     /// is remembered — load-modify-save persists LastDarkPath (only that field changes)

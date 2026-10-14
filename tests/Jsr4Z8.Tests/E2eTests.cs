@@ -439,8 +439,8 @@ public class E2eTests
         string stdoutPath = Path.Combine(workDir, "success.log");
         string stderrPath = Path.Combine(workDir, "success.stderr.log");
 
-        // The same request the queue builds (UTF-8 no BOM, memory=64, prefix=cap1).
-        string request = BackendRequest.BuildJson(group, ptc, memoryGb: 64, outputDir: outDir, prefix: "cap1");
+        // The same request the queue builds (UTF-8 no BOM, prefix=cap1).
+        string request = BackendRequest.BuildJson(group, ptc, outputDir: outDir, prefix: "cap1");
         File.WriteAllText(requestPath, request, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
         // Raw tap: spawn the bridge exactly as BackendRunner does, but persist every

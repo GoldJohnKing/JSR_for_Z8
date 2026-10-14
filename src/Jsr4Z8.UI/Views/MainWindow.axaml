@@ -9,6 +9,7 @@
         x:DataType="vm:MainViewModel"
         Title="JSR for Z8"
         MinWidth="720" MinHeight="560" Width="880" Height="620"
+        DragDrop.AllowDrop="True"
         WindowStartupLocation="CenterScreen">
     <Window.Styles>
         <!-- 「Nikon Z8 专用」pill next to the logo (layout.html top bar) -->
@@ -58,13 +59,14 @@
                 </ItemsControl>
             </ScrollViewer>
 
-            <!-- 空状态提示（终审 finding 2）：主窗口不接拖放（拖入归新建任务组对话框所有），
-                 文案指向真实工作流：右上角 ＋ 添加任务组 → 面板内拖入 RAW 与黑场 -->
+            <!-- 空状态提示（终审 finding 2 → fix 2 更新）：主窗口现在接拖放 —— 拖入 RAW
+                 直接打开预填好的新建任务组对话框；文案同时保留右上角入口 -->
             <Grid IsVisible="{Binding HasNoTasks}" IsHitTestVisible="False" Margin="32,72,32,32">
                 <Rectangle Stroke="{DynamicResource SemiColorBorder}" StrokeThickness="2"
                            StrokeDashArray="7,7" RadiusX="12" RadiusY="12" />
                 <StackPanel Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <TextBlock Text="点击右上角 ＋添加任务组，在面板中拖入 7 张 RAW 与黑场" FontSize="15"
+                    <TextBlock Text="将 7 张 RAW 拖入窗口即可新建任务组；黑场在面板中选择；或点击右上角 ＋添加任务组"
+                               FontSize="15"
                                HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="560"
                                TextWrapping="Wrap"
                                Foreground="{DynamicResource SemiColorText}" />

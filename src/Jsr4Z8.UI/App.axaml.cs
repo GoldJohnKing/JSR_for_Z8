@@ -34,6 +34,7 @@ public partial class App : Application
                 dispatcher: new AvaloniaDispatcher(), settings: new SettingsServiceProvider(settings));
             var main = new MainViewModel(theme, runner);
             main.AddTaskRequested += (_, _) => ShowNewTaskDialog(desktop.MainWindow!, main, settings);
+            main.DropFilesRequested += (_, e) => ShowNewTaskDialog(desktop.MainWindow!, main, settings, e);
             main.OpenSettingsRequested += (_, _) => ShowSettingsDialog(desktop.MainWindow!, settings);
             desktop.MainWindow = new MainWindow { DataContext = main };
         }
@@ -43,10 +44,15 @@ public partial class App : Application
 
     /// <summary>Task 12 composition: ＋添加任务组 opens the NewTaskDialog; CreateCompleted
     /// turns the validated group into a card via MainViewModel.AddValidated and closes.
-    /// Task 14: the dialog VM gets the settings service (dark picker start dir + LastDarkPath memory).</summary>
-    private static void ShowNewTaskDialog(Window owner, MainViewModel main, SettingsService settings)
+    /// Task 14: the dialog VM gets the settings service (dark picker start dir + LastDarkPath memory).
+    /// Post-release fix 2: <paramref name="preloadFiles"/> (a main-window drop) opens the
+    /// same dialog with those files preloaded as chips — the dark frame stays a user choice.</summary>
+    private static void ShowNewTaskDialog(Window owner, MainViewModel main, SettingsService settings,
+        IReadOnlyList<string>? preloadFiles = null)
     {
         var vm = new NewTaskViewModel(post: action => Dispatcher.UIThread.Post(action), settings: settings);
+        if (preloadFiles is { Count: > 0 })
+            vm.PreloadFiles(preloadFiles);
         var dialog = new NewTaskDialog { DataContext = vm };
         vm.CreateCompleted += (_, created) =>
         {

@@ -51,7 +51,7 @@ public class ProtocolTests
         var group = new TaskGroup(frames, @"D:\pics\dark\DSC_9000.NEF");
 
         string json = BackendRequest.BuildJson(group, new PtcMatch(1102.244, Exact: false, Source: "fit-high"),
-            memoryGb: 12, outputDir: @"D:\pics\out", prefix: "jsr-001");
+            outputDir: @"D:\pics\out", prefix: "jsr-001");
 
         Assert.DoesNotContain('\uFEFF', json); // payload must be BOM-free; the writer owns UTF-8-no-BOM
         using JsonDocument doc = JsonDocument.Parse(json);
@@ -62,10 +62,12 @@ public class ProtocolTests
         Assert.Equal(frames, root.GetProperty("paths").EnumerateArray().Select(e => e.GetString()));
 
         JsonElement p = root.GetProperty("parameters");
+        // Parameters: exactly the 13 protocol fields — no memory key at all
+        // (post-release directive: omit entirely, the driver owns allocation).
         Assert.Equal(new[]
         {
             "color", "dark", "deghost", "dng", "engine", "fullwell", "manual",
-            "memory", "mode", "output", "prefix", "preview", "ptc", "tiff",
+            "mode", "output", "prefix", "preview", "ptc", "tiff",
         }, p.EnumerateObject().Select(prop => prop.Name).OrderBy(n => n));
 
         Assert.Equal("stormer7", p.GetProperty("engine").GetString());
@@ -82,7 +84,6 @@ public class ProtocolTests
         Assert.False(p.GetProperty("tiff").GetBoolean());
         Assert.False(p.GetProperty("preview").GetBoolean());
         Assert.False(p.GetProperty("deghost").GetBoolean());
-        Assert.Equal(12, p.GetProperty("memory").GetInt32());
     }
 
     // ---- ProtocolParser.ParseLine: envelope lines ---------------------------------

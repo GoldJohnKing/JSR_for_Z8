@@ -8,7 +8,7 @@ namespace Jsr4Z8.Core.Backend;
 /// <summary>
 /// Builds the jsr_backend request JSON (protocol fact #5): the exact field set
 /// {"paths":[7 abs paths],"parameters":{engine, mode, output, prefix, manual,
-/// dark, fullwell, ptc, color, dng, tiff, preview, deghost, memory}} and nothing
+/// dark, fullwell, ptc, color, dng, tiff, preview, deghost}} and nothing
 /// else. The caller must write the returned string as UTF-8 without BOM.
 /// </summary>
 public static class BackendRequest
@@ -20,10 +20,10 @@ public static class BackendRequest
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    /// <summary>fullwell = ptc.FullwellE rounded to 1 decimal (AwayFromZero); memory =
-    /// the request's GB ceiling — fixed by the caller (64: no VRAM budget, the driver
-    /// allocates; user directive 始终不限制).</summary>
-    public static string BuildJson(TaskGroup g, PtcMatch ptc, int memoryGb, string outputDir, string prefix)
+    /// <summary>fullwell = ptc.FullwellE rounded to 1 decimal (AwayFromZero). No memory
+    /// field is emitted at all (post-release directive: 不设预算 — probed to run
+    /// state=complete with the key absent, so the backend/driver owns allocation).</summary>
+    public static string BuildJson(TaskGroup g, PtcMatch ptc, string outputDir, string prefix)
     {
         double fullwell = Math.Round(ptc.FullwellE, 1, MidpointRounding.AwayFromZero);
         var request = new
@@ -44,7 +44,6 @@ public static class BackendRequest
                 tiff = false,
                 preview = false,
                 deghost = false,
-                memory = memoryGb,
             },
         };
         return JsonSerializer.Serialize(request, Options);

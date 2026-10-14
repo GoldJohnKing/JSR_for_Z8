@@ -92,6 +92,64 @@ public class NewTaskVmTests
         Assert.Equal(new[] { "a.NEF", "b.NEF" }, vm.Frames.Select(f => f.FileName).ToArray());
     }
 
+    // ---- PreloadFiles: main-window drop prefill (post-release fix 2) ----------------
+
+    /// <summary>A main-window drop opens the dialog pre-filled: same dedupe/.nef filter/
+    /// natural sort as an in-dialog drop (a fresh dialog's prefill IS its full set).</summary>
+    [Fact]
+    public void Preload_SortsDedupesFilters_LikeInDialogDrop()
+    {
+        var vm = Vm();
+        int[] shuffled = { 7582, 7576, 7579 };
+        vm.PreloadFiles(shuffled
+            .Select(i => $@"C:\Photos\DSC_{i}.NEF")
+            .Append(@"C:\Photos\DSC_7576.nef")                      // case-insensitive dupe
+            .Append(@"C:\Photos\sidecar.jpg")                      // non-NEF filtered out
+            .Append(@"C:\Photos\DSC_0001.nrW"));                   // .nrw rejected
+
+        Assert.Equal(new[] { @"C:\Photos\DSC_7576.NEF", @"C:\Photos\DSC_7579.NEF", @"C:\Photos\DSC_7582.NEF" },
+            vm.Frames.Select(f => f.Path).ToArray());
+        Assert.True(vm.Frames[0].IsReference);
+        Assert.True(vm.HasFrames);
+    }
+
+    /// <summary>The dark frame is NOT auto-picked by a prefill — the user picks it on the
+    /// dialog's own 黑场 button; only then does the group validate and Create enable.</summary>
+    [Fact]
+    public async Task Preload_DarkNotAutoPicked_CanRunOnlyAfterDarkSelected()
+    {
+        var vm = Vm();
+        vm.PreloadFiles(Frames);
+        await vm.ValidationIdle;
+
+        Assert.False(vm.HasDark);                                     // 黑场留待用户选择
+        Assert.True(vm.HasNoDark);
+        Assert.Null(vm.DarkPath);
+        Assert.False(vm.State.CanRun);                                // 黑场文件未设置
+        Assert.Contains("黑场文件未设置", vm.State.IssuesText);
+
+        vm.SelectDark(DarkPath);
+        await vm.ValidationIdle;
+        Assert.True(vm.State.CanRun);
+        Assert.True(vm.CreateCommand.CanExecute(null));
+    }
+
+    /// <summary>8+ dropped files ALL become frames — exactly the in-dialog behavior — so
+    /// the dialog opens showing the 帧数不符 issue instead of silently dropping extras.</summary>
+    [Fact]
+    public async Task Preload_EightFiles_AllBecomeFrames_FrameCountIssue()
+    {
+        var vm = Vm();
+        vm.PreloadFiles(Frames.Append(@"C:\Photos\DSC_7583.NEF"));  // 8 distinct NEF files
+        vm.SelectDark(DarkPath);
+        await vm.ValidationIdle;
+
+        Assert.Equal(8, vm.Frames.Count);
+        Assert.False(vm.State.CanRun);
+        Assert.Contains("帧数不符", vm.State.IssuesText);               // 8 ≠ 7 → 需要补齐提示
+        Assert.False(vm.CreateCommand.CanExecute(null));
+    }
+
     [Fact]
     public async Task NonZ8Model_CreateDisabled_IssueNamesModel()
     {
