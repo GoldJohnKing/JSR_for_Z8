@@ -219,6 +219,58 @@ public class TaskGroupVmTests
         Assert.Equal("无法执行", vm.StateText);
         Assert.Contains("帧数不符", vm.IssuesText);
     }
+
+    /// <summary>Post-release fix 10 (Bug B: 重试不清除失败提示): a Failed card's
+    /// ErrorText drives the always-visible error bar in TaskCardView, so a retry run
+    /// must clear it the moment the card re-enters Running (the old failure must not
+    /// persist through — or past — the new run), and Done must clear it too (a success
+    /// after a failure must never show a stale error). NullTaskRunner completes without
+    /// touching the card, so the card honestly stays Running after Start/Retry.</summary>
+    [Fact]
+    public async Task Retry_ClearsStaleErrorText_RunningThenDone()
+    {
+        var vm = ReadyVm();
+        Assert.True(vm.GoRunning());
+        Assert.True(vm.GoFailed("后端未返回结果"));
+        Assert.Equal("后端未返回结果", vm.ErrorText);
+
+        // Retry (Failed → Running): the error bar is gone immediately.
+        await vm.RetryCommand.ExecuteAsync(null);
+        Assert.Equal(TaskState.Running, vm.State);
+        Assert.Equal(string.Empty, vm.ErrorText);
+
+        // And completing that retry leaves no stale error either.
+        Assert.True(vm.GoDone(@"D:\Photos\JSR_DSC_7576.dng"));
+        Assert.Equal(TaskState.Done, vm.State);
+        Assert.Equal(string.Empty, vm.ErrorText);
+
+        // Start from Ready behaves the same after an immediate run error (Ready → Failed).
+        var fresh = ReadyVm();
+        Assert.True(fresh.GoFailed("立即失败"));
+        await fresh.StartAsync();
+        Assert.Equal(TaskState.Running, fresh.State);
+        Assert.Equal(string.Empty, fresh.ErrorText);
+    }
+
+    /// <summary>Same bar, other exits out of Failed: GoReady (requeue) and GoBlocked
+    /// (revalidation) must clear ErrorText — pinned here so the fix cannot regress
+    /// behind the GoRunning/GoDone change.</summary>
+    [Fact]
+    public void GoReady_And_GoBlocked_ClearErrorText()
+    {
+        var vm = ReadyVm();
+        Assert.True(vm.GoRunning());
+        Assert.True(vm.GoFailed("boom"));
+        Assert.Equal("boom", vm.ErrorText);
+
+        Assert.True(vm.GoReady());
+        Assert.Equal(string.Empty, vm.ErrorText);
+
+        Assert.True(vm.GoRunning());
+        Assert.True(vm.GoFailed("boom"));
+        Assert.True(vm.GoBlocked("帧数不符"));
+        Assert.Equal(string.Empty, vm.ErrorText);
+    }
 }
 
 /// <summary>ThemeService: default Dark (user choice C), cycle Dark→Light→Default→Dark.

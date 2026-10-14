@@ -13,8 +13,12 @@ namespace Jsr4Z8.Tests;
 /// Windows-host tests: the stubs are .bat files driven through the same
 /// Process path the real bridge executable will use.
 /// </summary>
-public class BackendRunnerTests
+public class BackendRunnerTests : IClassFixture<TestTemp>
 {
+    private readonly TestTemp _temp;
+
+    public BackendRunnerTests(TestTemp temp) => _temp = temp;
+
     /// <summary>Locates a stub .bat under fixtures\stub_backend\ by walking up from the test output directory.</summary>
     private static string StubPath(string name)
     {
@@ -30,9 +34,9 @@ public class BackendRunnerTests
     }
 
     /// <summary>A run spec pointing at a stub harness, with temp resources/config/log paths and a minimal request JSON.</summary>
-    private static BackendRunSpec NewSpec(string batName)
+    private BackendRunSpec NewSpec(string batName)
     {
-        string root = Path.Combine(Path.GetTempPath(), "jsr4z8_test_" + Guid.NewGuid().ToString("N"));
+        string root = _temp.NewDir();
         Directory.CreateDirectory(Path.Combine(root, "resources"));
         File.WriteAllText(Path.Combine(root, "request.json"), "{\"paths\":[],\"parameters\":{}}");
         return new BackendRunSpec(
@@ -122,7 +126,7 @@ public class BackendRunnerTests
     public async Task Cancel_StubKill_KillsWholeTreeAndReturnsStopped()
     {
         BackendRunSpec spec = NewSpec("stub_kill.bat");
-        string tick = Path.Combine(Path.GetTempPath(), $"jsr4z8_test_{Guid.NewGuid():N}.tick");
+        string tick = _temp.NewFilePath(".tick");
         try
         {
             // The stub's heartbeat child (a grandchild of the runner's harness process)
@@ -168,7 +172,7 @@ public class BackendRunnerTests
     public async Task Orphan_StubOrphan_NoResultKillsBackendPidFromStartEnvelope()
     {
         BackendRunSpec spec = NewSpec("stub_orphan.bat");
-        string tick = Path.Combine(Path.GetTempPath(), $"jsr4z8_test_{Guid.NewGuid():N}.tick");
+        string tick = _temp.NewFilePath(".tick");
         try
         {
             // The stub spawns a detached heartbeat child, reports THAT pid in the START

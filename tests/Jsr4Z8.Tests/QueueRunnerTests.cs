@@ -24,8 +24,12 @@ namespace Jsr4Z8.Tests;
 /// REAL (stub .bat through the same Process path as "Jiangtherapee Bridge.exe").
 /// Windows-host tests.
 /// </summary>
-public class QueueRunnerTests
+public class QueueRunnerTests : IClassFixture<TestTemp>
 {
+    private readonly TestTemp _temp;
+
+    public QueueRunnerTests(TestTemp temp) => _temp = temp;
+
     private static readonly string[] Frames =
         Enumerable.Range(7576, 7).Select(i => $@"C:\Photos\DSC_{i}.NEF").ToArray();
 
@@ -68,9 +72,9 @@ public class QueueRunnerTests
         public readonly QueueMediator Mediator;
         public readonly List<(string BackendDng, string ReferenceNef, string DestDir)> FinalizeCalls = new();
 
-        public Harness(params string[] batNames)
+        public Harness(TestTemp temp, params string[] batNames)
         {
-            TempBase = Path.Combine(Path.GetTempPath(), "jsr4z8_q_" + Guid.NewGuid().ToString("N"));
+            TempBase = temp.NewDir();
             Settings.CurrentSettings = new AppSettings(TempMode: TempMode.Custom, CustomTempDir: TempBase);
             var bats = new ConcurrentQueue<string>(batNames.Select(StubPath));
             Engine.ResolveBackendOverride = progress =>
@@ -116,7 +120,7 @@ public class QueueRunnerTests
     [Fact]
     public async Task Success_DeletesTempDir_FinalizesGlobbedDng_WritesOutputNextToReference()
     {
-        var h = new Harness("stub_dng.bat");
+        var h = new Harness(_temp, "stub_dng.bat");
         TaskGroupViewModel vm = Card(h.Mediator);
         try
         {
@@ -151,7 +155,7 @@ public class QueueRunnerTests
     [Fact]
     public async Task BackendCompleteWithoutDng_Fails_KeepsTemp_FinalizerNotCalled()
     {
-        var h = new Harness("stub_backend.bat"); // RESULT complete but no product file
+        var h = new Harness(_temp, "stub_backend.bat"); // RESULT complete but no product file
         TaskGroupViewModel vm = Card(h.Mediator);
         try
         {
@@ -177,7 +181,7 @@ public class QueueRunnerTests
     [Fact]
     public async Task BackendFailure_KeepsTempDir_HumanizedMessageWithDiagnosticHint()
     {
-        var h = new Harness("stub_fail.bat");
+        var h = new Harness(_temp, "stub_fail.bat");
         TaskGroupViewModel vm = Card(h.Mediator);
         try
         {
@@ -205,7 +209,7 @@ public class QueueRunnerTests
     [Fact]
     public void SweepStaleDiagnosticDirs_DeletesOld_KeepsFreshAndExcluded()
     {
-        string tempBase = Path.Combine(Path.GetTempPath(), "jsr4z8_q_sweep_" + Guid.NewGuid().ToString("N"));
+        string tempBase = _temp.NewDir();
         string root = Path.Combine(tempBase, "Jsr4Z8");
         string old = Path.Combine(root, Guid.NewGuid().ToString("N"));
         string fresh = Path.Combine(root, Guid.NewGuid().ToString("N"));
@@ -238,7 +242,7 @@ public class QueueRunnerTests
     [Fact]
     public async Task StartAll_TwoTasks_SecondStartsAfterFirstFinishes()
     {
-        var h = new Harness("stub_dng.bat", "stub_dng.bat");
+        var h = new Harness(_temp, "stub_dng.bat", "stub_dng.bat");
         var main = new MainViewModel(null, h.Mediator);
         TaskGroupViewModel vm1 = Card(h.Mediator), vm2 = Card(h.Mediator);
         main.Add(vm1);
@@ -268,7 +272,7 @@ public class QueueRunnerTests
     [Fact]
     public async Task StartAll_FirstFails_SecondStillRuns()
     {
-        var h = new Harness("stub_fail.bat", "stub_dng.bat");
+        var h = new Harness(_temp, "stub_fail.bat", "stub_dng.bat");
         var main = new MainViewModel(null, h.Mediator);
         TaskGroupViewModel vm1 = Card(h.Mediator), vm2 = Card(h.Mediator);
         main.Add(vm1);
@@ -282,8 +286,8 @@ public class QueueRunnerTests
     [Fact]
     public async Task StartAll_QueueLevelCancel_StopsCurrentWithin3s_LaterTasksNotStarted()
     {
-        string tick = Path.Combine(Path.GetTempPath(), $"jsr4z8_q_{Guid.NewGuid():N}.tick");
-        var h = new Harness("stub_kill.bat", "stub_dng.bat");
+        string tick = _temp.NewFilePath(".tick");
+        var h = new Harness(_temp, "stub_kill.bat", "stub_dng.bat");
         var main = new MainViewModel(null, h.Mediator);
         TaskGroupViewModel vm1 = Card(h.Mediator), vm2 = Card(h.Mediator);
         main.Add(vm1);
@@ -317,8 +321,8 @@ public class QueueRunnerTests
     [Fact]
     public async Task StartAll_StopCurrentTask_QueueContinuesWithRemaining()
     {
-        string tick = Path.Combine(Path.GetTempPath(), $"jsr4z8_q_{Guid.NewGuid():N}.tick");
-        var h = new Harness("stub_kill.bat", "stub_dng.bat");
+        string tick = _temp.NewFilePath(".tick");
+        var h = new Harness(_temp, "stub_kill.bat", "stub_dng.bat");
         var main = new MainViewModel(null, h.Mediator);
         TaskGroupViewModel vm1 = Card(h.Mediator), vm2 = Card(h.Mediator);
         main.Add(vm1);
@@ -353,8 +357,8 @@ public class QueueRunnerTests
     [Fact]
     public async Task PerCardStart_DisabledWhileQueueBusy_ConcurrentEntryIsNoOp()
     {
-        string tick = Path.Combine(Path.GetTempPath(), $"jsr4z8_q_{Guid.NewGuid():N}.tick");
-        var h = new Harness("stub_kill.bat");
+        string tick = _temp.NewFilePath(".tick");
+        var h = new Harness(_temp, "stub_kill.bat");
         TaskGroupViewModel vm1 = Card(h.Mediator), vm2 = Card(h.Mediator);
         try
         {
@@ -391,8 +395,12 @@ public class QueueRunnerTests
 /// throttle — these tests pin the pure event→percent mapping over a fast stub whose
 /// lines all arrive inside the default 200 ms gate; the throttle itself is pinned by
 /// ProgressThrottleTests.</summary>
-public class QueueMediatorTests
+public class QueueMediatorTests : IClassFixture<TestTemp>
 {
+    private readonly TestTemp _temp;
+
+    public QueueMediatorTests(TestTemp temp) => _temp = temp;
+
     private static readonly string[] Frames =
         Enumerable.Range(7576, 7).Select(i => $@"C:\Photos\DSC_{i}.NEF").ToArray();
 
@@ -436,9 +444,9 @@ public class QueueMediatorTests
     /// <summary>Engine pointed at one stub, no temp-dir assertions — pure event mapping.
     /// The finalizer is faked so the mapping test observes the mediator, not the real
     /// DNG pipeline (FinalizerTests cover that).</summary>
-    private static (QueueMediator Mediator, string TempBase) MediatorWithStub(string bat)
+    private (QueueMediator Mediator, string TempBase) MediatorWithStub(string bat)
     {
-        string tempBase = Path.Combine(Path.GetTempPath(), "jsr4z8_m_" + Guid.NewGuid().ToString("N"));
+        string tempBase = _temp.NewDir();
         var engine = new TaskQueueRunner();
         engine.ResolveBackendOverride = progress =>
         {
@@ -446,14 +454,18 @@ public class QueueMediatorTests
             return new TaskQueueRunner.BackendPayload(StubPath(bat), tempBase);
         };
         engine.FinalizeOverride = (backendDng, referenceNef, destDir) => Path.Combine(destDir, "JSR_fake.dng");
-        var settings = new FakeSettingsProvider();
+        // Job dirs land under the settings temp base — per-run GUID under the fixture,
+        // never a fixed %TEMP% name that would survive the run.
+        var settings = new FakeSettingsProvider(_temp.NewDir());
         return (new QueueMediator(engine, settings, new SyncDispatcher(), progressGate: TimeSpan.Zero), tempBase);
     }
 
     private sealed class FakeSettingsProvider : ISettingsProvider
     {
-        public AppSettings CurrentSettings { get; } = new(TempMode: TempMode.Custom,
-            CustomTempDir: Path.Combine(Path.GetTempPath(), "jsr4z8_m_default"));
+        public AppSettings CurrentSettings { get; }
+
+        public FakeSettingsProvider(string tempDir) =>
+            CurrentSettings = new AppSettings(TempMode: TempMode.Custom, CustomTempDir: tempDir);
     }
 
     [Fact]

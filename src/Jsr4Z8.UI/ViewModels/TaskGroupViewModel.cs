@@ -151,6 +151,7 @@ public partial class TaskGroupViewModel : ObservableObject
             return false;
         Progress = 0;
         StageText = "";
+        ErrorText = ""; // retry after failure must not show the stale error bar
         return true;
     }
 
@@ -159,6 +160,7 @@ public partial class TaskGroupViewModel : ObservableObject
         if (!Transition(TaskState.Done, TaskState.Running))
             return false;
         Progress = 100;
+        ErrorText = ""; // defense: a success after a failure must never show a stale error
         if (outputPath != null)
             OutputPath = outputPath;
         return true;

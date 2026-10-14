@@ -10,8 +10,12 @@ namespace Jsr4Z8.Tests;
 /// never committed or embedded into test builds (Task 15 packs it at release time).
 /// Windows-host tests: the manager writes/renames/deletes real directories.
 /// </summary>
-public class PayloadTests
+public class PayloadTests : IClassFixture<TestTemp>
 {
+    private readonly TestTemp _temp;
+
+    public PayloadTests(TestTemp temp) => _temp = temp;
+
     private sealed record FakePayload(string SrcDir, string OutDir, PayloadManifest Manifest)
     {
         public string PayloadBin => Path.Combine(OutDir, PayloadPacker.PayloadFileName);
@@ -29,9 +33,9 @@ public class PayloadTests
     /// (exercises recursion + subdirectory creation) and the notices — plus junk
     /// files the packer must NOT include (README, 使用说明, FILES-SHA256.json, ThirdPartySources/).
     /// </summary>
-    private static string MakeFakeTree()
+    private string MakeFakeTree()
     {
-        string root = TempDir();
+        string root = _temp.NewDir();
         Directory.CreateDirectory(Path.Combine(root, "resources", "licenses"));
         Directory.CreateDirectory(Path.Combine(root, "ThirdPartySources"));
 
@@ -51,14 +55,9 @@ public class PayloadTests
         return root;
     }
 
-    private static string TempDir()
-    {
-        string dir = Path.Combine(Path.GetTempPath(), "jsr4z8_payload_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
-        return dir;
-    }
+    private string TempDir() => _temp.NewDir();
 
-    private static FakePayload PackFake()
+    private FakePayload PackFake()
     {
         string src = MakeFakeTree();
         string outDir = TempDir();
