@@ -26,7 +26,6 @@ namespace Jsr4Z8.Tests;
 /// </summary>
 public class ProgressThrottleTests
 {
-    private const string DarkPath = @"C:\Photos\DSC_7575.NEF";
 
     private static readonly string[] Frames =
         Enumerable.Range(7576, 7).Select(i => $@"C:\Photos\DSC_{i}.NEF").ToArray();
@@ -63,8 +62,9 @@ public class ProgressThrottleTests
     private static TaskGroupViewModel RunningCard(QueueMediator mediator)
     {
         TaskGroupViewModel vm = new(
-            new TaskGroup(Frames, DarkPath),
-            new ValidationResult(true, Array.Empty<ValidationIssue>(), new PtcMatch(9512, true, "表值")),
+            new TaskGroup(Frames),
+            new ValidationResult(true, Array.Empty<ValidationIssue>(), new PtcMatch(9512, true, "表值"),
+            new Jsr4Z8.Core.Dark.DarkMatch(3200, 1005.89, 14.54, "preset")),
             mediator);
         Assert.True(vm.GoRunning());
         return vm;

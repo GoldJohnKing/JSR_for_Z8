@@ -18,14 +18,14 @@ public class TaskGroupVmTests
     private static readonly string[] Frames =
         Enumerable.Range(7576, 7).Select(i => $@"C:\Photos\DSC_{i}.NEF").ToArray();
 
-    private const string DarkPath = @"C:\Photos\DSC_7575.NEF";
 
     private static TaskGroupViewModel ReadyVm() => new(
-        new TaskGroup(Frames, DarkPath),
-        new ValidationResult(true, Array.Empty<ValidationIssue>(), new PtcMatch(9512, true, "表值")));
+        new TaskGroup(Frames),
+        new ValidationResult(true, Array.Empty<ValidationIssue>(), new PtcMatch(9512, true, "表值"),
+            new Jsr4Z8.Core.Dark.DarkMatch(3200, 1005.89, 14.54, "preset")));
 
     private static TaskGroupViewModel BlockedVm() => new(
-        new TaskGroup(Frames, DarkPath),
+        new TaskGroup(Frames),
         new ValidationResult(false,
             new[] { new ValidationIssue("", IssueKind.FrameCount, "帧数不符：任务组需要 7 帧，实际 7 帧") },
             null));

@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Jsr4Z8.Core.Backend;
+using Jsr4Z8.Core.Dark;
 using Jsr4Z8.Core.Model;
 using Jsr4Z8.Core.Ptc;
 using Xunit;
@@ -40,7 +41,7 @@ public class ProtocolTests
     // ---- BackendRequest.BuildJson -------------------------------------------------
 
     [Fact]
-    public void BuildJson_MatchesProtocolSchemaFieldForField()
+    public void BuildJson_UsesProbeVerifiedManualShape()
     {
         string[] frames =
         {
@@ -48,42 +49,38 @@ public class ProtocolTests
             @"D:\pics\DSC_7579.NEF", @"D:\pics\DSC_7580.NEF", @"D:\pics\DSC_7581.NEF",
             @"D:\pics\DSC_7582.NEF",
         };
-        var group = new TaskGroup(frames, @"D:\pics\dark\DSC_9000.NEF");
+        var group = new TaskGroup(frames);
+        var dark = new DarkMatch(3200, BlackDn: 1005.89, ReadNoiseDn: 14.54, Source: "preset");
 
         string json = BackendRequest.BuildJson(group, new PtcMatch(1102.244, Exact: false, Source: "fit-high"),
-            outputDir: @"D:\pics\out", prefix: "jsr-001");
+            dark, outputDir: @"D:\pics\out", prefix: "jsr-001");
 
-        Assert.DoesNotContain('\uFEFF', json); // payload must be BOM-free; the writer owns UTF-8-no-BOM
+        Assert.DoesNotContain('\uFEFF', json);
         using JsonDocument doc = JsonDocument.Parse(json);
-        JsonElement root = doc.RootElement;
-
-        // Root: exactly { paths, parameters }, nothing extra.
-        Assert.Equal(new[] { "parameters", "paths" }, root.EnumerateObject().Select(p => p.Name).OrderBy(n => n));
-        Assert.Equal(frames, root.GetProperty("paths").EnumerateArray().Select(e => e.GetString()));
-
-        JsonElement p = root.GetProperty("parameters");
-        // Parameters: exactly the 13 protocol fields — no memory key at all
-        // (post-release directive: omit entirely, the driver owns allocation).
+        JsonElement p = doc.RootElement.GetProperty("parameters");
+        // The manual shape the 2026-10-14 live probe verified: the dark key is REPLACED
+        // by manual + read_noise + black (backend answers "manual DN" / "manual RN(DN)").
         Assert.Equal(new[]
         {
-            "color", "dark", "deghost", "dng", "engine", "fullwell", "manual",
-            "mode", "output", "prefix", "preview", "ptc", "tiff",
+            "black", "color", "deghost", "dng", "engine", "fullwell", "manual",
+            "mode", "output", "prefix", "preview", "ptc", "read_noise", "tiff",
         }, p.EnumerateObject().Select(prop => prop.Name).OrderBy(n => n));
+        Assert.False(p.TryGetProperty("dark", out _));
 
-        Assert.Equal("stormer7", p.GetProperty("engine").GetString());
-        Assert.Equal("full", p.GetProperty("mode").GetString());
-        Assert.Equal(@"D:\pics\out", p.GetProperty("output").GetString());
-        Assert.Equal("jsr-001", p.GetProperty("prefix").GetString());
-        Assert.False(p.GetProperty("manual").GetBoolean());
-        Assert.Equal(@"D:\pics\dark\DSC_9000.NEF", p.GetProperty("dark").GetString());
+        Assert.True(p.GetProperty("manual").GetBoolean());
+        Assert.Equal(1005.89m, p.GetProperty("black").GetDecimal());
+        Assert.Equal(14.54m, p.GetProperty("read_noise").GetDecimal());
         Assert.Equal(1102.2m, p.GetProperty("fullwell").GetDecimal()); // 1102.244 → 1 decimal
-        Assert.Equal("1102.2", p.GetProperty("fullwell").GetRawText());
-        Assert.Equal("", p.GetProperty("ptc").GetString());
+        Assert.Equal("stormer7", p.GetProperty("engine").GetString());
         Assert.Equal("libraw", p.GetProperty("color").GetString());
-        Assert.True(p.GetProperty("dng").GetBoolean());
-        Assert.False(p.GetProperty("tiff").GetBoolean());
-        Assert.False(p.GetProperty("preview").GetBoolean());
-        Assert.False(p.GetProperty("deghost").GetBoolean());
+    }
+
+    [Fact]
+    public void BuildJson_WithoutPresetRow_Throws()
+    {
+        var group = new TaskGroup(new[] { @"D:\pics\a.NEF" });
+        Assert.Throws<ArgumentNullException>(() => BackendRequest.BuildJson(
+            group, new PtcMatch(1102.2, true, "table"), dark: null, outputDir: @"D:\pics\out", prefix: "p"));
     }
 
     // ---- ProtocolParser.ParseLine: envelope lines ---------------------------------

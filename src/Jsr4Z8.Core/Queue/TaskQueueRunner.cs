@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using Jsr4Z8.Core.Backend;
 using Jsr4Z8.Core.Dng;
+using Jsr4Z8.Core.Dark;
 using Jsr4Z8.Core.Model;
 using Jsr4Z8.Core.Payload;
 using Jsr4Z8.Core.Ptc;
@@ -92,7 +93,7 @@ public sealed class TaskQueueRunner
     /// <summary>Runs one group through the six steps above; events go to
     /// <paramref name="onEvent"/> on background threads (the caller marshals).</summary>
     public async Task<TaskRunOutcome> RunAsync(
-        TaskGroup g, PtcMatch ptc, AppSettings settings, CancellationToken ct, Action<QueueEvent>? onEvent = null)
+        TaskGroup g, PtcMatch ptc, DarkMatch? dark, AppSettings settings, CancellationToken ct, Action<QueueEvent>? onEvent = null)
     {
         ArgumentNullException.ThrowIfNull(g);
         ArgumentNullException.ThrowIfNull(ptc);
@@ -136,7 +137,7 @@ public sealed class TaskQueueRunner
             // No memory field is sent — the VRAM budget feature was removed post-release
             // (user directive: 不设预算，驱动自行分配); the backend/driver owns allocation,
             // and driver-level OOM errors flow through the generic humanized failure path.
-            string request = BackendRequest.BuildJson(g, ptc, jobDir, jobId);
+            string request = BackendRequest.BuildJson(g, ptc, dark, jobDir, jobId);
             File.WriteAllText(requestPath, request, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
             // ④ backend run; events forwarded for the UI to map onto the card.

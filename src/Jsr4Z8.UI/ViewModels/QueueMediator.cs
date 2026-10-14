@@ -93,7 +93,7 @@ public sealed class QueueMediator : ITaskRunner
             try
             {
                 TaskRunOutcome outcome = await _engine
-                    .RunAsync(vm.Group, ptc, _settings.CurrentSettings, cancellationToken, e => Handle(vm, e))
+                    .RunAsync(vm.Group, ptc, vm.Dark, _settings.CurrentSettings, cancellationToken, e => Handle(vm, e))
                     .ConfigureAwait(false);
                 ApplyOutcome(vm, outcome);
             }

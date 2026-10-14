@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Jsr4Z8.Core.Dark;
 using Jsr4Z8.Core.Model;
 using Jsr4Z8.Core.Ptc;
 using Jsr4Z8.UI.Services;
@@ -36,6 +37,7 @@ public partial class TaskGroupViewModel : ObservableObject
 {
     private readonly ITaskRunner _runner;
     private readonly PtcMatch? _ptc;
+    private readonly DarkMatch? _dark;
     private CancellationTokenSource? _cts;
 
     public TaskGroup Group { get; }
@@ -44,6 +46,11 @@ public partial class TaskGroupViewModel : ObservableObject
     /// JSON needs its fullwell (BuildJson rounds inside); null only for unvalidated cards.</summary>
     public PtcMatch? Ptc => _ptc;
 
+
+    /// <summary>The preset dark resolved at creation validation — the queue's request
+    /// JSON needs its black/read-noise pair; null for user-dark cards (path in the
+    /// group) and unvalidated cards alike.</summary>
+    public DarkMatch? Dark => _dark;
     public string ReferenceName { get; }
 
     public string DarkName { get; }
@@ -76,7 +83,8 @@ public partial class TaskGroupViewModel : ObservableObject
         FrameChips = new(group.FramePaths
             .Select((path, i) => new FrameChipViewModel(Path.GetFileName(path), i == 0)));
         ReferenceName = group.FramePaths.Count > 0 ? Path.GetFileName(group.ReferencePath) : "";
-        DarkName = Path.GetFileName(group.DarkPath);
+        _dark = validation?.Dark;
+        DarkName = "自动匹配"; // dark calibration is always preset-matched (2026-10-15)
         OutputName = $"JSR_{Path.GetFileNameWithoutExtension(ReferenceName)}.dng";
         _state = validation is { CanRun: true } ? TaskState.Ready : TaskState.Blocked;
         if (validation is { CanRun: false })

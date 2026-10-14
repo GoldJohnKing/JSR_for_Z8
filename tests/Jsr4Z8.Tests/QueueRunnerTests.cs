@@ -33,7 +33,6 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
     private static readonly string[] Frames =
         Enumerable.Range(7576, 7).Select(i => $@"C:\Photos\DSC_{i}.NEF").ToArray();
 
-    private const string DarkPath = @"C:\Photos\DSC_7575.NEF";
 
     /// <summary>Locates a stub .bat under fixtures\stub_backend\.</summary>
     private static string StubPath(string name) => SampleFiles.FindUp(Path.Combine("fixtures", "stub_backend", name));
@@ -87,8 +86,9 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
 
     /// <summary>A Ready card wired to the harness mediator (validation carries the PTC match).</summary>
     private static TaskGroupViewModel Card(QueueMediator runner) => new(
-        new TaskGroup(Frames, DarkPath),
-        new ValidationResult(true, Array.Empty<ValidationIssue>(), new PtcMatch(9512, true, "表值")),
+        new TaskGroup(Frames),
+        new ValidationResult(true, Array.Empty<ValidationIssue>(), new PtcMatch(9512, true, "表值"),
+            new Jsr4Z8.Core.Dark.DarkMatch(3200, 1005.89, 14.54, "preset")),
         runner);
 
     /// <summary>Polls <paramref name="condition"/> until true or the deadline passes; true on the final check too.</summary>
@@ -393,7 +393,6 @@ public class QueueMediatorTests : IClassFixture<TestTemp>
     private static readonly string[] Frames =
         Enumerable.Range(7576, 7).Select(i => $@"C:\Photos\DSC_{i}.NEF").ToArray();
 
-    private const string DarkPath = @"C:\Photos\DSC_7575.NEF";
 
     private sealed class SyncDispatcher : IDispatcher
     {
@@ -401,8 +400,8 @@ public class QueueMediatorTests : IClassFixture<TestTemp>
     }
 
     private static TaskGroupViewModel Card(ITaskRunner runner, PtcMatch? ptc = null) => new(
-        new TaskGroup(Frames, DarkPath),
-        new ValidationResult(true, Array.Empty<ValidationIssue>(), ptc),
+        new TaskGroup(Frames),
+        new ValidationResult(true, Array.Empty<ValidationIssue>(), ptc, new Jsr4Z8.Core.Dark.DarkMatch(3200, 1005.89, 14.54, "preset")),
         runner);
 
     private static async Task<bool> WaitAsync(Func<bool> condition, TimeSpan timeout)
