@@ -78,8 +78,7 @@ Avalonia GUI(Jsr4Z8.UI: 卡片流/新建面板/设置)
 - DngWriter 潜在 ≥2GiB 载荷的 int/uint 算术隐患 5 处（W8/W12/W13/W14/R6，见 `.superpowers/sdd-postrelease-fix6-report.md` 审计表，当前最大 1.1GB 安全）。
 - build.bat Step4 载荷跳过仅按存在性（不比对 reference/ 新旧）；cmake 路径硬编码。
 - StartAll 与用户单卡点击交错时可能跳过一张就绪卡（需重点击）；卡片 VM 订阅共享 runner 事件不退订（有界）。
-- 分支 `feat/jsr4z8` **尚未合并回 main**——合并方式待用户定夺。
-- v0.1.0 产品产物的 ACR 实测：G3判别件（Strips 布局+几何修复）已由用户确认可开；产品路径（Tiles 默认布局）重跑件待用户最终确认。
+- ~~分支 `feat/jsr4z8` 尚未合并回 main~~ 已合并（含 ACR 几何修复，用户人工核验 DNG 输出通过）。
 
 ## 8. 文档地图
 
