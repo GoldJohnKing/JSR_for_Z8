@@ -4,7 +4,8 @@
 // Make/Model return the VERBATIM TIFF IFD0 tags, like the original JSR
 // backend's exifread, because LibRaw's identify() simplifies idata.make
 // ("NIKON CORPORATION" -> "Nikon")); falls back to LibRaw's values.
-// Uses wide-character paths on Windows for Unicode path support.
+// Windows-only (MSVC) build; wide-character paths for Unicode filename
+// support.
 
 #include <stdlib.h>
 #include <string.h>
@@ -29,57 +30,45 @@ typedef struct {
 
 // Reads the verbatim Make (0x010F) / Model (0x0110) ASCII tags from the
 // TIFF IFD0 header of a raw file (NEF is TIFF-based). Returns 0 on success.
-#ifdef _WIN32
 static int read_tiff_make_model(const wchar_t* filepath, char* make, char* model,
                                 size_t cap)
 {
     make[0] = model[0] = 0;
     FILE* f = _wfopen(filepath, L"rb");
-#else
-static int read_tiff_make_model(const char* filepath, char* make, char* model,
-                                size_t cap)
-{
-    make[0] = model[0] = 0;
-    FILE* f = fopen(filepath, "rb");
-#endif
     if (!f) return -1;
 
+    // TIFF magic 42 is endian-dependent: II stores it as 2A 00, MM as 00 2A.
     unsigned char hdr[8];
-    int big_endian;
     if (fread(hdr, 1, 8, f) != 8 ||
-        !((hdr[0] == 'I' && hdr[1] == 'I') || (hdr[0] == 'M' && hdr[1] == 'M')) ||
-        hdr[2] != 42)
+        !((hdr[0] == 'I' && hdr[1] == 'I' && hdr[2] == 42 && hdr[3] == 0) ||
+          (hdr[0] == 'M' && hdr[1] == 'M' && hdr[2] == 0 && hdr[3] == 42)))
     {
         fclose(f);
         return -2;
     }
-    big_endian = (hdr[0] == 'M');
-    unsigned long ifd0 = big_endian ? ((unsigned long)hdr[4] << 24 | (unsigned long)hdr[5] << 16
-                                           | (unsigned long)hdr[6] << 8 | hdr[7])
-                                    : ((unsigned long)hdr[7] << 24 | (unsigned long)hdr[6] << 16
-                                           | (unsigned long)hdr[5] << 8 | hdr[4]);
+    // Little-endian (II) parse only: NEF is always II. Valid MM files are
+    // rejected here so callers fall back to LibRaw's simplified Make/Model.
+    if (hdr[0] == 'M') { fclose(f); return -2; }
+    unsigned long ifd0 = (unsigned long)hdr[7] << 24 | (unsigned long)hdr[6] << 16
+                       | (unsigned long)hdr[5] << 8 | hdr[4];
     if (fseek(f, (long)ifd0, SEEK_SET) != 0) { fclose(f); return -3; }
 
     unsigned char ec[2];
     if (fread(ec, 1, 2, f) != 2) { fclose(f); return -4; }
-    int entries = big_endian ? (ec[0] << 8 | ec[1]) : (ec[1] << 8 | ec[0]);
+    int entries = ec[1] << 8 | ec[0];
 
     for (int i = 0; i < entries; i++)
     {
         unsigned char e[12];
         if (fread(e, 1, 12, f) != 12) break;
-        int tag = big_endian ? (e[0] << 8 | e[1]) : (e[1] << 8 | e[0]);
+        int tag = e[1] << 8 | e[0];
         if (tag != 0x010F && tag != 0x0110) continue;
         // type 2 = ASCII; count = byte length incl. NUL
-        unsigned long count = big_endian ? ((unsigned long)e[4] << 24 | (unsigned long)e[5] << 16
-                                                | (unsigned long)e[6] << 8 | e[7])
-                                         : ((unsigned long)e[7] << 24 | (unsigned long)e[6] << 16
-                                                | (unsigned long)e[5] << 8 | e[4]);
+        unsigned long count = (unsigned long)e[7] << 24 | (unsigned long)e[6] << 16
+                            | (unsigned long)e[5] << 8 | e[4];
         if (count < 2 || count > 1024) continue;
-        unsigned long val = big_endian ? ((unsigned long)e[8] << 24 | (unsigned long)e[9] << 16
-                                              | (unsigned long)e[10] << 8 | e[11])
-                                       : ((unsigned long)e[11] << 24 | (unsigned long)e[10] << 16
-                                              | (unsigned long)e[9] << 8 | e[8]);
+        unsigned long val = (unsigned long)e[11] << 24 | (unsigned long)e[10] << 16
+                          | (unsigned long)e[9] << 8 | e[8];
         long save = ftell(f);
         char* dst = (tag == 0x010F) ? make : model;
         size_t n = count < cap ? count : cap - 1;
@@ -100,12 +89,8 @@ static int read_tiff_make_model(const char* filepath, char* make, char* model,
 
 extern "C" {
 
-#ifdef _WIN32
 // Windows: use wide-character path (supports Chinese/Japanese/etc. in filenames)
 EXPORT void* lr_open(const wchar_t* filepath, int* error) {
-#else
-EXPORT void* lr_open(const char* filepath, int* error) {
-#endif
     *error = 0;
     lr_handle_t *h = (lr_handle_t*)calloc(1, sizeof(lr_handle_t));
     if (!h) { *error = -1; return NULL; }
@@ -113,7 +98,7 @@ EXPORT void* lr_open(const char* filepath, int* error) {
     h->lr = new LibRaw();
     if (!h->lr) { free(h); *error = -1; return NULL; }
 
-    // Overload resolution (wchar_t vs char) is decided by the function signature above.
+    // open_file's wchar_t overload is selected by the signature above.
     int ret = h->lr->open_file(filepath);
 
     if (ret != LIBRAW_SUCCESS) {
