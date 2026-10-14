@@ -242,8 +242,10 @@ public class E2eTests
         Assert.Equal(24u, Tiff.U32(aa, 4));
         Assert.Equal(11024u, Tiff.U32(aa, 8));
         Assert.Equal(16536u, Tiff.U32(aa, 12));
-        Assert.Equal(24u, Tiff.U32(raw.Tags[50719].Value, 0));
-        Assert.Equal(16u, Tiff.U32(raw.Tags[50719].Value, 8));
+        // Post-release fix 8: DefaultCropOrigin is ActiveArea-relative (DNG spec) —
+        // full-frame pair writes (0,0), never the pre-fix absolute (24,16).
+        Assert.Equal(0u, Tiff.U32(raw.Tags[50719].Value, 0));
+        Assert.Equal(0u, Tiff.U32(raw.Tags[50719].Value, 8));
         Assert.Equal(16512u, Tiff.U32(raw.Tags[50720].Value, 0));
         Assert.Equal(11008u, Tiff.U32(raw.Tags[50720].Value, 8));
         Assert.Equal(9u, ifd0.Tags[50721].Count); // ColorMatrix1 (SRATIONAL×9)
