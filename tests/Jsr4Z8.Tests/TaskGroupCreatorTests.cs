@@ -256,8 +256,14 @@ public class TaskGroupCreatorTests
         Assert.Equal(2, main.ReadyCount);
         Assert.Equal(0, main.ValidatingCount);
         Assert.Equal("共 2 个任务组", main.StatusText);
-        Assert.Equal("DSC_7576.NEF", Path.GetFileName(main.Tasks[0].Group.ReferencePath));
-        Assert.Equal("DSC_7652.NEF", Path.GetFileName(main.Tasks[1].Group.ReferencePath));
+        // Final-review F7: completion order across the concurrent flights is not
+        // deterministic — compare as a set (sorted), not by Tasks[0]/Tasks[1] slots:
+        // both reference paths present, exactly once each.
+        string[] references = main.Tasks
+            .Select(t => Path.GetFileName(t.Group.ReferencePath))
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToArray();
+        Assert.Equal(new[] { "DSC_7576.NEF", "DSC_7652.NEF" }, references);
     }
 
     [Fact]

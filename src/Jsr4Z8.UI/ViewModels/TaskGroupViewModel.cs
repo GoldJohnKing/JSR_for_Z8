@@ -264,7 +264,16 @@ public partial class TaskGroupViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanSetReference))]
     private void SetReference(FrameChipViewModel chip)
     {
-        int i = FrameChips.IndexOf(chip);
+        // Reference-equality lookup, not IndexOf: FrameChipViewModel is a record whose
+        // value equality keys on (FileName, IsReference), so two frames with identical
+        // filenames from different directories would resolve to the first match.
+        int i = -1;
+        for (int k = 0; k < FrameChips.Count; k++)
+            if (ReferenceEquals(FrameChips[k], chip))
+            {
+                i = k;
+                break;
+            }
         if (i <= 0 || State is not (TaskState.Ready or TaskState.Blocked))
             return;
         FrameChipViewModel oldReference = FrameChips[0];

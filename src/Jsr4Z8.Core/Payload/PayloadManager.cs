@@ -137,13 +137,15 @@ public sealed class PayloadManager
     /// delete every directory under <see cref="_backendRoot"/> whose name differs from the
     /// current <paramref name="hashDir"/> — previous payload versions and crashed tmp
     /// leftovers alike. Best-effort: the whole loop is swallowed so a prune failure can
-    /// never break EnsureExtracted; leftovers are retried on a later run.
+    /// never break EnsureExtracted; leftovers are retried on a later run. The enumeration
+    /// is materialized first (final-review F4): a mid-iteration IOException on a
+    /// since-deleted sibling must not abort the prune of the remaining dirs.
     /// </summary>
     private void PruneStaleVersions(string hashDir)
     {
         try
         {
-            foreach (string stale in Directory.EnumerateDirectories(_backendRoot))
+            foreach (string stale in Directory.EnumerateDirectories(_backendRoot).ToList())
                 if (!string.Equals(Path.GetFileName(stale), hashDir, StringComparison.Ordinal))
                     DeleteDirectory(stale);
         }

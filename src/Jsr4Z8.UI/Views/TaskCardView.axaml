@@ -232,7 +232,7 @@
                        IsVisible="{Binding MetaText, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
 
             <!-- 校验失败/ 运行失败错误条 -->
-            <Border Classes="msg" Margin="14,0,14,0"
+            <Border Classes="msg" Margin="14,6,14,10"
                     IsVisible="{Binding IssuesText, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}">
                 <TextBlock Text="{Binding IssuesText}" />
             </Border>

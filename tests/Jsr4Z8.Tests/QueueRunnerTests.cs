@@ -222,10 +222,10 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
 
     /// <summary>Startup sweep: failed/stopped runs now delete their job dir themselves,
     /// so anything left under the Jsr4Z8 temp root is debris from a crashed/killed
-    /// process — the sweep deletes ALL of it regardless of age (old/fresh/current
-    /// fabricated mtimes all swept).</summary>
+    /// process — the sweep deletes ALL of it once past the grace window (any fabricated
+    /// mtime older than 2 minutes is swept).</summary>
     [Fact]
-    public void SweepTempRoot_DeletesAllLeftovers_AnyAge()
+    public void SweepTempRoot_DeletesAllLeftovers_OlderThanGraceWindow()
     {
         string tempBase = _temp.NewDir();
         string root = Path.Combine(tempBase, "Jsr4Z8");
@@ -246,9 +246,41 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
             TaskQueueRunner.SweepTempRoot(settings);
 
             Assert.False(Directory.Exists(old), "8-day-old leftover must be swept");
-            Assert.False(Directory.Exists(fresh), "1-day-old leftover must be swept too — no age cutoff");
-            Assert.False(Directory.Exists(current), "no id exclusion: everything goes");
+            Assert.False(Directory.Exists(fresh), "1-day-old leftover must be swept too — no age cutoff beyond the grace window");
+            Assert.False(Directory.Exists(current), "no id exclusion: everything past the grace window goes");
             Assert.Empty(Directory.GetDirectories(root));   // the root itself survives, emptied
+        }
+        finally
+        {
+            try { Directory.Delete(tempBase, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+    }
+
+    /// <summary>Final-review F1(b): the sweep skips dirs whose LastWriteTimeUtc is within
+    /// the grace window — the same-instance race where a slow multi-GB sweep is still
+    /// iterating when the user starts the first run seconds after launch (the fresh job
+    /// dir must survive). A dir older than the window is swept as before.</summary>
+    [Fact]
+    public void SweepTempRoot_GraceWindow_KeepsFreshDir_SweepsOlder()
+    {
+        string tempBase = _temp.NewDir();
+        string root = Path.Combine(tempBase, "Jsr4Z8");
+        string fresh = Path.Combine(root, "just-created-job");   // keeps its real (current) mtime
+        string old = Path.Combine(root, Guid.NewGuid().ToString("N"));
+        foreach (string dir in new[] { fresh, old })
+        {
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "request.json"), "{}");
+        }
+        Directory.SetLastWriteTimeUtc(old, DateTime.UtcNow - TimeSpan.FromDays(8));
+        var settings = new AppSettings(TempMode: TempMode.Custom, CustomTempDir: tempBase);
+        try
+        {
+            TaskQueueRunner.SweepTempRoot(settings);
+
+            Assert.True(Directory.Exists(fresh), "dir written within the grace window must be kept");
+            Assert.False(Directory.Exists(old), "dir older than the grace window must be swept");
+            Assert.Equal(new[] { fresh }, Directory.GetDirectories(root));   // exactly the fresh one remains
         }
         finally
         {

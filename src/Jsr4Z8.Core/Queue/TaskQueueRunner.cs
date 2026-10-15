@@ -152,8 +152,9 @@ public sealed class TaskQueueRunner
                   ?? throw new InvalidOperationException("基准帧路径没有所在目录");
             string written = FinalizeOverride is { } finalize
                 ? finalize(backendDng, g.ReferencePath, destDir)
-                // Final-review finding 8: cross-check warnings land in the job log
-                // (kept diagnostic dirs) instead of the invisible Console.Error.
+                // Final-review finding 8: cross-check warnings go to the job log instead
+                // of the invisible Console.Error — job.log lives for the run's lifetime
+                // only (deleted with the job dir on every terminal outcome).
                 : JsrDngFinalizer.Finalize(backendDng, g.ReferencePath, destDir,
                     line => AppendJobLog(logFile, line));
 
@@ -188,11 +189,19 @@ public sealed class TaskQueueRunner
             ? s.CustomTempDir
             : Path.GetTempPath();
 
-    /// <summary>Startup sweep: deletes EVERY &lt;TempBase&gt;\Jsr4Z8\&lt;dir&gt; regardless of
-    /// age. Failed/stopped runs now delete their job dir themselves (失败即删), so
-    /// anything still under the root is debris from a crashed/killed process. Best
-    /// effort — every IO error is swallowed, never fatal to a launch. Public: the app
-    /// wires it once at entry (a later task).</summary>
+    /// <summary>Sweep grace window (final-review F1b): dirs under the Jsr4Z8 temp root
+    /// whose LastWriteTimeUtc is newer than this before the sweep's own clock are
+    /// skipped. The same-instance race: a slow multi-GB sweep may still be iterating
+    /// when the user starts the first run seconds after launch — the fresh job dir
+    /// must survive it (cross-instance is the app's single-instance mutex's job).</summary>
+    private static readonly TimeSpan SweepGraceWindow = TimeSpan.FromMinutes(2);
+
+    /// <summary>Startup sweep: deletes every &lt;TempBase&gt;\Jsr4Z8\&lt;dir&gt; whose
+    /// LastWriteTimeUtc is older than <see cref="SweepGraceWindow"/>. Failed/stopped
+    /// runs now delete their job dir themselves (失败即删), so anything still under the
+    /// root is debris from a crashed/killed process. Best effort — every IO error is
+    /// swallowed, never fatal to a launch. Public: the app wires it once at entry
+    /// (a later task).</summary>
     public static void SweepTempRoot(AppSettings settings)
     {
         try
@@ -200,8 +209,19 @@ public sealed class TaskQueueRunner
             string root = Path.Combine(ResolveTempBase(settings), "Jsr4Z8");
             if (!Directory.Exists(root))
                 return;
+            DateTime cutoff = DateTime.UtcNow - SweepGraceWindow;
             foreach (string dir in Directory.EnumerateDirectories(root))
-                TryDeleteDir(dir);
+            {
+                DateTime lastWrite;
+                try
+                {
+                    lastWrite = Directory.GetLastWriteTimeUtc(dir);
+                }
+                catch (IOException) { continue; }   // vanished between enumerate and check
+                catch (UnauthorizedAccessException) { continue; }
+                if (lastWrite < cutoff)
+                    TryDeleteDir(dir);
+            }
         }
         catch (Exception)
         {
