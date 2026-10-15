@@ -261,7 +261,7 @@
                             <Viewbox Width="13" Height="13">
                                 <Path Classes="icon" Data="{StaticResource Icon.FolderPlus}" />
                             </Viewbox>
-                            <TextBlock Text="添加 RAW…" FontSize="12" />
+                            <TextBlock Text="添加 RAW" FontSize="12" />
                         </StackPanel>
                     </Button>
                     <Button Classes="Small" Command="{Binding RemoveCommand}">

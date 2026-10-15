@@ -247,7 +247,7 @@ public class TaskGroupCreatorTests
         Assert.Equal(TaskState.Ready, card.State);
         Assert.Equal(0, main.ValidatingCount);
         Assert.Equal(1, main.ReadyCount);
-        Assert.Equal("共 1 个任务组", main.StatusText);
+        Assert.Equal(string.Empty, main.StatusText);
 
         card.GoRunning();                                              // card state changes refresh the counts
         card.GoDone(null);
@@ -291,7 +291,7 @@ public class TaskGroupCreatorTests
         Assert.All(main.Tasks, t => Assert.Equal(TaskState.Ready, t.State));
         Assert.Equal(2, main.ReadyCount);
         Assert.Equal(0, main.ValidatingCount);
-        Assert.Equal("共 2 个任务组", main.StatusText);
+        Assert.Equal(string.Empty, main.StatusText);
         // Final-review F7: completion order across the concurrent flights is not
         // deterministic — compare as a set (sorted), not by Tasks[0]/Tasks[1] slots:
         // both reference paths present, exactly once each.
@@ -321,7 +321,7 @@ public class TaskGroupCreatorTests
         Assert.Same(running, Assert.Single(main.Tasks));               // Running 卡不动
         Assert.Equal(0, main.ReadyCount);
         Assert.Equal(0, main.DoneCount);
-        Assert.Equal("共 1 个任务组", main.StatusText);
+        Assert.Equal(string.Empty, main.StatusText);
     }
 
     /// <summary>AddValidated (the post-back entry): CanRun → Ready card; CanRun=false is

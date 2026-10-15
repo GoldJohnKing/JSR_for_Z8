@@ -217,7 +217,7 @@ public partial class MainViewModel : ObservableObject
         StatusText = ValidatingCount > 0 ? $"正在校验 {ValidatingCount} 组新建任务…"
             : _runner.IsBusy ? "正在处理任务组…"
             : Tasks.Count == 0 ? "拖放 7 张 RAW 开始"
-            : $"共 {Tasks.Count} 个任务组";
+            : "";
 
     partial void OnValidatingCountChanged(int value) => RefreshStatusText();
 }

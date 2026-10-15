@@ -235,7 +235,7 @@
                                             <Viewbox Width="13" Height="13">
                                                 <Path Classes="icon" Data="{StaticResource Icon.FolderPlus}" />
                                             </Viewbox>
-                                            <TextBlock Text="添加 RAW…" FontSize="12" />
+                                            <TextBlock Text="新建任务" FontSize="12" />
                                         </StackPanel>
                                     </Button>
                                     <Button Classes="Small" Command="{Binding ClearAllCommand}">
@@ -280,8 +280,8 @@
             </Grid>
         </Grid>
 
-        <!-- 拖放悬停遮罩（覆盖全窗） -->
-        <Border IsVisible="{Binding IsDragOver}"
+        <!-- 拖放悬停遮罩（覆盖全窗）。遮罩必须不可命中，否则拦截卡片拖放命中测试（拖到卡片会被窗口冒泡吃掉变新建组）。 -->
+        <Border IsVisible="{Binding IsDragOver}" IsHitTestVisible="False"
                 Background="{DynamicResource SemiColorOverlayBackground}">
             <Panel Margin="10">
                 <Rectangle Stroke="{DynamicResource SemiColorPrimary}" StrokeThickness="2"
