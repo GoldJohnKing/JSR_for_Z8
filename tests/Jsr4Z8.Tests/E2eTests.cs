@@ -434,7 +434,13 @@ public class E2eTests
         catch (DirectoryNotFoundException) { }
         Directory.CreateDirectory(samplesCopy);
         foreach (string name in FramesFor(SamplesDir()))
-            File.Copy(name, Path.Combine(samplesCopy, Path.GetFileName(name)));
+        {
+            // 副本须保留 FramesFor 的子目录布局（samples 重组引入 test_frames\FX\Lossless）
+            // ——拍平复制会让 PrepareRun(samplesCopy) 找不到 NEF。
+            string dest = Path.Combine(samplesCopy, Path.GetRelativePath(SamplesDir(), name));
+            Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+            File.Copy(name, dest);
+        }
         Ev($"中文+空格路径副本: {samplesCopy}");
 
         var (group, ptc, dark, engine, capture) = PrepareRun(samplesCopy);
@@ -443,7 +449,7 @@ public class E2eTests
         ReportOutcome(outcome, capture, "中文路径全流程");
 
         Assert.True(outcome.Success, outcome.Message);
-        string expected = Path.Combine(samplesCopy, "JSR_DSC_7576.dng");
+        string expected = Path.Combine(samplesCopy, "test_frames", "FX", "Lossless", "JSR_DSC_7576.dng"); // 输出目录=基准帧所在目录
         Assert.Equal(Path.GetFullPath(expected), Path.GetFullPath(outcome.OutputPath!));
         Assert.True(File.Exists(expected), $"中文路径产物缺失: {expected}");
         Ev($"中文路径产物: {new FileInfo(expected).Length / 1024.0 / 1024.0:F1} MB");
@@ -516,6 +522,12 @@ public class E2eTests
         Ev($"抓取运行: bridge 退出码 {process.ExitCode}, 耗时 {clock.Elapsed.TotalSeconds:F1}s, " +
            $"stdout {new FileInfo(stdoutPath).Length / 1024.0 / 1024.0:F2} MB");
         Assert.Equal(0, process.ExitCode);
+
+        // 捕获 StreamWriter 是方法级 using（块尾才释放），而下面的校验用
+        // File.ReadAllLines 以 FileShare.Read 重开文件——写句柄还开着必然共享冲突。
+        // 进程已退出、泵已完成，先显式关闭再读。
+        stdoutFile.Dispose();
+        stderrFile.Dispose();
 
         // Pre-commit validation of the captured stream: single START, single complete RESULT.
         string[] lines = File.ReadAllLines(stdoutPath);
