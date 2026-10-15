@@ -28,10 +28,12 @@ public enum TaskState
 /// filename order — starring a reference only moves the ★ (<see cref="IsReference"/>),
 /// never the slots; <see cref="TaskGroupViewModel.Group"/> carries the
 /// reference-first contract instead. <see cref="InfoText"/> is the multi-line hover
-/// text (one capture parameter per line, — for missing values; 无法读取 when the
-/// frame's metadata could not be read); <see cref="EvText"/> is the ±EV deviation
-/// tag the view renders instead of the ★ on bracketed (非等曝光) cards — "0.0" on
-/// the reference, "—" without a usable exposure.</summary>
+/// text (one capture parameter per line, — for missing values; 无法读取 only for a
+/// frame whose read is RECORDED as failed, "" for a frame not yet read — F4: an
+/// instantly created card's frames are uncached until its validation flight lands);
+/// <see cref="EvText"/> is the ±EV deviation tag the view renders instead of the ★ on
+/// bracketed (非等曝光) cards — "0.0" on the reference, "—" without a usable
+/// exposure.</summary>
 public sealed partial class FrameChipViewModel : ObservableObject
 {
     /// <summary>Display name (file name only) of the frame.</summary>
@@ -48,22 +50,19 @@ public sealed partial class FrameChipViewModel : ObservableObject
     /// sets that frame as reference). Empty only before the first refresh.</summary>
     [ObservableProperty] private string _evText = "";
 
-    public FrameChipViewModel(string path, bool isReference, RawMetadata? meta)
+    public FrameChipViewModel(string path, bool isReference, RawMetadata? meta, bool readFailed)
     {
         Path = path;
         FileName = System.IO.Path.GetFileName(path);
         _isReference = isReference;
-        _infoText = FormatInfoText(meta);
+        _infoText = meta is not null ? FormatInfoText(meta) : readFailed ? "无法读取" : "";
     }
 
     /// <summary>Hover text: 机型/快门/光圈/ISO/位深/压缩/画幅/拍摄时间 one per line,
-    /// each missing value rendered as —; a null metadata (unreadable file) collapses
-    /// to the single line 无法读取.</summary>
-    private static string FormatInfoText(RawMetadata? m)
+    /// each missing value rendered as —. Only called with a readable frame's metadata;
+    /// the unreadable/not-yet-read texts live in the ctor (F4 tri-state).</summary>
+    private static string FormatInfoText(RawMetadata m)
     {
-        if (m is null)
-            return "无法读取";
-
         string model = string.Join(" ",
             new[] { m.Make, m.Model }.Where(s => !string.IsNullOrWhiteSpace(s)));
         string shutter = m.ExposureTime > 0 ? Shutter(m.ExposureTime) : "—";
@@ -104,23 +103,26 @@ public sealed partial class FrameChipViewModel : ObservableObject
 
 /// <summary>
 /// Pure-state ViewModel for one task-group card. Wraps Core's TaskGroup/ValidationResult
-/// without mutating them — <see cref="AddFilesAsync"/> (progressive top-up),
+/// without mutating them — <see cref="ValidateAsync"/> (the F4 instant-creation
+/// validation flight), <see cref="AddFilesAsync"/> (progressive top-up),
 /// <see cref="RemoveFileCommand"/> and <see cref="SetReferenceCommand"/> replace the
 /// group instance, notified via <see cref="Group"/> — and stays free of Avalonia
 /// dependencies so it runs headless under xUnit. The card is a mutable file set now:
 /// metadata is cached per path, every set change revalidates and refreshes Ptc/Dark,
-/// and the Ready↔Blocked transition follows the new validation. Mutations are
-/// UI-thread-affine (<see cref="AddFilesAsync"/> does its reads on a background thread
-/// and applies inline after the await); invalid state transitions are still ignored
-/// (never thrown) so background-pushed runner events can never crash the app.
+/// and the Ready↔Blocked transition follows the new validation. Both card-level
+/// flights (ValidateAsync/AddFilesAsync) bracket themselves with
+/// <see cref="IsValidating"/> — the card-wide 校验中 Loading overlay. Mutations are
+/// UI-thread-affine (the flights do their reads on a background thread and apply
+/// inline after the await); invalid state transitions are still ignored (never
+/// thrown) so background-pushed runner events can never crash the app.
 /// </summary>
 public partial class TaskGroupViewModel : ObservableObject
 {
     private readonly ITaskRunner _runner;
 
     // Task 3 mutable file set: display order (natural) + per-path caches. Reads happen
-    // on background threads (AddFilesAsync) or replay from these caches; VM mutations
-    // are UI-thread-affine.
+    // on background threads (ValidateAsync/AddFilesAsync) or replay from these caches;
+    // VM mutations are UI-thread-affine.
     private readonly Func<string, RawMetadata> _read;
     private readonly List<string> _framePaths;
     private readonly Dictionary<string, RawMetadata> _meta;
@@ -187,11 +189,20 @@ public partial class TaskGroupViewModel : ObservableObject
     [ObservableProperty] private string _errorText = "";
     [ObservableProperty] private string? _outputPath;
 
-    /// <summary>Edits (progressive add / ✕ / ★基准) are a Ready/Blocked-only interaction:
-    /// Running/Done/Failed cards are locked — a Running group is in flight and a Done
-    /// output was produced from the old set. The add button, star and ✕ all gate on
-    /// this (the command CanExecutes below mirror it).</summary>
-    public bool IsEditable => State is TaskState.Ready or TaskState.Blocked;
+    /// <summary>True while a card-level validation flight is in progress —
+    /// <see cref="ValidateAsync"/> (the F4 instant-creation flight) or a top-up
+    /// (<see cref="AddFilesAsync"/>) — driving the card-wide 校验中 Loading overlay
+    /// and locking edits for the whole flight. Never sticks: both flights reset it in
+    /// a finally, and a failed flight lands the card Blocked with a friendly message.</summary>
+    [ObservableProperty] private bool _isValidating;
+
+    /// <summary>Edits (progressive add / ✕ / ★基准) are a Ready/Blocked-only interaction
+    /// AND never while a validation flight is in flight: Running/Done/Failed cards are
+    /// locked — a Running group is in flight and a Done output was produced from the
+    /// old set — and a validating card's frame set/metadata caches are being rebuilt
+    /// underneath (F4). The add button, star and ✕ all gate on this (the command
+    /// CanExecutes below mirror it).</summary>
+    public bool IsEditable => !IsValidating && State is TaskState.Ready or TaskState.Blocked;
 
     public TaskGroupViewModel(TaskGroup group, ValidationResult? validation = null, ITaskRunner? runner = null,
         IReadOnlyDictionary<string, RawMetadata>? metadata = null, Func<string, RawMetadata>? read = null)
@@ -215,14 +226,21 @@ public partial class TaskGroupViewModel : ObservableObject
         RebuildChips();
         ReferenceName = group.FramePaths.Count > 0 ? Path.GetFileName(group.ReferencePath) : "";
         OutputName = $"JSR_{Path.GetFileNameWithoutExtension(ReferenceName)}.dng";
+        // F4 instant creation (validation:null): the card starts Blocked with EMPTY
+        // issues (nothing has failed yet — the chips' hover texts stay "" until read)
+        // and ValidateAsync is started right after construction to run the real
+        // validation under the Loading overlay.
         _state = validation is { CanRun: true } ? TaskState.Ready : TaskState.Blocked;
         if (validation is { CanRun: false })
             _issuesText = string.Join("\n", validation.Issues.Select(i => i.MessageZh));
     }
 
     /// <summary>Badge text (card-states.html): 就绪 / 运行阶段文字 / 已完成 / 失败 / 无法执行.
-    /// While Running the settable <see cref="StageText"/> IS the badge text.</summary>
-    public string StateText => State switch
+    /// While Running the settable <see cref="StageText"/> IS the badge text; while a
+    /// validation flight is in progress (F4) the pill reads 校验中 instead of the
+    /// underlying state (an instant card is Blocked until its flight lands, but must
+    /// not announce that).</summary>
+    public string StateText => IsValidating ? "校验中" : State switch
     {
         TaskState.Ready => "就绪",
         TaskState.Running => string.IsNullOrEmpty(StageText) ? "运行中" : StageText,
@@ -362,8 +380,11 @@ public partial class TaskGroupViewModel : ObservableObject
     }
 
     // Single-flight (Task 13): while the queue is running another card, 开始此组/重试
-    // are disabled — one run at a time.
-    private bool CanStart() => State == TaskState.Ready && !_runner.IsBusy;
+    // are disabled — one run at a time. A validating card is also unstartable (F4):
+    // its frame set and Ptc/Dark are mid-recompute, so the runner must not pick up a
+    // half-validated group (the Loading overlay hides the button; this is the guard
+    // underneath, e.g. for StartAll's direct StartAsync calls).
+    private bool CanStart() => State == TaskState.Ready && !IsValidating && !_runner.IsBusy;
 
     [RelayCommand(CanExecute = nameof(CanRetry))]
     private Task RetryAsync() => StartAsync();
@@ -417,8 +438,10 @@ public partial class TaskGroupViewModel : ObservableObject
     /// are recorded but still added as frames, so revalidation flags them 无法读取 —
     /// then the whole derived set (ordering, reference, validation) is recomputed and
     /// applied inline after the await: the VM is UI-thread-affine for mutations, the
-    /// worker only touches snapshot copies. A card that locked while the read was in
-    /// flight discards the result.</summary>
+    /// worker only touches snapshot copies. The whole flight is bracketed with
+    /// <see cref="IsValidating"/> (F4: the same 校验中 Loading overlay and edit lock as
+    /// <see cref="ValidateAsync"/>; a finally guarantees it can never stick). A card
+    /// that locked while the read was in flight discards the result.</summary>
     public async Task AddFilesAsync(IReadOnlyList<string> paths)
     {
         if (!IsEditable || paths.Count == 0)
@@ -432,39 +455,112 @@ public partial class TaskGroupViewModel : ObservableObject
         if (fresh.Count == 0)
             return;
 
-        List<string> next = _framePaths.Concat(fresh).ToList();
-        var meta = new Dictionary<string, RawMetadata>(_meta, StringComparer.OrdinalIgnoreCase);
-        var errors = new Dictionary<string, string>(_readErrors, StringComparer.OrdinalIgnoreCase);
-        Func<string, RawMetadata> source = _read;
-        await Task.Run(() =>
+        IsValidating = true;
+        try
         {
-            foreach (string path in next)
+            List<string> next = _framePaths.Concat(fresh).ToList();
+            var meta = new Dictionary<string, RawMetadata>(_meta, StringComparer.OrdinalIgnoreCase);
+            var errors = new Dictionary<string, string>(_readErrors, StringComparer.OrdinalIgnoreCase);
+            Func<string, RawMetadata> source = _read;
+            await Task.Run(() =>
             {
-                if (meta.ContainsKey(path) || errors.ContainsKey(path))
-                    continue;
-                try
+                foreach (string path in next)
                 {
-                    meta[path] = source(path);
+                    if (meta.ContainsKey(path) || errors.ContainsKey(path))
+                        continue;
+                    try
+                    {
+                        meta[path] = source(path);
+                    }
+                    catch (RawReadException ex)
+                    {
+                        errors[path] = ex.Message;
+                    }
                 }
-                catch (RawReadException ex)
-                {
-                    errors[path] = ex.Message;
-                }
-            }
-        });
+            });
 
-        if (!IsEditable)
+            // Locked while the read was in flight (Running/Done/Failed — NOT the
+            // IsValidating half of IsEditable, which is true by definition here):
+            // discard the result, the card's flight stands as the lock left it.
+            if (State is TaskState.Running or TaskState.Done or TaskState.Failed)
+                return;
+
+            // Merge (not replace): another in-flight add may have landed while this call
+            // was reading — unioning keeps the every-path-cached invariant, so the
+            // recompute below never needs a UI-thread read.
+            foreach (KeyValuePair<string, RawMetadata> kv in meta)
+                _meta[kv.Key] = kv.Value;
+            foreach (KeyValuePair<string, string> kv in errors)
+                _readErrors[kv.Key] = kv.Value;
+            _framePaths.AddRange(fresh);
+            RecomputeAndApply();
+        }
+        finally
+        {
+            IsValidating = false;
+        }
+    }
+
+    /// <summary>F4 instant-card validation flight: called by MainViewModel right after
+    /// constructing a validation:null card (and safe to call on any Blocked/Ready card
+    /// with gaps in its caches). No-op while a flight is already running or the card is
+    /// locked (Running/Done/Failed). Otherwise: read every uncached frame on a
+    /// background thread (failures recorded exactly like <see cref="AddFilesAsync"/>,
+    /// so they revalidate as 无法读取 instead of crashing the card), then recompute and
+    /// apply inline after the await (the same <see cref="RecomputeAndApply"/> path).
+    /// Any exception along the way lands the card Blocked with
+    /// 校验时发生错误：{message} — and the finally ALWAYS clears IsValidating, so the
+    /// Loading overlay can never stick (Review Focus 1).</summary>
+    public async Task ValidateAsync()
+    {
+        if (IsValidating || State is TaskState.Running or TaskState.Done or TaskState.Failed)
             return;
 
-        // Merge (not replace): another in-flight add may have landed while this call
-        // was reading — unioning keeps the every-path-cached invariant, so the
-        // recompute below never needs a UI-thread read.
-        foreach (KeyValuePair<string, RawMetadata> kv in meta)
-            _meta[kv.Key] = kv.Value;
-        foreach (KeyValuePair<string, string> kv in errors)
-            _readErrors[kv.Key] = kv.Value;
-        _framePaths.AddRange(fresh);
-        RecomputeAndApply();
+        IsValidating = true;
+        try
+        {
+            List<string> paths = _framePaths.ToList();   // snapshot for the worker
+            var meta = new Dictionary<string, RawMetadata>(_meta, StringComparer.OrdinalIgnoreCase);
+            var errors = new Dictionary<string, string>(_readErrors, StringComparer.OrdinalIgnoreCase);
+            Func<string, RawMetadata> source = _read;
+            await Task.Run(() =>
+            {
+                foreach (string path in paths)
+                {
+                    if (meta.ContainsKey(path) || errors.ContainsKey(path))
+                        continue;
+                    try
+                    {
+                        meta[path] = source(path);
+                    }
+                    catch (RawReadException ex)
+                    {
+                        errors[path] = ex.Message;
+                    }
+                }
+            });
+            foreach (KeyValuePair<string, RawMetadata> kv in meta)
+                _meta[kv.Key] = kv.Value;
+            foreach (KeyValuePair<string, string> kv in errors)
+                _readErrors[kv.Key] = kv.Value;
+            RecomputeAndApply();
+        }
+        catch (Exception ex)
+        {
+            // 直接落 Blocked + 人话文案（不走 GoBlocked：初始即 Blocked 的即时建卡路径
+            // 会因同态被吞掉文案）；Progress/Stage/Error 同步清零，同 GoBlocked 语义。
+            State = TaskState.Blocked;
+            IssuesText = $"校验时发生错误：{ex.Message}";
+            Ptc = null;
+            Dark = null;
+            Progress = 0;
+            StageText = "";
+            ErrorText = "";
+        }
+        finally
+        {
+            IsValidating = false;
+        }
     }
 
     /// <summary>✕ on a chip: removes that frame and its cache entries. Removing the
@@ -579,18 +675,28 @@ public partial class TaskGroupViewModel : ObservableObject
             .ToList());
 
     /// <summary>Rebuilds the chip row in natural display order with the ★ on the
-    /// reference and per-chip hover texts from the metadata cache (a cache miss —
-    /// unreadable at read time — renders 无法读取), then refreshes the bracket flag
-    /// and every ±EV tag.</summary>
+    /// reference and per-chip hover texts from the metadata cache: a cached frame
+    /// shows its capture parameters, a path RECORDED as failed (a cache miss that is
+    /// present in <c>_readErrors</c>) renders 无法读取, and an uncached path — never
+    /// read yet, e.g. an F4 instant card before its validation flight lands — renders
+    /// "" (not yet read ≠ unreadable). Then refreshes the bracket flag and every ±EV
+    /// tag.</summary>
     private void RebuildChips()
     {
         FrameChips.Clear();
         string reference = Group.FramePaths.Count > 0 ? Group.ReferencePath : "";
         foreach (string path in _framePaths)
-            FrameChips.Add(new FrameChipViewModel(
-                path,
-                string.Equals(path, reference, StringComparison.OrdinalIgnoreCase),
-                _meta.TryGetValue(path, out RawMetadata? m) ? m : null));
+            FrameChips.Add(_meta.TryGetValue(path, out RawMetadata? m)
+                ? new FrameChipViewModel(
+                    path,
+                    string.Equals(path, reference, StringComparison.OrdinalIgnoreCase),
+                    m,
+                    readFailed: false)
+                : new FrameChipViewModel(
+                    path,
+                    string.Equals(path, reference, StringComparison.OrdinalIgnoreCase),
+                    null,
+                    _readErrors.ContainsKey(path)));
         RefreshEvTags(reference);
     }
 
@@ -690,6 +796,15 @@ public partial class TaskGroupViewModel : ObservableObject
     private bool CanOpenFolder() => State == TaskState.Done;
 
     partial void OnProgressChanged(int value) => OnPropertyChanged(nameof(BarValue));
+
+    partial void OnIsValidatingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(StateText));
+        OnPropertyChanged(nameof(IsEditable));
+        StartCommand.NotifyCanExecuteChanged();
+        SetReferenceCommand.NotifyCanExecuteChanged();
+        RemoveFileCommand.NotifyCanExecuteChanged();
+    }
 
     partial void OnStateChanged(TaskState value)
     {

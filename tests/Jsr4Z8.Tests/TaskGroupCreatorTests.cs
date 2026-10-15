@@ -234,8 +234,9 @@ public class TaskGroupCreatorTests
     private static MainViewModel MainVm() => new();
 
     /// <summary>Integration-style (the production reader is the only read path here):
-    /// a valid drop becomes one Ready card via the post seam, the counter settles back
-    /// to 0, and the derived counts follow the card's state changes.</summary>
+    /// a valid drop becomes one Ready card — F4: the card is created immediately and
+    /// validates itself (the Loading flight settles before the await returns) — and
+    /// the derived counts follow the card's state changes.</summary>
     [Fact]
     public async Task AddFilesAsync_CreatesCardViaPost()
     {
@@ -255,6 +256,67 @@ public class TaskGroupCreatorTests
         Assert.Equal(1, main.DoneCount);
     }
 
+    /// <summary>F4 即时建卡：默认 inline post 下 AddFilesAsync 的同步段恰好推进到
+    /// ValidateAsync 的首个 await（在建卡之后），因此调用返回的 Task 尚未完成时卡
+    /// 已入列且处于校验中（Loading 覆盖层的数据源）——本测试钉死这一顺序；释放门阀
+    /// 后落就绪。read 缝用 TCS 门阀挡住后台读取（注入式 read 缝，同卡片 VM 一致）。</summary>
+    [Fact]
+    public async Task AddFiles_CardAppearsImmediately_ThenValidates()
+    {
+        var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Func<string, RawMetadata> read = _ =>
+        {
+            gate.Task.Wait();
+            return Meta();
+        };
+        var main = new MainViewModel(read: read);
+
+        Task flight = main.AddFilesAsync(Frames);
+
+        Assert.Single(main.Tasks);                            // 卡已出现，不等校验
+        TaskGroupViewModel card = main.Tasks[0];
+        Assert.True(card.IsValidating);
+        Assert.Equal("校验中", card.StateText);
+        Assert.Equal(string.Empty, card.IssuesText);           // 即时建卡初始态
+
+        gate.SetResult(true);
+        await flight;
+
+        Assert.False(card.IsValidating);
+        Assert.Equal(TaskState.Ready, card.State);
+        Assert.Equal(Frames, card.Group.FramePaths);
+        Assert.Equal(0, main.ValidatingCount);
+        Assert.Equal(1, main.ReadyCount);
+    }
+
+    /// <summary>派生计数 (F4)：ValidatingCount = Tasks.Count(t => t.IsValidating)，
+    /// 随卡属性通知即时刷新 —— 校验中=1（状态行 正在校验 1 组新建任务…），校验中的卡
+    /// 被移除即回落 0（派生语义下无需手工递减，飞行中的卡移除也不会悬死状态行）。</summary>
+    [Fact]
+    public async Task ValidatingCount_DerivedFromCards()
+    {
+        var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Func<string, RawMetadata> read = _ =>
+        {
+            gate.Task.Wait();
+            return Meta();
+        };
+        var main = new MainViewModel(read: read);
+
+        Task flight = main.AddFilesAsync(Frames);
+        Assert.Equal(1, main.ValidatingCount);
+        Assert.Equal("正在校验 1 组新建任务…", main.StatusText);
+
+        main.Tasks[0].RemoveCommand.Execute(null);             // 校验中的卡被移除 → 计数即时回落
+        Assert.Empty(main.Tasks);
+        Assert.Equal(0, main.ValidatingCount);
+        Assert.Equal("拖放 7 张 RAW 开始", main.StatusText);
+
+        gate.SetResult(true);
+        await flight;                                          // 分离的卡自行落定，不再驱动计数
+        Assert.Equal(0, main.ValidatingCount);
+    }
+
     /// <summary>Review Focus 1 (main-window side): a non-NEF-only drop is a no-op — no
     /// card, counter untouched, status line unchanged (no 正在校验 flicker).</summary>
     [Fact]
@@ -271,20 +333,29 @@ public class TaskGroupCreatorTests
     }
 
     /// <summary>Review Focus 2 (concurrency): two drops whose flights overlap each get
-    /// their own card — two independent TaskGroupCreator runs (per-call memoized
-    /// readers), no cross-talk, and the counter tracks both until both land.</summary>
+    /// their own card — two independently validating cards, no cross-talk, and the
+    /// derived counter tracks both until both land. The read seam blocks on a TCS gate
+    /// so the mid-flight count/status assertions are deterministic (the mock reader
+    /// replaces the real-sample reads here; AddFilesAsync_CreatesCardViaPost keeps the
+    /// production LibRaw coverage).</summary>
     [Fact]
     public async Task AddFilesAsync_ConcurrentDrops_TwoCards()
     {
-        MainViewModel main = MainVm();
-        string[] setA = Enumerable.Range(7576, 7).Select(i => SampleFiles.FindSample(
-            Path.Combine("test_frames", "FX", "Lossless", $"DSC_{i}.NEF"))).ToArray();
-        string[] setB = Enumerable.Range(7652, 7).Select(i => SampleFiles.FindSample(
-            Path.Combine("test_frames", "FX", "he_frames", $"DSC_{i}.NEF"))).ToArray();
+        var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Func<string, RawMetadata> read = _ =>
+        {
+            gate.Task.Wait();
+            return Meta();
+        };
+        var main = new MainViewModel(read: read);
+        string[] setA = Frames;
+        string[] setB = Enumerable.Range(7652, 7).Select(i => $@"C:\Photos\DSC_{i}.NEF").ToArray();
 
         Task first = main.AddFilesAsync(setA);
         Task second = main.AddFilesAsync(setB);                        // sent before the first lands
-        Assert.Equal(2, main.ValidatingCount);                         // both flights in the air
+        Assert.Equal(2, main.ValidatingCount);                         // both flights in the air (derived)
+        Assert.Equal("正在校验 2 组新建任务…", main.StatusText);
+        gate.SetResult(true);
         await Task.WhenAll(first, second);
 
         Assert.Equal(2, main.Tasks.Count);

@@ -23,6 +23,7 @@
         <StreamGeometry x:Key="Icon.FolderPlus">M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2zM12 11v6M9 14h6</StreamGeometry>
         <StreamGeometry x:Key="Icon.Star">M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z</StreamGeometry>
         <StreamGeometry x:Key="Icon.X">M18 6 6 18M6 6l12 12</StreamGeometry>
+        <StreamGeometry x:Key="Icon.Loader">M12 2v4M12 18v4M4.93 4.93l2.83 2.83M14.24 14.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M14.24 9.76l2.83-2.83</StreamGeometry>
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -242,11 +243,40 @@
             <Setter Property="Foreground" Value="{DynamicResource SemiColorDanger}" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
+
+        <!-- 校验中 Loading 覆盖层（F4）：半透明遮罩盖住整卡（后绘子元素置顶），可命中
+             （默认）→ 遮罩期间卡上编辑入口被实际阻断；居中旋转 loader 图标 + 校验中 -->
+        <Style Selector="Border.validating-overlay">
+            <Setter Property="Background" Value="{DynamicResource SemiColorOverlayBackground}" />
+        </Style>
+        <!-- feather Loader 图标自转：0.8s/圈无限循环，绕自身中心 -->
+        <Style Selector="Path.spin">
+            <Setter Property="RenderTransformOrigin" Value="50%, 50%" />
+            <Setter Property="RenderTransform">
+                <RotateTransform />
+            </Setter>
+            <Style.Animations>
+                <Animation Duration="0:0:0.8" IterationCount="Infinite">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="RotateTransform.Angle" Value="0" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="RotateTransform.Angle" Value="360" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <Style Selector="Border.validating-overlay TextBlock.loading-text">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorText2}" />
+        </Style>
     </UserControl.Styles>
 
     <!-- 卡根同时是拖放目标（卡内补齐）：含 NEF 且可编辑时 Copy+高亮；Drop 先吞再补齐，
-         避免冒泡到窗口级新建组（路由事件在 code-behind AddHandler 接线） -->
+         避免冒泡到窗口级新建组（路由事件在 code-behind AddHandler 接线）。
+         内容 Grid 双层：主 StackPanel + 校验中 Loading 覆盖层（后绘置顶，F4） -->
     <Border x:Name="Root" Classes="card" ClipToBounds="True" DragDrop.AllowDrop="True">
+        <Grid>
         <StackPanel>
             <!-- 头行：基准帧名 + 状态胶囊 + 动作（按状态由 CanExecute 自动启停） -->
             <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="14,12,14,10">
@@ -385,5 +415,18 @@
                          Minimum="0" Maximum="100" Value="{Binding BarValue}"
                          Height="4" MinHeight="4" CornerRadius="0" Padding="0" />
         </StackPanel>
+
+        <!-- 校验中 Loading 覆盖层（F4）：IsValidating 期间盖住整卡（含头部按钮/芯片，
+             可命中 → 交互被实际阻断），居中旋转 loader + 校验中文字 -->
+        <Border Classes="validating-overlay" IsVisible="{Binding IsValidating}">
+            <StackPanel Orientation="Horizontal" Spacing="9"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Viewbox Width="18" Height="18">
+                    <Path Classes="icon spin" Data="{StaticResource Icon.Loader}" />
+                </Viewbox>
+                <TextBlock Classes="loading-text" Text="校验中" VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+        </Grid>
     </Border>
 </UserControl>

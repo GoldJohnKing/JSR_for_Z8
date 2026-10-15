@@ -509,7 +509,10 @@ public class TaskGroupVmTests
         Assert.Contains("光圈 —", missing);
         Assert.Contains("拍摄时间 —", missing);
 
-        Assert.Equal("无法读取", vm.FrameChips[6].InfoText);
+        // F4: 未读取（既无缓存也无失败记录）→ 空文本（尚未读盘，不是失败）；
+        // 无法读取 只属于记录过读取失败的路径（ReadCached_FallbackReadFailure_
+        // RecordsAndRethrows 钉死该分支）。
+        Assert.Equal(string.Empty, vm.FrameChips[6].InfoText);
     }
 
     /// <summary>Task 4 pre-step (controller ruling 1b): ReadCached's fallback real read
@@ -697,7 +700,90 @@ public class TaskGroupVmTests
         Assert.Equal(
             new[] { "0.0", "+1.0", "+2.0", "+3.0", "+4.0", "+5.0", "—" },
             vm.FrameChips.Select(c => c.EvText).ToArray());
-        Assert.Equal("无法读取", vm.FrameChips[6].InfoText);
+        Assert.Equal(string.Empty, vm.FrameChips[6].InfoText);   // 未读取 → 空（F4），非 无法读取
+    }
+
+    // ---- Task 3 (F4): 即时建卡 + 卡片级校验 Loading -------------------------------
+
+    /// <summary>Review Focus 1：校验飞行中读取抛错（非 RawReadException）不得悬死
+    /// Loading —— 卡落 Blocked、IssuesText 给人话文案，IsValidating 必然复位。</summary>
+    [Fact]
+    public async Task ValidateAsync_ReadThrows_BlockedWithFriendlyMessage_NotStuckLoading()
+    {
+        Func<string, RawMetadata> read = _ => throw new IOException("disk gone");
+        var card = new TaskGroupViewModel(new TaskGroup(Frames), validation: null, read: read);
+
+        await card.ValidateAsync();
+
+        Assert.False(card.IsValidating);
+        Assert.Equal(TaskState.Blocked, card.State);
+        Assert.Contains("校验时发生错误", card.IssuesText);
+        Assert.Contains("disk gone", card.IssuesText);
+    }
+
+    /// <summary>Review Focus 5：校验中整卡编辑入口全锁（IsEditable=false —— ★/✕/添加 RAW
+    /// 全部走它），状态胶囊文字为 校验中；落定后按状态恢复。</summary>
+    [Fact]
+    public async Task IsEditable_FalseWhileValidating()
+    {
+        var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Func<string, RawMetadata> read = _ =>
+        {
+            gate.Task.Wait();
+            return Meta();
+        };
+        var card = new TaskGroupViewModel(new TaskGroup(Frames), validation: null, read: read);
+        Assert.True(card.IsEditable);                        // Blocked（尚未校验）仍可编辑
+        Assert.Equal(string.Empty, card.IssuesText);         // 即时建卡初始态：空 issues
+
+        Task flight = card.ValidateAsync();
+        Assert.True(card.IsValidating);
+        Assert.Equal("校验中", card.StateText);
+        Assert.False(card.IsEditable);
+        Assert.False(card.SetReferenceCommand.CanExecute(null));
+        Assert.False(card.RemoveFileCommand.CanExecute(null));
+
+        gate.SetResult(true);
+        await flight;
+
+        Assert.False(card.IsValidating);
+        Assert.Equal(TaskState.Ready, card.State);
+        Assert.True(card.IsEditable);
+        Assert.Equal("就绪", card.StateText);
+    }
+
+    /// <summary>补齐（卡片级 AddFilesAsync 顶-up）同样用 IsValidating 包裹整个飞行：
+    /// 读帧期间卡处于校验中、编辑锁定；异常路径（非 RawReadException）也不悬死 ——
+    /// finally 必复位（校验飞行两入口同款保证）。</summary>
+    [Fact]
+    public async Task AddFiles_TopUp_BracketsLoading_NeverStuck()
+    {
+        var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        bool fail = false;
+        Func<string, RawMetadata> read = _ =>
+        {
+            if (fail)
+                throw new IOException("disk gone");
+            gate.Task.Wait();
+            return Meta();
+        };
+        var vm = ReadyVm(read: read);
+
+        Task flight = vm.AddFilesAsync(new[] { @"C:\Photos\DSC_7583.NEF" });
+        Assert.True(vm.IsValidating);
+        Assert.False(vm.IsEditable);
+        Assert.Equal("校验中", vm.StateText);
+
+        gate.SetResult(true);
+        await flight;
+        Assert.False(vm.IsValidating);
+        Assert.Equal(TaskState.Blocked, vm.State);           // 8 帧 → 帧数不符
+        Assert.Contains("帧数不符", vm.IssuesText);
+
+        fail = true;                                         // 异常路径：loading 不得悬死
+        await Assert.ThrowsAsync<IOException>(
+            () => vm.AddFilesAsync(new[] { @"C:\Photos\DSC_7584.NEF" }));
+        Assert.False(vm.IsValidating);
     }
 
     /// <summary>Seven bracketed frames 1/8000→1/125 through the creator (reference =
