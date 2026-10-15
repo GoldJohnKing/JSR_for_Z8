@@ -7,7 +7,7 @@ namespace Jsr4Z8.Core.Dng;
 /// Decodes Nikon Z lens correction data (NEFInfo, SubIFD tag 0xC7D5) and converts it to
 /// a DNG WarpRectilinear OpcodeList3 (big-endian serialization per Adobe DNG SDK).
 ///
-/// Mapping derivation (2026-10-09, empirical, calibrated against Adobe DNG Converter 18.6
+/// Mapping derivation (empirical, calibrated against Adobe DNG Converter 18.6
 /// output on Z8 firmware 3.11 — synthetic basis sweeps of the NEF rationals):
 ///   Green plane:  (off, a, b, c) = M_G · (1, k1, k2, k3)
 ///   Red plane:    G + A · p   (p = six block-7 rationals)

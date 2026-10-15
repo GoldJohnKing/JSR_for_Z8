@@ -2,8 +2,8 @@ namespace Jsr4Z8.Core.Dng;
 
 /// <summary>
 /// Pixel payload handed to <see cref="DngComposer"/> — the replaceable pixel
-/// source behind the DNG pipeline: Task 8 feeds the LibRaw-decoded NEF CFA
-/// mosaic (Samples=1, IsCfa=true); Task 9 feeds the backend's LinearRaw RGB
+/// source behind the DNG pipeline: the LibRaw-decoded NEF CFA mosaic
+/// (Samples=1, IsCfa=true) or the backend's LinearRaw RGB
 /// (Samples=3, IsCfa=false).
 /// </summary>
 public sealed record RawPayload

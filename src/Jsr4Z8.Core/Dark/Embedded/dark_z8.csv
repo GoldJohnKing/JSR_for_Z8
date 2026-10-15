@@ -1,6 +1,6 @@
 # Nikon Z8 预置黑场参数（RAW 压缩类型 + ISO 双键自动匹配用）。
 # 来源：后端测量库 reference/Jiangtherapee-Bridge-2.3.27-Windows-x64/resources/z8_presets/manifest.json（schema JSR_Z8_DARK_LIBRARY_V1）离线导出，SHA-256: 209b6be1df3c5cca0e554b5050cc07b9da93100fe0e7e3f1b69cb78f0e7f701c。
-# 共 102 行 = 34 档 ISO（Lo 32/40/50 … Hi 102400）× 3 压缩；旧自测 93 行表弃用。
+# 共 102 行 = 34 档 ISO（Lo 32/40/50 … Hi 102400）× 3 压缩。
 # 公式：black_dn = 标称基座（整数）；read_noise_dn = √(四相位 temporal_variance_dn2 均值)，保留 2 位。
 # 压缩映射（后端→NEFCompression）：0→3（无损）、3→14（HE*）、4→13（HE）。
 # 匹配：仅 (压缩, ISO) 精确匹配、不插值 —— ISO 500 是双转换增益(DCG)切换点（读噪不连续）；

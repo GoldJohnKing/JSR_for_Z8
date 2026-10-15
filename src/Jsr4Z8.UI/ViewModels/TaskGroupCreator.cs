@@ -14,7 +14,7 @@ public sealed record CreatedTaskGroup(
     IReadOnlyDictionary<string, RawMetadata> Metadata);
 
 /// <summary>
-/// Inline group creation (Task 4, replacing the deleted 新建任务组 dialog): dropping
+/// Inline group creation: dropping
 /// or picking NEF files creates a task-group card directly in the main window. One
 /// call = one candidate group, built in this order: .NEF filter (case-insensitive —
 /// the Z 8 writes NEF, .nrw is rejected) → OrdinalIgnoreCase dedupe → natural sort →
@@ -24,11 +24,11 @@ public sealed record CreatedTaskGroup(
 /// stray non-raw drop can never create an empty card. The heavy work runs on a
 /// background thread and each call carries its own memoized reader, so concurrent
 /// calls never share caches.
-/// <para>RETIRED from the main creation flow (F4 即时建卡): MainViewModel now creates
+/// <para>CreateAsync is the seeded/test creation path; the main drop flow creates
 /// cards immediately (validation:null) and the card validates itself via
-/// <see cref="TaskGroupViewModel.ValidateAsync"/>. CreateAsync stays for tests and
-/// as the home of the shared <see cref="PickReference"/>/<see cref="ExposureEqual"/>
-/// rules the card VM re-runs.</para>
+/// <see cref="TaskGroupViewModel.ValidateAsync"/>. This class is the home of the
+/// shared <see cref="PickReference"/>/<see cref="ExposureEqual"/> rules the card VM
+/// re-runs.</para>
 /// </summary>
 public static class TaskGroupCreator
 {
@@ -126,8 +126,7 @@ public static class TaskGroupCreator
     }
 
     /// <summary>A read that fails (unreadable file) reads back as no bracketing signal:
-    /// equal to the base, exposure 0 in the ascending order — the same handling the
-    /// pre-Task-3 OrderForReference gave cache misses.</summary>
+    /// equal to the base, exposure 0 in the ascending order.</summary>
     private static RawMetadata? TryRead(string path, Func<string, RawMetadata> read)
     {
         try

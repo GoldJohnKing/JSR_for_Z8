@@ -2,9 +2,8 @@
 // (src/Jsr4Z8.Core/Dark/Embedded/dark_z8.csv) offline from the backend's own
 // z8_presets measurement library —
 // reference/Jiangtherapee-Bridge-2.3.27-Windows-x64/resources/z8_presets/manifest.json
-// (schema JSR_Z8_DARK_LIBRARY_V1, 34 ISOs × 3 compressions). The retired table was
-// 93 rows of our own dark-frame measurements (samples/dark_frames); this export is
-// the data source of record now (AGENT.md §5 决策 3).
+// (schema JSR_Z8_DARK_LIBRARY_V1, 34 ISOs × 3 compressions). The z8_presets
+// export is the data source of record (AGENT.md §5 决策 3).
 //
 //   dotnet run --project tools\regen-dark-table -- <manifest.json> [out.csv]
 //
@@ -141,7 +140,7 @@ internal static class DarkTableGenerator
         sb.Append(CultureInfo.InvariantCulture,
             $"# 来源：后端测量库 {sourcePath}（schema {schema}）离线导出，SHA-256: {sha256}。\n");
         sb.Append(CultureInfo.InvariantCulture,
-            $"# 共 {rows.Count} 行 = {isoCount} 档 ISO（Lo 32/40/50 … Hi 102400）× 3 压缩；旧自测 93 行表弃用。\n");
+            $"# 共 {rows.Count} 行 = {isoCount} 档 ISO（Lo 32/40/50 … Hi 102400）× 3 压缩。\n");
         sb.Append("# 公式：black_dn = 标称基座（整数）；read_noise_dn = √(四相位 temporal_variance_dn2 均值)，保留 2 位。\n");
         sb.Append("# 压缩映射（后端→NEFCompression）：0→3（无损）、3→14（HE*）、4→13（HE）。\n");
         sb.Append("# 匹配：仅 (压缩, ISO) 精确匹配、不插值 —— ISO 500 是双转换增益(DCG)切换点（读噪不连续）；\n");

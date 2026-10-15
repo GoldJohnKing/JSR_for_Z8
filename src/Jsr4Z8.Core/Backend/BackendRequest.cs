@@ -6,9 +6,9 @@ using Jsr4Z8.Core.Ptc;
 namespace Jsr4Z8.Core.Backend;
 
 /// <summary>
-/// Builds the jsr_backend.exe argv (the direct-invoke wire contract, probe-captured
-/// live on 2026-10-15 — docs/superpowers/notes/2026-10-15-jsr-backend-argv-probe.md
-/// §2, re-verified byte-identical on payload 2.3.27 §5): the caller's own request
+/// Builds the jsr_backend.exe argv (the direct-invoke wire contract, captured in
+/// docs/superpowers/notes/2026-10-15-jsr-backend-argv-probe.md §2, byte-identical on
+/// payload 2.3.27 §5): the caller's own request
 /// semantics (--output-dir/--out-prefix, one --raw-frame per frame in group order,
 /// manual RN/BL from the validator's preset dark row, fullwell from the validated
 /// PTC match) plus the Bridge-filled defaults replayed as observed constants
@@ -19,8 +19,8 @@ namespace Jsr4Z8.Core.Backend;
 public static class BackendRequest
 {
     /// <summary>
-    /// fullwell = ptc.FullwellE rounded to 1 decimal (AwayFromZero) — the rounding the
-    /// request.json builder used, carried over verbatim (probe: 1102.244 → 1102.2).
+    /// fullwell = ptc.FullwellE rounded to 1 decimal (AwayFromZero; probe: 1102.244 →
+    /// 1102.2).
     /// <paramref name="dark"/> is the validator-resolved preset row (required);
     /// RN/BL pass through as-is in the invariant shortest form (1008, not 1008.0).
     /// </summary>
@@ -64,7 +64,7 @@ public static class BackendRequest
         return arguments;
     }
 
-    /// <summary>Deghost switch mapping (the engine takes on/off). The request path
-    /// always sends off today — the old request.json hardcoded deghost:false.</summary>
+    /// <summary>Deghost switch mapping (the engine takes on/off); the queue always
+    /// sends off.</summary>
     internal static string Deghost(bool deghost) => deghost ? "on" : "off";
 }

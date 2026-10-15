@@ -1,11 +1,9 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Text.Json;
 using Jsr4Z8.Core.Backend;
 using Jsr4Z8.Core.Model;
 using Jsr4Z8.Core.Ptc;
 using Jsr4Z8.Core.Queue;
-using Jsr4Z8.Core.Settings;
 using Jsr4Z8.UI.Services;
 using Jsr4Z8.UI.ViewModels;
 using Xunit;
@@ -13,15 +11,16 @@ using Xunit;
 namespace Jsr4Z8.Tests;
 
 /// <summary>
-/// Task 13: the sequential queue wiring — Core's TaskQueueRunner + UI's QueueMediator +
+/// The sequential queue wiring — Core's TaskQueueRunner + UI's QueueMediator +
 /// MainViewModel.StartAll — against the cmd.exe stub engines in fixtures\stub_backend\
 /// (BackendRunnerTests already prove the process runner itself; these tests prove the
 /// queue semantics): sequential one-at-a-time execution, failure/stop continuation,
 /// per-run temp-dir lifecycle (EVERY terminal outcome deletes the job dir — 失败/停止即删),
-/// the missing-product-DNG guard, and the mediator's RunnerEvent → card-state mapping
+/// the missing-product-DNG guard, the success-path product glob, and the mediator's
+/// RunnerEvent → card-state mapping
 /// (payload 0-5%, backend 5-100%). The payload and finalizer
 /// are injected through TaskQueueRunner's internal seams; the backend itself stays
-/// REAL (stub .bat through the same Process path as jsr_backend.exe — Task 2 direct
+/// REAL (stub .bat through the same Process path as jsr_backend.exe — direct
 /// invoke: argv in, bare lines out). Windows-host tests.
 /// </summary>
 public class QueueRunnerTests : IClassFixture<TestTemp>
@@ -54,18 +53,12 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
         public void Post(Action action) => action();
     }
 
-    private sealed class FakeSettings : ISettingsProvider
-    {
-        public AppSettings CurrentSettings { get; set; } = new();
-    }
-
     /// <summary>One queue stack (engine + mediator) whose backend runs the given stub
     /// .bat engines in order (sequential queue ⇒ dequeue order = execution order),
     /// whose temp base is a test-scoped directory, and whose finalizer is a recording fake.</summary>
     private sealed class Harness
     {
         public readonly string TempBase;
-        public readonly FakeSettings Settings = new();
         public readonly TaskQueueRunner Engine = new();
         public readonly QueueMediator Mediator;
         public readonly List<(string BackendDng, string ReferenceNef, string DestDir)> FinalizeCalls = new();
@@ -73,7 +66,7 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
         public Harness(TestTemp temp, params string[] batNames)
         {
             TempBase = temp.NewDir();
-            Settings.CurrentSettings = new AppSettings(TempMode: TempMode.Custom, CustomTempDir: TempBase);
+            Engine.TempBaseOverride = TempBase;
             var bats = new ConcurrentQueue<string>(batNames.Select(StubPath));
             Engine.ResolveBackendOverride = progress =>
             {
@@ -87,7 +80,7 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
                     FinalizeCalls.Add((backendDng, referenceNef, destDir));
                 return Path.Combine(destDir, "JSR_fake.dng");
             };
-            Mediator = new QueueMediator(Engine, Settings, new SyncDispatcher());
+            Mediator = new QueueMediator(Engine, new SyncDispatcher());
         }
 
         /// <summary>The Jsr4Z8 job-temp root under this harness's temp base (job dirs land inside).</summary>
@@ -226,7 +219,7 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
 
     // ---------------------------------------------------------------- engine: startup temp-root sweep
 
-    /// <summary>Startup sweep: failed/stopped runs now delete their job dir themselves,
+    /// <summary>Startup sweep: failed/stopped runs delete their job dir themselves,
     /// so anything left under the Jsr4Z8 temp root is debris from a crashed/killed
     /// process — the sweep deletes ALL of it once past the grace window (any fabricated
     /// mtime older than 2 minutes is swept).</summary>
@@ -241,15 +234,14 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
         foreach (string dir in new[] { old, fresh, current })
         {
             Directory.CreateDirectory(dir);
-            File.WriteAllText(Path.Combine(dir, "request.json"), "{}");
+            File.WriteAllText(Path.Combine(dir, "job.log"), "{}");
         }
         Directory.SetLastWriteTimeUtc(old, DateTime.UtcNow - TimeSpan.FromDays(8));
         Directory.SetLastWriteTimeUtc(fresh, DateTime.UtcNow - TimeSpan.FromDays(1));
         Directory.SetLastWriteTimeUtc(current, DateTime.UtcNow - TimeSpan.FromDays(8));
-        var settings = new AppSettings(TempMode: TempMode.Custom, CustomTempDir: tempBase);
         try
         {
-            TaskQueueRunner.SweepTempRoot(settings);
+            TaskQueueRunner.SweepTempRoot(tempBase);
 
             Assert.False(Directory.Exists(old), "8-day-old leftover must be swept");
             Assert.False(Directory.Exists(fresh), "1-day-old leftover must be swept too — no age cutoff beyond the grace window");
@@ -262,10 +254,10 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
         }
     }
 
-    /// <summary>Final-review F1(b): the sweep skips dirs whose LastWriteTimeUtc is within
+    /// <summary>The sweep skips dirs whose LastWriteTimeUtc is within
     /// the grace window — the same-instance race where a slow multi-GB sweep is still
     /// iterating when the user starts the first run seconds after launch (the fresh job
-    /// dir must survive). A dir older than the window is swept as before.</summary>
+    /// dir must survive). A dir older than the window is swept.</summary>
     [Fact]
     public void SweepTempRoot_GraceWindow_KeepsFreshDir_SweepsOlder()
     {
@@ -276,13 +268,12 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
         foreach (string dir in new[] { fresh, old })
         {
             Directory.CreateDirectory(dir);
-            File.WriteAllText(Path.Combine(dir, "request.json"), "{}");
+            File.WriteAllText(Path.Combine(dir, "job.log"), "{}");
         }
         Directory.SetLastWriteTimeUtc(old, DateTime.UtcNow - TimeSpan.FromDays(8));
-        var settings = new AppSettings(TempMode: TempMode.Custom, CustomTempDir: tempBase);
         try
         {
-            TaskQueueRunner.SweepTempRoot(settings);
+            TaskQueueRunner.SweepTempRoot(tempBase);
 
             Assert.True(Directory.Exists(fresh), "dir written within the grace window must be kept");
             Assert.False(Directory.Exists(old), "dir older than the grace window must be swept");
@@ -292,6 +283,53 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
         {
             try { Directory.Delete(tempBase, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
+    }
+
+    // ---------------------------------------------------------------- engine: success-path product glob
+
+    /// <summary>The success-path product glob must skip any path that traverses a
+    /// *.partial segment — the backend's resume leftovers — even when the file inside
+    /// is NEWER than the real product.</summary>
+    [Fact]
+    public void FindNewestProductDng_SkipsPartialSegments_EvenWhenNewer()
+    {
+        string root = _temp.NewDir();
+        string Write(string path)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, "x");
+            return path;
+        }
+
+        string real = Write(Path.Combine(root, "job_V15_3_5_K7_1_1", "job_product.dng"));
+        string partialTop = Write(Path.Combine(root, "job_dir.partial", "job_newer.dng"));
+        string partialNested = Write(Path.Combine(root, "nested", "job_b.partial", "deep", "job_newest.dng"));
+        DateTime now = DateTime.UtcNow;
+        File.SetLastWriteTimeUtc(real, now.AddMinutes(-1));          // real product is the OLDEST
+        File.SetLastWriteTimeUtc(partialTop, now);
+        File.SetLastWriteTimeUtc(partialNested, now.AddSeconds(30));
+
+        Assert.Equal(real, TaskQueueRunner.FindNewestProductDng(root, "job"));
+    }
+
+    [Fact]
+    public void FindNewestProductDng_StillPicksNewestProduct()
+    {
+        string root = _temp.NewDir();
+        string Write(string path)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, "x");
+            return path;
+        }
+
+        string older = Write(Path.Combine(root, "job_V15_3_5_K7_1_1", "job_old.dng"));
+        string newer = Write(Path.Combine(root, "job_V15_3_5_K7_9_9", "job_new.dng"));
+        DateTime now = DateTime.UtcNow;
+        File.SetLastWriteTimeUtc(older, now.AddMinutes(-5));
+        File.SetLastWriteTimeUtc(newer, now);
+
+        Assert.Equal(newer, TaskQueueRunner.FindNewestProductDng(root, "job"));
     }
 
     // ---------------------------------------------------------------- queue: sequential + continuation
@@ -434,10 +472,10 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
     }
 }
 
-/// <summary>Task 13: QueueMediator's RunnerEvent → card mapping (headless, synchronous
+/// <summary>QueueMediator's RunnerEvent → card mapping (headless, synchronous
 /// dispatcher): payload 0-5%, backend percent 5-100, stage text, terminal
 /// states with humanized messages (backend log lines are consumed for progress only —
-/// the card carries no log surface since Task 5). progressGate: TimeSpan.Zero disables
+/// the card carries no log surface). progressGate: TimeSpan.Zero disables
 /// the UI throttle — these tests pin the pure event→percent mapping over a fast stub
 /// whose lines all arrive inside the default 200 ms gate; the throttle itself is pinned
 /// by ProgressThrottleTests.</summary>
@@ -488,18 +526,10 @@ public class QueueMediatorTests : IClassFixture<TestTemp>
             return new TaskQueueRunner.BackendPayload(StubPath(bat));
         };
         engine.FinalizeOverride = (backendDng, referenceNef, destDir) => Path.Combine(destDir, "JSR_fake.dng");
-        // Job dirs land under the settings temp base — per-run GUID under the fixture,
-        // never a fixed %TEMP% name that would survive the run.
-        var settings = new FakeSettingsProvider(_temp.NewDir());
-        return (new QueueMediator(engine, settings, new SyncDispatcher(), progressGate: TimeSpan.Zero), tempBase);
-    }
-
-    private sealed class FakeSettingsProvider : ISettingsProvider
-    {
-        public AppSettings CurrentSettings { get; }
-
-        public FakeSettingsProvider(string tempDir) =>
-            CurrentSettings = new AppSettings(TempMode: TempMode.Custom, CustomTempDir: tempDir);
+        // Job dirs land under the engine's overridden temp base — per-run GUID under
+        // the fixture, never a fixed %TEMP% name that would survive the run.
+        engine.TempBaseOverride = tempBase;
+        return (new QueueMediator(engine, new SyncDispatcher(), progressGate: TimeSpan.Zero), tempBase);
     }
 
     [Fact]

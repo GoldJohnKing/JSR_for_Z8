@@ -6,8 +6,7 @@ namespace Jsr4Z8.Core.Payload;
 /// Extracts the embedded backend payload to disk and keeps it verifiably intact.
 /// Target: %LOCALAPPDATA%\JSR4Z8\backend\&lt;manifest hash first 16 hex chars&gt;\ — a
 /// directory containing the full resources/ tree with the direct-invoke engine
-/// resources\jsr_backend.exe at its root (no top-level Bridge shell — Task 3,
-/// 2026-10-15).
+/// resources\jsr_backend.exe at its root (no top-level Bridge shell).
 /// Behavior:
 ///  - Existing target whose every manifest entry matches its SHA-256 → returned directly
 ///    (<see cref="ManifestVerifyPasses"/> counts these full passes; once verified, later
@@ -140,7 +139,7 @@ public sealed class PayloadManager
     /// current <paramref name="hashDir"/> — previous payload versions and crashed tmp
     /// leftovers alike. Best-effort: the whole loop is swallowed so a prune failure can
     /// never break EnsureExtracted; leftovers are retried on a later run. The enumeration
-    /// is materialized first (final-review F4): a mid-iteration IOException on a
+    /// is materialized first: a mid-iteration IOException on a
     /// since-deleted sibling must not abort the prune of the remaining dirs.
     /// </summary>
     private void PruneStaleVersions(string hashDir)

@@ -1,12 +1,12 @@
-// tools/finalize-variant — ACR-compatibility bisection harness (post-release
-// fix 3: raw-layout knob strips|tiles; fix 4: cumulative feature strip-down;
-// fix 5: crop size-ladder, verbatim raw-stream passthrough, artifact verify):
+// tools/finalize-variant — ACR-compatibility bisection harness (raw-layout
+// knob strips|tiles; cumulative feature strip-down; crop size-ladder; verbatim
+// raw-stream passthrough; artifact verify):
 // runs the product finalizer (JsrDngFinalizer) on a real backend DNG with a
 // chosen raw storage layout and feature-suppression level, then prints a
 // structural summary of the written file. Not part of the solution/UI chain.
 //
 // Usage: finalize-variant <backendDng> <refNef> <outPath> [knobs]
-//   knobs (any order, any subset; layout/featureSet keep fix-3/4 positions):
+//   knobs (any order, any subset):
 //   layout      strips|tiles         (default tiles = product default)
 //   featureSet  V0|V1|V2|V3|full     (default full = product file)
 //     V0   raw + IFD0 thumbnail + DNG basics — all four seams suppressed
@@ -276,7 +276,7 @@ static void Summarize(string path)
     Console.WriteLine($"raw IFD:  {U(256)}x{U(257)}  compression={U(259)}  photometric={U(262)}  " +
         $"samples={U(277)}  bps={U(258)}");
 
-    // Geometry quartet (post-release fix 5): crop artifacts land via the
+    // Geometry quartet: crop artifacts land via the
     // finalizer's dims-mismatch fallback — full-image ActiveArea/DefaultCrop.
     if (raw.TryGetValue(50829, out var aa) && aa.Cnt == 4)
         Console.WriteLine($"geom:     ActiveArea=[t={U32(aa.Val)} l={U32(aa.Val + 4)} " +

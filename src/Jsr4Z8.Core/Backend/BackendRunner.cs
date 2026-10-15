@@ -4,7 +4,7 @@ using System.Text;
 namespace Jsr4Z8.Core.Backend;
 
 /// <summary>
-/// Runs one DIRECT jsr_backend.exe invocation end to end (2026-10-15 probe §7):
+/// Runs one DIRECT jsr_backend.exe invocation end to end (probe §7):
 /// spawns the engine executable with the argv from the spec — no Bridge, no
 /// request.json, no config dir — and streams its bare stdout lines (zero
 /// ASSISTANT_* envelopes): SRHQ progress parsing stays in ProtocolParser, every
@@ -142,7 +142,7 @@ public sealed class BackendRunner
         bool cancelled = ct.IsCancellationRequested;
         bool success = !cancelled && process.ExitCode == 0;
 
-        // Belt-and-braces (the old code killed the START-envelope pid here): a
+        // Belt-and-braces after a failure/cancel: a
         // failed/killed parent may have left its same-argv child or the unnamed
         // grandchild running — /T on our own root pid reaps whatever is still
         // attached to the tree. Best effort; harmless when the tree is already gone.

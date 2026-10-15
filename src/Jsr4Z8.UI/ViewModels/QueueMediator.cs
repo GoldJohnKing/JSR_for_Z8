@@ -1,11 +1,10 @@
 using Jsr4Z8.Core.Queue;
-using Jsr4Z8.Core.Settings;
 using Jsr4Z8.UI.Services;
 
 namespace Jsr4Z8.UI.ViewModels;
 
 /// <summary>
-/// ITaskRunner bridge (Task 13) between task cards and Core's
+/// ITaskRunner bridge between task cards and Core's
 /// <see cref="TaskQueueRunner"/>: one engine run per card, single-flight (a concurrent
 /// entry is a documented no-op that leaves the card Ready — Start/Retry/StartAll are
 /// disabled while <see cref="ITaskRunner.IsBusy"/>, this is the defensive backstop),
@@ -15,10 +14,10 @@ namespace Jsr4Z8.UI.ViewModels;
 /// <see cref="TaskGroupViewModel.GoFailed"/> with humanized messages. Progress scale:
 /// payload extraction 0-5%, backend percent 5-100 (linear); a failure surfaces the
 /// humanized message only; a stopped run lands in Failed with stage 已停止
-/// (Retry available). UI progress throttling
-/// (post-release fix): the backend streams ~20 progress lines/s with rotating subtask
-/// stage names, which made the stage label flicker — ReportProgress/StageText updates
-/// now pass a time gate (<see cref="UiProgressGate"/> via an injectable
+/// (Retry available). UI progress throttling: the backend streams ~20 progress
+/// lines/s with rotating subtask stage names, which would make the stage label
+/// flicker — ReportProgress/StageText updates
+/// pass a time gate (<see cref="UiProgressGate"/> via an injectable
 /// <see cref="TimeProvider"/>): the first update after idle passes immediately,
 /// updates inside the gate are coalesced (latest kept, landing when traffic reopens
 /// the gate), and terminal outcomes bypass it.
@@ -35,7 +34,6 @@ public sealed class QueueMediator : ITaskRunner
     public static readonly TimeSpan UiProgressGate = TimeSpan.FromMilliseconds(200);
 
     private readonly TaskQueueRunner _engine;
-    private readonly ISettingsProvider _settings;
     private readonly IDispatcher _dispatcher;
     private readonly TimeProvider _clock;
     private readonly TimeSpan _progressGate;
@@ -49,13 +47,11 @@ public sealed class QueueMediator : ITaskRunner
 
     public QueueMediator(
         TaskQueueRunner? engine = null,
-        ISettingsProvider? settings = null,
         IDispatcher? dispatcher = null,
         TimeProvider? clock = null,
         TimeSpan? progressGate = null)
     {
         _engine = engine ?? new TaskQueueRunner();
-        _settings = settings ?? new DefaultSettingsProvider();
         _dispatcher = dispatcher ?? new AvaloniaDispatcher();
         _clock = clock ?? TimeProvider.System;
         _progressGate = progressGate ?? UiProgressGate;
@@ -91,7 +87,7 @@ public sealed class QueueMediator : ITaskRunner
             try
             {
                 TaskRunOutcome outcome = await _engine
-                    .RunAsync(vm.Group, ptc, dark, _settings.CurrentSettings, cancellationToken, e => Handle(vm, e))
+                    .RunAsync(vm.Group, ptc, dark, cancellationToken, e => Handle(vm, e))
                     .ConfigureAwait(false);
                 ApplyOutcome(vm, outcome);
             }
@@ -110,8 +106,8 @@ public sealed class QueueMediator : ITaskRunner
     /// <summary>Engine event → card mutation, each marshaled to the UI thread. Progress
     /// updates only apply while the card is still Running (a late progress line after a
     /// user stop must not clobber the stopped/failed card); backend log lines are
-    /// consumed for progress extraction and gate reopening only — the card has carried
-    /// no log surface since Task 5. Internal
+    /// consumed for progress extraction and gate reopening only (the card carries no
+    /// log surface). Internal
     /// test seam: ProgressThrottleTests replay captured protocol streams through it.</summary>
     internal void Handle(TaskGroupViewModel vm, QueueEvent e)
     {
@@ -151,7 +147,7 @@ public sealed class QueueMediator : ITaskRunner
                     {
                         // Non-progress traffic reopens the gate: the latest coalesced
                         // update lands instead of being silently dropped. The line itself
-                        // is consumed for progress only (no card log surface since Task 5).
+                        // is consumed for progress only (no card log surface).
                         FlushPendingUiProgress(vm);
                     }
                 });
@@ -204,7 +200,7 @@ public sealed class QueueMediator : ITaskRunner
             {
                 string message = outcome.Message;
                 if (outcome.Cancelled)
-                    vm.ReportProgress(vm.Progress, StoppedStage); // stopped-task ruling: stage 已停止, then Failed
+                    vm.ReportProgress(vm.Progress, StoppedStage); // stopped run: stage 已停止, then Failed
                 vm.GoFailed(message);
             }
         });

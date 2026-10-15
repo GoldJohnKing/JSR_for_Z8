@@ -163,7 +163,7 @@ public class TaskGroupVmTests
         Assert.False(main.StartAllCommand.CanExecute(null));
     }
 
-    /// <summary>Per docs/design/card-states.html: Ready→Start+Remove; Running→Stop only;
+    /// <summary>State-machine mockup: Ready→Start+Remove; Running→Stop only;
     /// Done→OpenFolder+Remove; Failed→Retry+Remove; Blocked→Remove only.</summary>
     [Fact]
     public void CommandAvailability_PerState()

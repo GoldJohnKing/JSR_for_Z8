@@ -14,8 +14,8 @@ public enum RawLayout
 /// <summary>
 /// Output-domain parameters for <see cref="DngWriter"/>. Everything Save_Z8's
 /// writer hardcoded per CFA/compressed mode is parameterized here so the same
-/// engine writes both the Task 8 CFA product and the Task 9 LinearRaw RGB
-/// product. Defaults describe the compressed Z8 CFA profile.
+/// engine writes both the CFA product and the LinearRaw RGB product.
+/// Defaults describe the compressed Z8 CFA profile.
 /// </summary>
 public sealed record DngWriteOptions
 {
@@ -49,7 +49,8 @@ public sealed record DngWriteOptions
 
     /// <summary>Forces the IFD0 Software tag (0x0131) to this value (the source
     /// NEF's Software copy is suppressed); null = keep the Save_Z8 copy
-    /// behavior. Task 9 sets "JSR for Z8" (fact #9: no backend attribution).
+    /// behavior. The finalizer sets "JSR for Z8" (probe fact #9: no backend
+    /// attribution).
     /// </summary>
     public string? Software { get; init; }
 
@@ -60,27 +61,27 @@ public sealed record DngWriteOptions
 
     /// <summary>Explicit AsShotNeutral [R,G,B], serialized like the
     /// cameraWb-derived value (denominator 10⁶); overrides <c>cameraWb</c>.
-    /// Task 9 carries the backend product's value verbatim.</summary>
+    /// The finalizer carries the backend product's value verbatim.</summary>
     public float[]? AsShotNeutral { get; init; }
 
     /// <summary>Explicit ColorMatrix1 (9 values, row-major); null = the
-    /// calibrated Z8 default. Task 9 carries the backend product's matrix.</summary>
+    /// calibrated Z8 default. The finalizer carries the backend product's matrix.</summary>
     public double[]? ColorMatrix1 { get; init; }
 
     /// <summary>Explicit ActiveArea [top,left,bottom,right]; null = full stored
-    /// frame. Task 9 writes the ×2-scaled sensor active area (full-frame
+    /// frame. The finalizer writes the ×2-scaled sensor active area (full-frame
     /// products) or the full image (interior ROI products).</summary>
     public uint[]? ActiveArea { get; init; }
 
     /// <summary>Explicit DefaultCrop (origin X,Y + size W,H), emitted as a
     /// DefaultScale(1,1)/CropOrigin/CropSize pair; the origin is relative to
-    /// the ActiveArea origin (DNG spec — post-release fix 8), so
+    /// the ActiveArea origin (DNG spec), so
     /// origin+size must fit inside the ActiveArea. null = derive the crop
     /// from the largest embedded preview (Save_Z8 behavior, ActiveArea origin
     /// (0,0) → relative and absolute origins coincide).</summary>
     public (uint X, uint Y, uint W, uint H)? DefaultCrop { get; init; }
 
-    // ---- diagnostic seams (ACR bisection, post-release fix 4) ----
+    // ---- diagnostic seams (ACR bisection) ----
     // These four toggles exist so the bisection harness (tools/finalize-variant)
     // can emit cumulative strip-down variants of the product file
     // (V0 minimal → full) and isolate which Save_Z8-lineage wrapper feature,
@@ -104,7 +105,7 @@ public sealed record DngWriteOptions
     /// the whole NEF-migration metadata block.</summary>
     public bool IncludeExifGps { get; init; } = true;
 
-    // ---- diagnostic seams (ACR bisection, post-release fix 5) ----
+    // ---- diagnostic seams (ACR bisection: passthrough) ----
 
     /// <summary>Pre-encoded lossless-JPEG strip streams emitted VERBATIM
     /// (passthrough seam): when set, the writer skips encoding and writes these

@@ -101,7 +101,7 @@
                     <StackPanel VerticalAlignment="Center" Spacing="1">
                         <TextBlock Text="JSR for Z8" FontSize="19" FontWeight="Bold"
                                    Foreground="{DynamicResource SemiColorText0}" />
-                        <TextBlock Text="尼康 Z8 七帧 RAW 超分重建 · 内嵌 Jiangtherapee Bridge 后端 · 输出 Adobe DNG"
+                        <TextBlock Text="尼康 Z8 七帧 RAW 超分重建 · 内嵌 jsr_backend 计算引擎 · 输出 Adobe DNG"
                                    FontSize="12" Foreground="{DynamicResource SemiColorText2}" />
                     </StackPanel>
                 </StackPanel>

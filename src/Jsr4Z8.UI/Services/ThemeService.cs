@@ -13,8 +13,7 @@ public enum ThemeMode
 }
 
 /// <summary>
-/// In-memory theme state: default Dark (user choice C; persistence deliberately deferred —
-/// Task 14 owns settings storage). Propagates the mode to Avalonia's
+/// In-memory theme state: default Dark, no persistence. Propagates the mode to Avalonia's
 /// <see cref="Application.RequestedThemeVariant"/> — Semi.Avalonia 11.2.x ships its
 /// palettes as ThemeDictionaries and follows that variant (SemiTheme itself exposes no
 /// variant property). Headless-safe: Apply() is a no-op when no Avalonia Application

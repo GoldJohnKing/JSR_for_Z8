@@ -242,6 +242,9 @@ public class TaskGroupCreatorTests
 
         Assert.NotNull(created);
         Assert.True(created!.Validation.CanRun, string.Join("\n", created.Validation.Issues.Select(i => i.MessageZh)));
+        // 正性断言（自足化）：EXIF 真实可读（ExposureTime > 0）——全 0 时下面的 /2 检查恒真，
+        // 且基准会退化为自然首帧，测试就不再钉住中位选择本身。
+        Assert.All(frames, p => Assert.True(created.Metadata[p].ExposureTime > 0));
         // 真实 EXIF：快门不全等（7856 的快门 = 7855 的一半）——确系曝光包围，非同曝光回退
         Assert.Equal(created.Metadata[frames[0]].ExposureTime / 2,
             created.Metadata[frames[1]].ExposureTime, 6);

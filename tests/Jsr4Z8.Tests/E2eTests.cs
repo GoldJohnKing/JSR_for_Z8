@@ -7,13 +7,12 @@ using Jsr4Z8.Core.Native;
 using Jsr4Z8.Core.Payload;
 using Jsr4Z8.Core.Ptc;
 using Jsr4Z8.Core.Queue;
-using Jsr4Z8.Core.Settings;
 using Xunit;
 
 namespace Jsr4Z8.Tests;
 
 /// <summary>
-/// Task 16 端到端验收: the REAL chain on the Windows host — real samples, the
+/// 端到端验收 (E2E): the REAL chain on the Windows host — real samples, the
 /// real extracted backend payload, a real GPU run and the real finalizer
 /// product. Opt-in via environment variable JSR4Z8_E2E=1; with it unset every
 /// test returns early and passes (normal CI stays fast and GPU-free). With it
@@ -27,7 +26,7 @@ namespace Jsr4Z8.Tests;
 /// dev/test Core assembly carries no embedded payload resource (that pair is
 /// embedded only by the release build). The embedded-payload path itself —
 /// extraction fast-path and self-heal — is exercised through the release exe's
-/// --selftest and recorded in task-16-report.md.
+/// --selftest.
 /// </summary>
 public class E2eTests
 {
@@ -177,7 +176,7 @@ public class E2eTests
         Assert.NotNull(dark);
         Assert.Equal(3200d, dark!.Iso);
         TaskRunOutcome outcome = await engine
-            .RunAsync(group, ptc, dark, new AppSettings(), CancellationToken.None, capture.OnEvent);
+            .RunAsync(group, ptc, dark, CancellationToken.None, capture.OnEvent);
         ReportOutcome(outcome, capture, "全流程·预置黑场");
 
         Assert.True(outcome.Success, outcome.Message);
@@ -215,7 +214,7 @@ public class E2eTests
 
         var engine = new TaskQueueRunner { ResolveBackendOverride = _ => new TaskQueueRunner.BackendPayload(ResolveExtractedBackend()) };
         TaskRunOutcome outcome = await engine
-            .RunAsync(group, validation.Ptc, validation.Dark, new AppSettings(), CancellationToken.None, _ => { });
+            .RunAsync(group, validation.Ptc, validation.Dark, CancellationToken.None, _ => { });
         ReportOutcome(outcome, new RunCapture(), "全流程·HE 预置黑场");
 
         Assert.True(outcome.Success, outcome.Message);
@@ -382,7 +381,7 @@ public class E2eTests
         var (group, ptc, dark, engine, capture) = PrepareRun(SamplesDir());
         using var cts = new CancellationTokenSource();
         Task<TaskRunOutcome> run = engine
-            .RunAsync(group, ptc, dark, new AppSettings(), cts.Token, capture.OnEvent);
+            .RunAsync(group, ptc, dark, cts.Token, capture.OnEvent);
         await Task.Delay(TimeSpan.FromSeconds(30)); // reach alignment phase
         var stopWatch = Stopwatch.StartNew();
         cts.Cancel();
@@ -396,7 +395,7 @@ public class E2eTests
         Assert.StartsWith("已停止", outcome.Message);
         Assert.True(stopWatch.Elapsed <= TimeSpan.FromSeconds(5.5),
             $"停止耗时 {stopWatch.Elapsed.TotalSeconds:F1}s > 5s");
-        // 失败/停止即删: the run used the default temp settings, so its job dir lived
+        // 失败/停止即删: the run's job dir lived
         // under %TEMP%\Jsr4Z8\<jobId> — nothing may remain under that root.
         string tempRoot = Path.Combine(Path.GetTempPath(), "Jsr4Z8");
         Assert.True(!Directory.Exists(tempRoot) || !Directory.EnumerateDirectories(tempRoot).Any(),
@@ -443,7 +442,7 @@ public class E2eTests
 
         var (group, ptc, dark, engine, capture) = PrepareRun(samplesCopy);
         TaskRunOutcome outcome = await engine
-            .RunAsync(group, ptc, dark, new AppSettings(), CancellationToken.None, capture.OnEvent);
+            .RunAsync(group, ptc, dark, CancellationToken.None, capture.OnEvent);
         ReportOutcome(outcome, capture, "中文路径全流程");
 
         Assert.True(outcome.Success, outcome.Message);

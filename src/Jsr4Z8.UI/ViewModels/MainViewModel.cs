@@ -11,15 +11,15 @@ using Jsr4Z8.UI.Services;
 namespace Jsr4Z8.UI.ViewModels;
 
 /// <summary>
-/// Root ViewModel of the card-flow main window (docs/design/layout.html option C): the
+/// Root ViewModel of the card-flow main window: the
 /// vertical task list plus the top-bar commands. Pure state, headless-testable. Group
-/// creation is inline (the 新建任务组 dialog is gone): dropped/picked NEF files go
+/// creation is inline: dropped/picked NEF files go
 /// through <see cref="AddFilesAsync"/>, which creates the card IMMEDIATELY through the
 /// injectable <c>post</c> seam (Dispatcher.UIThread in the app, inline in tests) —
 /// validation:null, 校验中 overlay — and then hands the card its own background
 /// validation flight (<see cref="TaskGroupViewModel.ValidateAsync"/>); the card, not
-/// this VM, owns the validation lifecycle (F4: drop → card appears at once → Ready/
-/// Blocked when the flight lands).
+/// this VM, owns the validation lifecycle: drop → card appears at once → Ready/
+/// Blocked when the flight lands.
 /// </summary>
 public partial class MainViewModel : ObservableObject
 {
@@ -52,7 +52,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _hasNoTasks = true;
 
     /// <summary>Drag-hover state of the whole window shell — drives the full-window drop
-    /// overlay (wired by Task 6's window rewrite).</summary>
+    /// overlay.</summary>
     [ObservableProperty] private bool _isDragOver;
 
     /// <summary>Derived: how many cards are mid-validation-flight
@@ -90,15 +90,15 @@ public partial class MainViewModel : ObservableObject
     /// <summary>The seeded-validated creation path: an ALREADY-validated group becomes
     /// a card — Ready when CanRun, Blocked with the issues shown in the card's block
     /// otherwise — with the creator's per-path metadata so hover texts and cache-backed
-    /// edits need no re-read. The main drop flow no longer passes through here (F4:
-    /// AddFilesAsync creates cards immediately with validation:null and the card
-    /// validates itself); this stays as the test/legacy seeding entry. Cards share this
+    /// edits need no re-read. The main drop flow creates cards immediately through
+    /// <see cref="AddFilesAsync"/> instead (the card validates itself); this is the
+    /// test/legacy seeding entry. Cards share this
     /// VM's runner (the queue mediator; NullTaskRunner headless).</summary>
     public void AddValidated(TaskGroup group, ValidationResult validation,
         IReadOnlyDictionary<string, RawMetadata>? metadata = null) =>
         Add(new TaskGroupViewModel(group, validation, _runner, metadata));
 
-    /// <summary>Inline group creation (F4 即时建卡): NEF files dropped/picked anywhere on
+    /// <summary>Inline group creation (即时建卡): NEF files dropped/picked anywhere on
     /// the main window. A payload without any .NEF is a no-op (no card, no status
     /// flicker); otherwise the card is created IMMEDIATELY through <c>post</c> —
     /// <see cref="Add"/> wiring (RemoveRequested + counter subscriptions) — in the
@@ -136,7 +136,7 @@ public partial class MainViewModel : ObservableObject
 
     /// <summary>Starts every Ready card sequentially: one at a time (the runner is
     /// single-flight), each to completion, continuing after failures and per-card stops.
-    /// Per the card-states mockups there is no StopAll; the queue-level source is the
+    /// There is no StopAll; the queue-level source is the
     /// test/lifecycle seam above.</summary>
     [RelayCommand(CanExecute = nameof(CanStartAll))]
     private async Task StartAllAsync()
@@ -147,7 +147,7 @@ public partial class MainViewModel : ObservableObject
         _queueCts = queueCts;
         try
         {
-            // F4: skip validating cards too — a validating card's set and Ptc/Dark are
+            // Skip validating cards too — a validating card's set and Ptc/Dark are
             // mid-recompute; the runner must never pick up a half-validated group
             // (StartAll calls StartAsync directly, bypassing CanStart).
             foreach (TaskGroupViewModel vm in Tasks
@@ -196,7 +196,7 @@ public partial class MainViewModel : ObservableObject
 
     /// <summary>Card state changes drive the derived counts (and through them the
     /// status line) — a card finishing flips DoneCount without touching the collection.
-    /// F4: IsValidating changes land here too, re-deriving ValidatingCount (both
+    /// IsValidating changes land here too, re-deriving ValidatingCount (both
     /// directions — flight started and flight landed).</summary>
     private void OnCardPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -212,7 +212,7 @@ public partial class MainViewModel : ObservableObject
 
     private void RefreshCounts()
     {
-        ValidatingCount = Tasks.Count(t => t.IsValidating);   // derived (F4): no manual flights
+        ValidatingCount = Tasks.Count(t => t.IsValidating);   // derived: no manual flights
         OnPropertyChanged(nameof(ReadyCount));
         OnPropertyChanged(nameof(DoneCount));
         OnPropertyChanged(nameof(FailedCount));

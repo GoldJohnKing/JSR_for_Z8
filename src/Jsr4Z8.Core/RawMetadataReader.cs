@@ -5,7 +5,7 @@ using Jsr4Z8.Core.Native;
 namespace Jsr4Z8.Core;
 
 /// <summary>
-/// Reads <see cref="RawMetadata"/> from an NEF via the Task 2 LibRaw handle
+/// Reads <see cref="RawMetadata"/> from an NEF via the LibRaw handle
 /// wrapper (no pixel copy), enriching it with EXIF capture info parsed from
 /// the NEF's own TIFF structure. Missing, non-raw and corrupted files all
 /// raise <see cref="RawReadException"/>.

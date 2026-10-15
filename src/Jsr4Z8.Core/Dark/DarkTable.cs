@@ -24,8 +24,7 @@ public sealed record DarkMatch(double Iso, double BlackDn, double ReadNoiseDn, s
 /// resource Jsr4Z8.Core.Dark.Embedded.dark_z8.csv — 34 ISOs (Lo 32 … Hi 102400) ×
 /// three compression types (NEFCompression 3 = lossless, 13 = HE, 14 = HE*),
 /// keyed by compression + ISO. black_dn is the nominal pedestal; read_noise_dn =
-/// √(mean of the four CFA phases' temporal_variance_dn2). The legacy 93-row table
-/// measured from samples/dark_frames is retired.
+/// √(mean of the four CFA phases' temporal_variance_dn2).
 /// Lookup is exact-match on both keys (1e-6 relative ISO tolerance) — deliberately
 /// NO interpolation, because ISO 500 is the sensor's dual conversion gain switch
 /// where the read-noise curve is discontinuous. Crop-blind: any crop window

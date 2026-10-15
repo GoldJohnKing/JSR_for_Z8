@@ -12,7 +12,7 @@ using Jsr4Z8.UI.Services;
 namespace Jsr4Z8.UI.ViewModels;
 
 /// <summary>
-/// Lifecycle of one task card (docs/design/card-states.html): Blocked ④校验失败/⑤机型不支持,
+/// Lifecycle of one task card (六态): Blocked ④校验失败/⑤机型不支持,
 /// Ready ①, Running ②, Done ③, Failed ⑥运行失败.
 /// </summary>
 public enum TaskState
@@ -29,7 +29,7 @@ public enum TaskState
 /// never the slots; <see cref="TaskGroupViewModel.Group"/> carries the
 /// reference-first contract instead. <see cref="InfoText"/> is the multi-line hover
 /// text (one capture parameter per line, — for missing values; 无法读取 only for a
-/// frame whose read is RECORDED as failed, "" for a frame not yet read — F4: an
+/// frame whose read is RECORDED as failed, "" for a frame not yet read — an
 /// instantly created card's frames are uncached until its validation flight lands);
 /// <see cref="EvText"/> is the ±EV deviation tag the view renders instead of the ★ on
 /// bracketed (非等曝光) cards — "0.0 EV" on the anchor frame, "—" without a usable
@@ -45,7 +45,7 @@ public sealed partial class FrameChipViewModel : ObservableObject
     [ObservableProperty] private bool _isReference;
     [ObservableProperty] private string _infoText;
 
-    /// <summary>±EV deviation vs the card's FIXED middle-exposure anchor (F3): the
+    /// <summary>±EV deviation vs the card's FIXED middle-exposure anchor: the
     /// auto <see cref="TaskGroupCreator.PickReference"/> pick over the current file
     /// set — NOT the current reference frame — so the values are stable identifiers of
     /// each frame's bracket position. Recomputed only where chips are rebuilt (file-set
@@ -63,7 +63,7 @@ public sealed partial class FrameChipViewModel : ObservableObject
 
     /// <summary>Hover text: 机型/快门/光圈/ISO/位深/压缩/画幅/拍摄时间 one per line,
     /// each missing value rendered as —. Only called with a readable frame's metadata;
-    /// the unreadable/not-yet-read texts live in the ctor (F4 tri-state).</summary>
+    /// the unreadable/not-yet-read texts live in the ctor (tri-state).</summary>
     private static string FormatInfoText(RawMetadata m)
     {
         string model = string.Join(" ",
@@ -86,7 +86,7 @@ public sealed partial class FrameChipViewModel : ObservableObject
         });
     }
 
-    /// <summary>Camera-style shutter text (the deleted new-task dialog's convention):
+    /// <summary>Camera-style shutter text (Save_Z8's new-task dialog convention):
     /// 1/8000s, 1/100s, 2s, 0.5s.</summary>
     private static string Shutter(double seconds) =>
         seconds >= 1
@@ -106,11 +106,11 @@ public sealed partial class FrameChipViewModel : ObservableObject
 
 /// <summary>
 /// Pure-state ViewModel for one task-group card. Wraps Core's TaskGroup/ValidationResult
-/// without mutating them — <see cref="ValidateAsync"/> (the F4 instant-creation
+/// without mutating them — <see cref="ValidateAsync"/> (the instant-creation
 /// validation flight), <see cref="AddFilesAsync"/> (progressive top-up),
 /// <see cref="RemoveFileCommand"/> and <see cref="SetReferenceCommand"/> replace the
 /// group instance, notified via <see cref="Group"/> — and stays free of Avalonia
-/// dependencies so it runs headless under xUnit. The card is a mutable file set now:
+/// dependencies so it runs headless under xUnit. The card is a mutable file set:
 /// metadata is cached per path, every set change revalidates and refreshes Ptc/Dark,
 /// and the Ready↔Blocked transition follows the new validation. Both card-level
 /// flights (ValidateAsync/AddFilesAsync) bracket themselves with
@@ -123,7 +123,7 @@ public partial class TaskGroupViewModel : ObservableObject
 {
     private readonly ITaskRunner _runner;
 
-    // Task 3 mutable file set: display order (natural) + per-path caches. Reads happen
+    // Mutable file set: display order (natural) + per-path caches. Reads happen
     // on background threads (ValidateAsync/AddFilesAsync) or replay from these caches;
     // VM mutations are UI-thread-affine.
     private readonly Func<string, RawMetadata> _read;
@@ -170,7 +170,7 @@ public partial class TaskGroupViewModel : ObservableObject
 
     public ObservableCollection<FrameChipViewModel> FrameChips { get; } = new();
 
-    /// <summary>±EV 偏差胶囊开关 (F3): true iff any two readable frames with
+    /// <summary>±EV 偏差胶囊开关: true iff any two readable frames with
     /// ExposureTime&gt;0 differ beyond <see cref="TaskGroupCreator"/>'s reference-pick
     /// tolerance (the same 1e-6 rule that defines 曝光包围) — the chip row then swaps
     /// the ★ button for the ±EV deviation tag, equal-exposure cards keep the ★.
@@ -195,7 +195,7 @@ public partial class TaskGroupViewModel : ObservableObject
     [ObservableProperty] private string? _outputPath;
 
     /// <summary>True while a card-level validation flight is in progress —
-    /// <see cref="ValidateAsync"/> (the F4 instant-creation flight) or a top-up
+    /// <see cref="ValidateAsync"/> (the instant-creation flight) or a top-up
     /// (<see cref="AddFilesAsync"/>) — driving the card-wide 校验中 Loading overlay
     /// and locking edits for the whole flight. Never sticks: both flights reset it in
     /// a finally, and a failed flight lands the card Blocked with a friendly message.</summary>
@@ -205,7 +205,7 @@ public partial class TaskGroupViewModel : ObservableObject
     /// AND never while a validation flight is in flight: Running/Done/Failed cards are
     /// locked — a Running group is in flight and a Done output was produced from the
     /// old set — and a validating card's frame set/metadata caches are being rebuilt
-    /// underneath (F4). The add button, star and ✕ all gate on this (the command
+    /// underneath. The add button, star and ✕ all gate on this (the command
     /// CanExecutes below mirror it).</summary>
     public bool IsEditable => !IsValidating && State is TaskState.Ready or TaskState.Blocked;
 
@@ -231,7 +231,7 @@ public partial class TaskGroupViewModel : ObservableObject
         RebuildChips();
         ReferenceName = group.FramePaths.Count > 0 ? Path.GetFileName(group.ReferencePath) : "";
         OutputName = $"JSR_{Path.GetFileNameWithoutExtension(ReferenceName)}.dng";
-        // F4 instant creation (validation:null): the card starts Blocked with EMPTY
+        // Instant creation (validation:null): the card starts Blocked with EMPTY
         // issues (nothing has failed yet — the chips' hover texts stay "" until read)
         // and ValidateAsync is started right after construction to run the real
         // validation under the Loading overlay.
@@ -240,9 +240,9 @@ public partial class TaskGroupViewModel : ObservableObject
             _issuesText = string.Join("\n", validation.Issues.Select(i => i.MessageZh));
     }
 
-    /// <summary>Badge text (card-states.html): 就绪 / 运行阶段文字 / 已完成 / 失败 / 无法执行.
+    /// <summary>Badge text: 就绪 / 运行阶段文字 / 已完成 / 失败 / 无法执行.
     /// While Running the settable <see cref="StageText"/> IS the badge text; while a
-    /// validation flight is in progress (F4) the pill reads 校验中 instead of the
+    /// validation flight is in progress the pill reads 校验中 instead of the
     /// underlying state (an instant card is Blocked until its flight lands, but must
     /// not announce that).</summary>
     public string StateText => IsValidating ? "校验中" : State switch
@@ -258,8 +258,8 @@ public partial class TaskGroupViewModel : ObservableObject
     public bool IsRunning => State == TaskState.Running;
 
     /// <summary>Bottom state-bar value: the live percent while Running, a full bar
-    /// otherwise — Ready/Done/Failed/Blocked paint a solid state color at 100% width
-    /// (F2). Notified from both Progress and State changes.</summary>
+    /// otherwise — Ready/Done/Failed/Blocked paint a solid state color at 100% width.
+    /// Notified from both Progress and State changes.</summary>
     public double BarValue => IsRunning ? Progress : 100;
 
     /// <summary>Meta line under the chips: the pending output name on Ready/Blocked,
@@ -278,7 +278,7 @@ public partial class TaskGroupViewModel : ObservableObject
     /// (stop); Done→Ready (requeue); Failed→Running (retry) / Ready. Every Go* returns
     /// true iff the state CHANGED:
     /// same-state is a no-op returning false, and any other edge is IGNORED (returns
-    /// false, no throw) — Task 13 pushes backend events from background threads, where a
+    /// false, no throw) — backend events arrive from background threads, where a
     /// late event (e.g. progress arriving after a user stop) must never crash the app.
     /// </summary>
     public bool GoReady()
@@ -332,8 +332,8 @@ public partial class TaskGroupViewModel : ObservableObject
         return true;
     }
 
-    /// <summary>Backend progress in percent, clamped to 0-100 (Task 6 carried finding: raw
-    /// PROGRESS lines may exceed 100); the optional stage text becomes the badge text.</summary>
+    /// <summary>Backend progress in percent, clamped to 0-100 (raw PROGRESS lines may
+    /// exceed 100); the optional stage text becomes the badge text.</summary>
     public void ReportProgress(int percent, string? stage = null)
     {
         Progress = Math.Clamp(percent, 0, 100);
@@ -384,8 +384,8 @@ public partial class TaskGroupViewModel : ObservableObject
         }
     }
 
-    // Single-flight (Task 13): while the queue is running another card, 开始此组/重试
-    // are disabled — one run at a time. A validating card is also unstartable (F4):
+    // Single-flight: while the queue is running another card, 开始此组/重试
+    // are disabled — one run at a time. A validating card is also unstartable:
     // its frame set and Ptc/Dark are mid-recompute, so the runner must not pick up a
     // half-validated group (the Loading overlay hides the button; this is the guard
     // underneath, e.g. for StartAll's direct StartAsync calls).
@@ -412,18 +412,18 @@ public partial class TaskGroupViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanRemove))]
     private void Remove() => RemoveRequested?.Invoke(this, EventArgs.Empty);
 
-    // Per docs/design/card-states.html: ✕移除 shows on Blocked(④⑤)/Ready(①)/Done(③)/Failed(⑥)
+    // ✕移除 shows on Blocked(④⑤)/Ready(①)/Done(③)/Failed(⑥)
     // cards; Running(②) shows only ■停止.
     private bool CanRemove() => State is TaskState.Blocked or TaskState.Ready or TaskState.Done or TaskState.Failed;
 
-    /// <summary>★星标基准 (Task 3 semantics — 标记不重排): starring a chip marks it as
+    /// <summary>★星标基准 (标记不重排): starring a chip marks it as
     /// the manual reference — chips stay in natural display order, only the ★ moves;
     /// <see cref="Group"/> is rebuilt with the starred frame first (the remaining
     /// frames keep display order) and ReferenceName/OutputName follow. No
     /// revalidation here: PTC/dark depend on ISO+compression, which are group-uniform
     /// when runnable (Blocked groups hold null either way), and the existing issues
     /// text stays. The ±EV tags stay put — they are anchored to the fixed
-    /// middle-exposure pick, not the reference (F3). Removing the
+    /// middle-exposure pick, not the reference. Removing the
     /// starred frame later falls back to the automatic rule.</summary>
     [RelayCommand(CanExecute = nameof(CanSetReference))]
     private void SetReference(FrameChipViewModel chip)
@@ -439,13 +439,13 @@ public partial class TaskGroupViewModel : ObservableObject
     private bool CanSetReference() => IsEditable;
 
     /// <summary>渐进补齐 (card-level add; the 添加 RAW… button and card drops arrive in
-    /// Task 4's views): .NEF filter → dedupe vs the existing set (OrdinalIgnoreCase) →
+    /// the views): .NEF filter → dedupe vs the existing set (OrdinalIgnoreCase) →
     /// no-op when nothing new. New files are read on a background thread — failures
     /// are recorded but still added as frames, so revalidation flags them 无法读取 —
     /// then the whole derived set (ordering, reference, validation) is recomputed and
     /// applied inline after the await: the VM is UI-thread-affine for mutations, the
     /// worker only touches snapshot copies. The whole flight is bracketed with
-    /// <see cref="IsValidating"/> (F4: the same 校验中 Loading overlay and edit lock as
+    /// <see cref="IsValidating"/> (the same 校验中 Loading overlay and edit lock as
     /// <see cref="ValidateAsync"/>; a finally guarantees it can never stick). A card
     /// that locked while the read was in flight discards the result.</summary>
     public async Task AddFilesAsync(IReadOnlyList<string> paths)
@@ -507,7 +507,7 @@ public partial class TaskGroupViewModel : ObservableObject
         }
     }
 
-    /// <summary>F4 instant-card validation flight: called by MainViewModel right after
+    /// <summary>Instant-card validation flight: called by MainViewModel right after
     /// constructing a validation:null card (and safe to call on any Blocked/Ready card
     /// with gaps in its caches). No-op while a flight is already running or the card is
     /// locked (Running/Done/Failed). Otherwise: read every uncached frame on a
@@ -516,7 +516,7 @@ public partial class TaskGroupViewModel : ObservableObject
     /// apply inline after the await (the same <see cref="RecomputeAndApply"/> path).
     /// Any exception along the way lands the card Blocked with
     /// 校验时发生错误：{message} — and the finally ALWAYS clears IsValidating, so the
-    /// Loading overlay can never stick (Review Focus 1).</summary>
+    /// Loading overlay can never stick.</summary>
     public async Task ValidateAsync()
     {
         if (IsValidating || State is TaskState.Running or TaskState.Done or TaskState.Failed)
@@ -621,7 +621,7 @@ public partial class TaskGroupViewModel : ObservableObject
     /// path (a card built without full metadata) falls back to a synchronous read here.</summary>
     private void RecomputeAndApply()
     {
-        // Distinct (Task 4 pre-step, controller ruling 1a): two overlapping
+        // Distinct: two overlapping
         // AddFilesAsync calls each dedupe against the pre-add snapshot, so both can
         // AddRange the same paths — the display projection dedupes OrdinalIgnoreCase
         // (stable: keeps first occurrence, so the natural order stands) and a
@@ -642,7 +642,7 @@ public partial class TaskGroupViewModel : ObservableObject
     /// <summary>Star-only apply (no revalidation): rebuild Group reference-first, follow
     /// ReferenceName/OutputName, move the ★ flags — chips never change order. The ±EV
     /// tags are NOT recomputed: they stay anchored to the fixed middle-exposure anchor,
-    /// so the values never move on a reference swap (F3, no re-read).</summary>
+    /// so the values never move on a reference swap (no re-read).</summary>
     private void ApplyReference(string reference)
     {
         Group = BuildGroup(_framePaths, reference);
@@ -684,7 +684,7 @@ public partial class TaskGroupViewModel : ObservableObject
     /// reference and per-chip hover texts from the metadata cache: a cached frame
     /// shows its capture parameters, a path RECORDED as failed (a cache miss that is
     /// present in <c>_readErrors</c>) renders 无法读取, and an uncached path — never
-    /// read yet, e.g. an F4 instant card before its validation flight lands — renders
+    /// read yet, e.g. an instant card before its validation flight lands — renders
     /// "" (not yet read ≠ unreadable). Then refreshes the bracket flag and every ±EV
     /// tag against the fixed anchor — this rebuild path (ctor + every file-set
     /// change) is the ONLY place the anchor exposure is (re)computed.</summary>
@@ -707,7 +707,7 @@ public partial class TaskGroupViewModel : ObservableObject
         RefreshEvTags();
     }
 
-    /// <summary>±EV 重算 (F3): sets <see cref="IsBracketed"/> (any two readable positive
+    /// <summary>±EV 重算: sets <see cref="IsBracketed"/> (any two readable positive
     /// exposures beyond <see cref="TaskGroupCreator.ExposureEqual"/> — an unreadable
     /// frame carries no signal and never counts) and every chip's EvText against the
     /// FIXED anchor — the auto <see cref="TaskGroupCreator.PickReference"/> middle
@@ -739,9 +739,9 @@ public partial class TaskGroupViewModel : ObservableObject
     }
 
     /// <summary>EV-anchor read for <see cref="RefreshEvTags"/>: cache hit only — a miss
-    /// (not-yet-read F4 frame or recorded failure) throws, which PickReference's TryRead
+    /// (not-yet-read frame or recorded failure) throws, which PickReference's TryRead
     /// reads as no bracketing signal. Without this, the anchor pick would fall through
-    /// to <see cref="ReadCached"/>'s REAL read and block the UI thread on an F4 instant
+    /// to <see cref="ReadCached"/>'s REAL read and block the UI thread on an instant
     /// card's construction (its tags stay "—" until the validation flight lands and the
     /// recompute re-picks the anchor from the now-full cache).</summary>
     private RawMetadata ReadForEvAnchor(string path) =>
@@ -749,7 +749,7 @@ public partial class TaskGroupViewModel : ObservableObject
             ? cached
             : throw new RawReadException("尚未读取");
 
-    /// <summary>±EV text for one chip (F3): ev = log2(t/t锚点), displayed with the EV
+    /// <summary>±EV text for one chip: ev = log2(t/t锚点), displayed with the EV
     /// unit — a sign on positive values and one decimal ("+1.0 EV"/"-3.0 EV");
     /// |ev|&lt;0.05 — and the anchor itself (t/t锚点 = 1 → ev = 0) — reads "0.0 EV"; an
     /// unusable exposure on either side (unreadable frame, ExposureTime&lt;=0, missing
@@ -781,7 +781,7 @@ public partial class TaskGroupViewModel : ObservableObject
         }
         catch (RawReadException ex)
         {
-            // Record before rethrowing (Task 4 pre-step, controller ruling 1b): the
+            // Record before rethrowing: the
             // fallback real read happens at most once per path — every later
             // ReadCached call replays the recorded failure instead of re-reading.
             _readErrors[path] = ex.Message;
@@ -791,7 +791,7 @@ public partial class TaskGroupViewModel : ObservableObject
         return m;
     }
 
-    /// <summary>Done card's 📂 button (final-review finding 1): opens Explorer with the
+    /// <summary>Done card's 📂 button: opens Explorer with the
     /// written output file selected (/select). Guards: a null/empty or unresolvable
     /// OutputPath is a no-op; when the containing folder still exists but the file was
     /// moved, the folder opens WITHOUT /select; the whole command is wrapped so a shell
@@ -813,7 +813,7 @@ public partial class TaskGroupViewModel : ObservableObject
         }
         catch (Exception)
         {
-            // Shell wiring (final-review finding 1): never throw from the command.
+            // Shell wiring: never throw from the command.
         }
     }
 

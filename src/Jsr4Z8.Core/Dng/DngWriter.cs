@@ -24,7 +24,7 @@ namespace Jsr4Z8.Core.Dng;
 /// Ported from Save_Z8 src/SaveZ8.Core/DngWriter.cs. JSR4Z8 adaptation at the
 /// entry point only (internals byte-faithful): the output domain
 /// (black/white level, photometric, samples-per-pixel, uncompressed bit shift,
-/// CFA phase) arrives via <see cref="DngWriteOptions"/> so Task 9's LinearRaw
+/// CFA phase) arrives via <see cref="DngWriteOptions"/> so LinearRaw
 /// RGB payloads reuse the same engine; the metadata model is
 /// <see cref="NefAssetExtractor.ExtractedMetadata"/>; the CFA pattern comes
 /// pre-mapped to DNG colors (0/1/2).
@@ -85,11 +85,10 @@ public class DngWriter
     private const ushort TypeRational = 5;
     private const ushort TypeSRational = 10;
 
-    // Rendering-parity constants (formerly the DngOptions class — no caller ever
-    // overrode any of them, so they are fixed private constants now). The black/
-    // white-level domain pair (compressed 1008/15892, uncompressed 4032/63568 and
-    // the ×4 pixel shift) moved to DngComposer/DngWriteOptions with the Task 9
-    // LinearRaw payload in view.
+    // Rendering-parity constants (fixed private — no caller overrides any of
+    // them). The black/white-level domain pair (compressed 1008/15892,
+    // uncompressed 4032/63568 and the ×4 pixel shift) lives in
+    // DngComposer/DngWriteOptions.
     private const string CameraModelName = "Nikon Z 8";
     private const int CalibrationIlluminant1Value = 21;    // D65
     private static readonly double[] ColorMatrix1Values =
@@ -138,7 +137,7 @@ public class DngWriter
                 "RawLayout.Strips is a compressed LinearRaw profile (backend tifffile parity): " +
                 $"requires Compress=true and a non-CFA payload (got Compress={compress}, CFA={isCfa})",
                 nameof(options));
-        // Passthrough seam (post-release fix 5): pre-encoded streams are valid
+        // Passthrough seam: pre-encoded streams are valid
         // only on that same compressed LinearRaw strips path.
         if (options.RawStreams is { Count: > 0 } && (!compress || !strips || isCfa))
             throw new ArgumentException(
@@ -156,7 +155,7 @@ public class DngWriter
         // SOF3 stream over the full image width — backend parity (tifffile writes
         // ceil(H/128) strips, final band = actual remaining rows: 11040 rows → 87
         // strips, last = 32 rows). Strip geometry is exact, no edge padding.
-        // Passthrough seam (post-release fix 5): DngWriteOptions.RawStreams set ⇒
+        // Passthrough seam: DngWriteOptions.RawStreams set ⇒
         // the caller's pre-encoded strip bytes replace the encode step verbatim.
         // Stream offsets follow the ADC layout: sequential, each start 2-byte
         // aligned.
@@ -170,7 +169,7 @@ public class DngWriter
             {
             if (options.RawStreams is { Count: > 0 } passthrough)
             {
-                // Passthrough seam (post-release fix 5): the caller's
+                // Passthrough seam: the caller's
                 // pre-encoded strip bytes (the backend's own LJ streams) are
                 // emitted verbatim — no encode. The writer still declares
                 // RowsPerStrip=128, so the stream boundaries must be 128-row
@@ -350,11 +349,11 @@ public class DngWriter
 
         // ActiveArea: full stored area — replicates ADC's Z8 geometry. The warp/vignette
         // opcodes normalize radius over the active area, so this must match ADC's
-        // convention (full 8280x5520) or the correction strength shifts. Task 9
-        // overrides this with the ×2-scaled sensor active area (options.ActiveArea).
-        // (options.DefaultCrop) for the backend's ×2 geometry.
+        // convention (full 8280x5520) or the correction strength shifts.
+        // options.ActiveArea overrides this with the ×2-scaled sensor active area;
+        // options.DefaultCrop carries the backend's ×2 geometry.
         //
-        // Diagnostic seam (post-release fix 4): IncludeGeometryTags=false emits none
+        // Diagnostic seam: IncludeGeometryTags=false emits none
         // of the geometry quartet — ActiveArea/DefaultScale/CropOrigin/CropSize all
         // absent (readers then default to the full stored image).
         if (options.IncludeGeometryTags)
@@ -408,7 +407,7 @@ public class DngWriter
         }
 
         // ---- lens correction opcodes from Nikon NEFInfo (0xC7D5) ----
-        // Diagnostic seam (post-release fix 4): IncludeOpcodes=false skips both
+        // Diagnostic seam: IncludeOpcodes=false skips both
         // lists (and the NEFInfo decode entirely).
         var correction = options.IncludeOpcodes
             ? NikonLensCorrection.Decode(originalMetadata?.NefInfoData)
@@ -468,7 +467,7 @@ public class DngWriter
                 ifd0.Entries.Add(e);
 
             // SubIFDs: raw first (like ADC), then the remaining previews largest→smallest.
-            // Diagnostic seam (post-release fix 4): IncludePreviews=false drops the
+            // Diagnostic seam: IncludePreviews=false drops the
             // preview SubIFDs but keeps this IFD0 thumbnail.
             subIfdTargets.Add(rawBlock);
             if (options.IncludePreviews)
@@ -525,7 +524,7 @@ public class DngWriter
         AddShort(TagCalibrationIlluminant1, (ushort)CalibrationIlluminant1Value);
 
         // Rendering parity with Adobe's Z8 defaults (measured from ADC 18.6 output).
-        // Diagnostic seam (post-release fix 4): Baseline* tags belong to the
+        // Diagnostic seam: Baseline* tags belong to the
         // NEF-migration block and leave with IncludeExifGps=false.
         if (options.IncludeExifGps)
         {
@@ -535,7 +534,7 @@ public class DngWriter
         }
 
         // AsShotNeutral: per-shot camera white balance (inverse multipliers, like ADC).
-        // options.AsShotNeutral (backend product value, Task 9) wins over cameraWb.
+        // options.AsShotNeutral (backend product value) wins over cameraWb.
         var explicitNeutral = options.AsShotNeutral;
         if (explicitNeutral is { Length: >= 3 } &&
             explicitNeutral[0] > 0 && explicitNeutral[1] > 0 && explicitNeutral[2] > 0)
@@ -558,7 +557,7 @@ public class DngWriter
         }
 
         // ---- preserve original metadata (EXIF → Interop, GPS, safe IFD0 tags) ----
-        // Diagnostic seam (post-release fix 4): the whole NEF-migration block is
+        // Diagnostic seam: the whole NEF-migration block is
         // suppressible via IncludeExifGps=false.
         IfdBlock? exifBlock = null, gpsBlock = null;
         if (options.IncludeExifGps && originalMetadata != null && originalMetadata.AllIfds.Count > 0)
@@ -567,7 +566,7 @@ public class DngWriter
 
             foreach (var tag in CopyableIfd0Tags)
             {
-                // Task 9 attribution policy (fact #9): the final product names
+                // Attribution policy (probe fact #9): the final product names
                 // itself via options.Software and carries no IFD0 Artist tag;
                 // NEF EXIF-region photographer metadata migrates untouched.
                 if (tag == TagSoftware && options.Software != null) continue;
@@ -662,9 +661,9 @@ public class DngWriter
                 }
 
         // ---- serialize: single pass directly to file (no full-image intermediate copies) ----
-        // M1 (independent review): serialize to a temp sibling first — on any failure
-        // the previous good output at outputPath stays intact and no half-written
-        // DNG is left behind; swap in atomically on success.
+        // Serialize to a temp sibling first: on any failure the previous good
+        // output at outputPath stays intact and no half-written DNG is left
+        // behind; swap in atomically on success.
         string tmpPath = outputPath + ".tmp";
         try
         {
@@ -696,7 +695,7 @@ public class DngWriter
             // straight to the file in bounded 128 KB chunks — replaces full-image
             // intermediate copies. Compressed payloads keep native values (shift 0).
             long pos = fs.Position;
-            // L3 (independent review): guard the write-position == layout-cursor invariant.
+            // Guard the write-position == layout-cursor invariant.
             if (pos < pixelOffset)
             {
                 Debug.Assert(pixelOffset - pos <= AlignmentZeros.Length, "alignment gap exceeds zero buffer");

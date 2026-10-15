@@ -14,13 +14,13 @@ public sealed record Unrecognized(string Text) : ProtocolEvent;
 
 /// <summary>
 /// Parses one line of jsr_backend stdout/stderr — the BARE-LINE protocol of the
-/// direct invocation (2026-10-15 probe §7.2): SRHQ_V12_PROGRESS|percent|stage and
+/// direct invocation (probe §7.2): SRHQ_V12_PROGRESS|percent|stage and
 /// SRHQ_ETA_PROGRESS|dng|done|total are the only structured lines; everything else
 /// (PTC echo, FRAME lines, Proxy chatter, DONE tail) is ordinary text carried
 /// verbatim. The export-phase ETA maps onto the last 5 percent
 /// (95 + 5*done/total, "DNG 导出"). A trailing '\r' (CRLF pipe) is stripped.
-/// The ASSISTANT_* envelopes were Bridge-added and are gone: a legacy envelope line
-/// now parses as Unrecognized like any other text — no second grammar remains.
+/// The bare-line protocol has no ASSISTANT_* envelopes; a stray envelope-shaped line
+/// parses as Unrecognized like any other text — there is no second grammar.
 /// </summary>
 public static class ProtocolParser
 {

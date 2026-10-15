@@ -28,15 +28,15 @@ public sealed record PayloadPackResult(
 /// Packs the backend distribution into the payload pair (payload.bin +
 /// payload.manifest.json) and provides the manifest/archive readers used by
 /// <see cref="PayloadManager"/> for extraction. Shared library code: the release packer
-/// tool (tools/pack-payload, invoked by the release script in Task 15) and the tests
+/// tool (tools/pack-payload, invoked by the release script) and the tests
 /// (fake 2-file payloads in temp dirs) both go through it — the real ~500 MB payload is
 /// never committed or embedded into test builds.
 ///
 /// Scanned from &lt;srcDir&gt; (byte-exact constraint): the resources/ tree minus the
-/// exclusion list (<see cref="IsExcluded"/>; 用户裁定 2026-10-15) — the direct-invoke
-/// engine resources\jsr_backend.exe is the required entry point (Task 3: the top-level
-/// "Jiangtherapee Bridge.exe" shell no longer ships; kept as an ExactPath exclusion
-/// so a whitelist regression cannot smuggle it back in). assistant 单形态 7 帧锁定 →
+/// exclusion list (<see cref="IsExcluded"/>) — the direct-invoke
+/// engine resources\jsr_backend.exe is the required entry point (the top-level
+/// "Jiangtherapee Bridge.exe" shell is not shipped; it is kept as an ExactPath
+/// exclusion so a whitelist regression cannot smuggle it back in). assistant 单形态 7 帧锁定 →
 /// K14 引擎不携带；manual 标定 → z8_presets 不携带；Tcl/Tk、ffmpeg 视频 DLL、
 /// wgpu/__pyinstaller 测试残留剥离；THIRD_PARTY_NOTICES.md 不再打包（许可仍随
 /// resources/licenses 分发）。Everything else in the source package (README.md,
@@ -82,17 +82,16 @@ public static class PayloadPacker
 
     /// <summary>
     /// Payload exclusion list (paths relative to the backend source root, '/' separators,
-    /// matched case-insensitively — Windows source trees). Ruling per entry, 用户裁定 2026-10-15:
+    /// matched case-insensitively — Windows source trees). Ruling per entry:
     /// </summary>
     private static readonly (ExclusionKind Kind, string Pattern)[] ExcludedPayloadEntries =
     {
-        // Top-level Bridge shell: the GUI invokes resources\jsr_backend.exe directly
-        // (Task 2/3, 2026-10-15), so the shell is dead weight — the whitelist no longer
-        // scans it, and this ExactPath entry keeps a future whitelist regression from
-        // smuggling it back in. 直调后顶层壳不再携带——用户裁定 2026-10-15。
+        // Top-level Bridge shell: the GUI invokes resources\jsr_backend.exe directly,
+        // so the shell is dead weight — this ExactPath entry keeps a future whitelist
+        // regression from smuggling it back in. 直调后顶层壳不携带。
         (ExclusionKind.ExactPath, "Jiangtherapee Bridge.exe"),
-        // K14 engines: the assistant path is a locked 7-frame single-form job that only ever
-        // spawns jsr_backend.exe (START envelope Compressor=jsr_backend.exe) — dead weight here.
+        // K14 engines: the 7-frame compute path only ever spawns jsr_backend.exe —
+        // dead weight here.
         (ExclusionKind.ExactPath, "resources/jsr_v98_k14_backend.exe"),
         (ExclusionKind.ExactPath, "resources/jsr_fast_k14_backend.exe"),
         // Tcl/Tk are GUI libraries the CLI compute path never loads.
@@ -104,8 +103,8 @@ public static class PayloadPacker
         (ExclusionKind.PrefixSuffix, "resources/_internal/cv2/opencv_videoio_ffmpeg*.dll"),
         // wgpu/__pyinstaller holds test/conftest residue from the backend's own packaging.
         (ExclusionKind.DirectoryPrefix, "resources/_internal/wgpu/__pyinstaller/"),
-        // Pre-provisioned for a future 2.3.27 switch: the 205 MB preset-dark DNGs are only
-        // consulted by the backend's own auto-matching, which manual-calibration requests never trigger.
+        // The 205 MB preset-dark DNGs are only consulted by the backend's own
+        // auto-matching, which manual-calibration requests never trigger.
         (ExclusionKind.DirectoryPrefix, "resources/z8_presets/"),
     };
 
@@ -149,8 +148,8 @@ public static class PayloadPacker
     /// exclusion list (<see cref="IsExcluded"/>), each as a path relative to
     /// <paramref name="srcDir"/>. The direct-invoke engine (resources\jsr_backend.exe) is
     /// the required entry point — throws if it or the resources/ dir is missing.
-    /// THIRD_PARTY_NOTICES.md and the top-level Bridge shell are not packed (user ruling
-    /// 2026-10-15; third-party licenses still ship inside resources/licenses/).
+    /// THIRD_PARTY_NOTICES.md and the top-level Bridge shell are not packed
+    /// (third-party licenses ship inside resources/licenses/).
     /// </summary>
     public static IReadOnlyList<string> EnumerateSourceFiles(string srcDir)
     {

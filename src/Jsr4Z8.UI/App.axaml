@@ -4,9 +4,9 @@
              RequestedThemeVariant="Dark"
              x:Class="Jsr4Z8.UI.App">
     <Application.Styles>
-        <!-- Dark default (user choice C; runtime Dark/Light/Default cycling lives in Services/ThemeService
-             via Application.RequestedThemeVariant — SemiTheme 11.2.x has no variant property of its own).
-             Locale=zh-CN switches Semi's built-in control strings to Chinese (Task 1 review). -->
+        <!-- Dark default; runtime Dark/Light/Default cycling lives in Services/ThemeService
+             via Application.RequestedThemeVariant — SemiTheme 11.2.x has no variant property of its own.
+             Locale=zh-CN switches Semi's built-in control strings to Chinese. -->
         <semi:SemiTheme Locale="zh-CN" />
     </Application.Styles>
 </Application>

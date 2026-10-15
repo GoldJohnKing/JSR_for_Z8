@@ -3,7 +3,6 @@ using Jsr4Z8.Core.Backend;
 using Jsr4Z8.Core.Model;
 using Jsr4Z8.Core.Ptc;
 using Jsr4Z8.Core.Queue;
-using Jsr4Z8.Core.Settings;
 using Jsr4Z8.UI.Services;
 using Jsr4Z8.UI.ViewModels;
 using Xunit;
@@ -11,19 +10,19 @@ using Xunit;
 namespace Jsr4Z8.Tests;
 
 /// <summary>
-/// Post-release fix (stage-label flicker): the mediator's UI progress gate. The real
+/// The mediator's UI progress gate (anti stage-label flicker). The real
 /// capture fixtures\protocol\direct_success.log (324 lines, 197 of them SRHQ progress —
-/// 110 V12 with rotating subtask stage names + 87 export ETA — the 2026-10-15 direct
+/// 110 V12 with rotating subtask stage names + 87 export ETA — a real direct-run
 /// run archive) is replayed line by line through
 /// ProtocolParser → QueueEvent → QueueMediator.Handle with a synchronous dispatcher
 /// and a fake clock, asserting the contract:
 /// (1) the final Progress/StageText land correctly (coalescing, terminal bypass);
 /// (2) with the default 200 ms gate, StageText+Progress PropertyChanged collapses
 ///     from per-line to a gate-bounded count;
-/// (3) with the gate disabled (TimeSpan.Zero ⇒ every update passes — the old
+/// (3) with the gate disabled (TimeSpan.Zero ⇒ every update passes — the unthrottled
 ///     behavior), the change count matches a bare unthrottled card replay exactly;
-/// (d) non-progress lines produce NO UI change at all (no card log surface since
-///     Task 5 — ChangeCounter stays flat across plain traffic). A synthetic test
+/// (d) non-progress lines produce NO UI change at all (no card log surface —
+///     ChangeCounter stays flat across plain traffic). A synthetic test
 /// pins the gate boundaries precisely. Windows-host tests.
 /// </summary>
 public class ProgressThrottleTests
@@ -49,15 +48,9 @@ public class ProgressThrottleTests
 
     private static QueueMediator Mediator(TimeProvider clock, TimeSpan? gate) =>
         new(engine: new TaskQueueRunner(),
-            settings: new FakeSettings(),
             dispatcher: new SyncDispatcher(),
             clock: clock,
             progressGate: gate);
-
-    private sealed class FakeSettings : ISettingsProvider
-    {
-        public AppSettings CurrentSettings { get; } = new();
-    }
 
     /// <summary>Ready→Running card wired to the (engineless) mediator: Handle is driven
     /// directly (the engine/run-outcome path is QueueRunnerTests' business).</summary>
@@ -220,7 +213,7 @@ public class ProgressThrottleTests
     }
 
     /// <summary>Sanity for the disabled gate (TimeSpan.Zero ⇒ zero elapsed requirement ⇒
-    /// every update forwards — the old pre-fix behavior): the change count must match a
+    /// every update forwards — the unthrottled behavior): the change count must match a
     /// bare card replayed with the same unthrottled mapping EXACTLY, and stay well
     /// above the gated count.</summary>
     [Fact]
@@ -241,8 +234,8 @@ public class ProgressThrottleTests
         }
 
         // Baseline: the same replay against a bare card with the mediator's exact
-        // pre-fix mapping (Started sets the stage; progress lines ReportProgress — the
-        // code as it was before the gate).
+        // mapping (Started sets the stage; progress lines ReportProgress — the
+        // unthrottled mapping the gate would otherwise suppress).
         TaskGroupViewModel bare = RunningCard(Mediator(clock, gate: TimeSpan.Zero));
         using var baseline = new ChangeCounter(bare);
         bare.ReportProgress(bare.Progress, "重建");
@@ -254,7 +247,7 @@ public class ProgressThrottleTests
 
         Assert.Equal(bare.Progress, vm.Progress);               // both end on the last line's state
         Assert.Equal(bare.StageText, vm.StageText);
-        Assert.Equal(baseline.Count, counter.Count);             // old behavior reproduced exactly
+        Assert.Equal(baseline.Count, counter.Count);             // unthrottled behavior reproduced exactly
         Assert.True(counter.Count > 50,
             $"expected the old per-line behavior to stay expensive, got {counter.Count}"); // measured: 197 progress lines → 88 transitions
     }

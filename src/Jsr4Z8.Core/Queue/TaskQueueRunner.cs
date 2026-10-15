@@ -5,7 +5,6 @@ using Jsr4Z8.Core.Dark;
 using Jsr4Z8.Core.Model;
 using Jsr4Z8.Core.Payload;
 using Jsr4Z8.Core.Ptc;
-using Jsr4Z8.Core.Settings;
 
 namespace Jsr4Z8.Core.Queue;
 
@@ -42,8 +41,8 @@ public sealed record BackendFinished(RunnerResult Result) : QueueEvent;
 /// Runs ONE task group end to end behind the sequential queue (one at a time; the
 /// caller — the UI's queue mediator — owns the loop and the single-flight gate):
 /// ① <see cref="PayloadManager.EnsureExtracted"/> (progress → 0-5% of the card),
-/// ② per-run temp dir &lt;TempBase&gt;\Jsr4Z8\&lt;jobId&gt;\ (unique per run — no cfg dir:
-/// the direct invocation needs none, probe §7), ③ the jsr_backend.exe argv via
+/// ② per-run temp dir &lt;TempBase&gt;\Jsr4Z8\&lt;jobId&gt;\ (unique per run — the direct
+/// invocation needs no cfg dir, probe §7), ③ the jsr_backend.exe argv via
 /// <see cref="BackendRequest.BuildArguments"/> (no memory budget at all — 不设预算，驱动自行分配;
 /// fullwell = the validated PTC match rounded to 1 decimal; output = the job dir,
 /// prefix = jobId), ④ <see cref="BackendRunner.RunAsync"/> — the DIRECT engine
@@ -51,11 +50,10 @@ public sealed record BackendFinished(RunnerResult Result) : QueueEvent;
 /// success the newest &lt;prefix&gt;*.dng under the job dir (the engine nests it in
 /// &lt;prefix&gt;_V15_3_5_K7_&lt;ts&gt;_&lt;n&gt;\) is finalized via
 /// <see cref="JsrDngFinalizer.Finalize"/> into JSR_&lt;基准帧名&gt;.dng next to the
-/// reference frame (or the configured custom dir), ⑥ every terminal outcome deletes
-/// the job temp dir (success cleanup and the failure/stopped paths alike — no more
-/// ~3 GB kept diagnostic dirs; leftover debris is handled by the startup
-/// <see cref="SweepTempRoot"/>). Never throws: failures and cancellation come back as
-/// a <see cref="TaskRunOutcome"/>.
+/// reference frame, ⑥ every terminal outcome deletes
+/// the job temp dir (success cleanup and the failure/stopped paths alike; leftover
+/// debris is handled by the startup <see cref="SweepTempRoot"/>). Never throws:
+/// failures and cancellation come back as a <see cref="TaskRunOutcome"/>.
 /// </summary>
 public sealed class TaskQueueRunner
 {
@@ -73,6 +71,11 @@ public sealed class TaskQueueRunner
     /// resources\<see cref="EngineFileName"/> inside it.</summary>
     internal Func<IProgress<double>?, BackendPayload>? ResolveBackendOverride { get; set; }
 
+    /// <summary>Test seam: overrides the per-job temp root base (production null →
+    /// <see cref="Path.GetTempPath"/>) — hermetic queue/sweep tests point it at a
+    /// fixture-owned directory.</summary>
+    internal string? TempBaseOverride { get; set; }
+
     /// <summary>Test seam: replaces <see cref="JsrDngFinalizer.Finalize"/> —
     /// (backendDngPath, referenceNefPath, destDir) → written path.</summary>
     internal Func<string, string, string, string>? FinalizeOverride { get; set; }
@@ -88,16 +91,15 @@ public sealed class TaskQueueRunner
     /// <summary>Runs one group through the six steps above; events go to
     /// <paramref name="onEvent"/> on background threads (the caller marshals).</summary>
     public async Task<TaskRunOutcome> RunAsync(
-        TaskGroup g, PtcMatch ptc, DarkMatch dark, AppSettings settings, CancellationToken ct, Action<QueueEvent>? onEvent = null)
+        TaskGroup g, PtcMatch ptc, DarkMatch dark, CancellationToken ct, Action<QueueEvent>? onEvent = null)
     {
         ArgumentNullException.ThrowIfNull(g);
         ArgumentNullException.ThrowIfNull(ptc);
         ArgumentNullException.ThrowIfNull(dark);
-        ArgumentNullException.ThrowIfNull(settings);
 
         var clock = Stopwatch.StartNew();
         string jobId = Guid.NewGuid().ToString("N");
-        string jobDir = Path.Combine(ResolveTempBase(settings), "Jsr4Z8", jobId);
+        string jobDir = Path.Combine(TempBase, "Jsr4Z8", jobId);
 
         try
         {
@@ -135,7 +137,7 @@ public sealed class TaskQueueRunner
             }
 
             // ⑤ the backend product: newest <prefix>*.dng anywhere under the job dir,
-            // skipping *.partial segments (Task 13 carried review fix).
+            // skipping *.partial segments (the backend's resume leftovers).
             string? backendDng = FindNewestProductDng(jobDir, jobId);
             if (backendDng is null)
             {
@@ -143,20 +145,18 @@ public sealed class TaskQueueRunner
                 return new TaskRunOutcome(false, false, NoDngMessage, null, clock.Elapsed);
             }
 
-            string destDir = settings.OutputMode == OutputMode.Custom && !string.IsNullOrWhiteSpace(settings.CustomOutputDir)
-                ? settings.CustomOutputDir
-                : Path.GetDirectoryName(Path.GetFullPath(g.ReferencePath))
-                  ?? throw new InvalidOperationException("基准帧路径没有所在目录");
+            string destDir = Path.GetDirectoryName(Path.GetFullPath(g.ReferencePath))
+                ?? throw new InvalidOperationException("基准帧路径没有所在目录");
             string written = FinalizeOverride is { } finalize
                 ? finalize(backendDng, g.ReferencePath, destDir)
-                // Final-review finding 8: cross-check warnings go to the job log instead
-                // of the invisible Console.Error — job.log lives for the run's lifetime
-                // only (deleted with the job dir on every terminal outcome).
+                // Cross-check warnings go to the job log instead of the invisible
+                // Console.Error — job.log lives for the run's lifetime only (deleted
+                // with the job dir on every terminal outcome).
                 : JsrDngFinalizer.Finalize(backendDng, g.ReferencePath, destDir,
                     line => AppendJobLog(logFile, line));
 
-            // ⑥ success: clean the whole job dir (request/cfg/log/product). Best effort —
-            // a locked file must not turn a finished job into a reported failure.
+            // ⑥ success: clean the whole job dir (engine output + log + product). Best
+            // effort — a locked file must not turn a finished job into a reported failure.
             TryDeleteDir(jobDir);
 
             return new TaskRunOutcome(true, false, result.Message, written, clock.Elapsed);
@@ -181,12 +181,9 @@ public sealed class TaskQueueRunner
         _ => throw new InvalidOperationException($"未知 RunnerEvent: {e.GetType().Name}"),
     };
 
-    private static string ResolveTempBase(AppSettings s) =>
-        s.TempMode == TempMode.Custom && !string.IsNullOrWhiteSpace(s.CustomTempDir)
-            ? s.CustomTempDir
-            : Path.GetTempPath();
+    private string TempBase => TempBaseOverride ?? Path.GetTempPath();
 
-    /// <summary>Sweep grace window (final-review F1b): dirs under the Jsr4Z8 temp root
+    /// <summary>Sweep grace window: dirs under the Jsr4Z8 temp root
     /// whose LastWriteTimeUtc is newer than this before the sweep's own clock are
     /// skipped. The same-instance race: a slow multi-GB sweep may still be iterating
     /// when the user starts the first run seconds after launch — the fresh job dir
@@ -195,15 +192,20 @@ public sealed class TaskQueueRunner
 
     /// <summary>Startup sweep: deletes every &lt;TempBase&gt;\Jsr4Z8\&lt;dir&gt; whose
     /// LastWriteTimeUtc is older than <see cref="SweepGraceWindow"/>. Failed/stopped
-    /// runs now delete their job dir themselves (失败即删), so anything still under the
+    /// runs delete their job dir themselves (失败即删), so anything still under the
     /// root is debris from a crashed/killed process. Best effort — every IO error is
-    /// swallowed, never fatal to a launch. Public: the app wires it once at entry
-    /// (a later task).</summary>
-    public static void SweepTempRoot(AppSettings settings)
+    /// swallowed, never fatal to a launch. The app wires it once at entry.</summary>
+    public static void SweepTempRoot() => SweepUnder(Path.Combine(Path.GetTempPath(), "Jsr4Z8"));
+
+    /// <summary>Test seam: the sweep against an explicit temp base (hermetic
+    /// fixture-owned dir instead of the real %TEMP%).</summary>
+    internal static void SweepTempRoot(string tempBase) =>
+        SweepUnder(Path.Combine(tempBase, "Jsr4Z8"));
+
+    private static void SweepUnder(string root)
     {
         try
         {
-            string root = Path.Combine(ResolveTempBase(settings), "Jsr4Z8");
             if (!Directory.Exists(root))
                 return;
             DateTime cutoff = DateTime.UtcNow - SweepGraceWindow;
@@ -228,8 +230,7 @@ public sealed class TaskQueueRunner
 
     /// <summary>Success-path product glob (internal test seam): the newest
     /// <paramref name="prefix"/>*.dng anywhere under <paramref name="root"/>, skipping
-    /// any path that traverses a *.partial segment — the backend's resume leftovers
-    /// (Task 13 carried review fix).</summary>
+    /// any path that traverses a *.partial segment — the backend's resume leftovers.</summary>
     internal static string? FindNewestProductDng(string root, string prefix) =>
         Directory.EnumerateFiles(root, prefix + "*.dng", SearchOption.AllDirectories)
             .Where(p => !HasPartialSegment(p))

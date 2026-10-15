@@ -14,8 +14,8 @@ namespace Jsr4Z8.Core.Dng;
 /// (BL=4032/WL=63568)；压缩 DNG 存 14-bit 原值 (BL=1008/WL=15892) — 两套域等价，
 /// 勿混用): CFA payloads default to the compressed native 14-bit domain — NOT
 /// <see cref="RawMetadata.WhiteLevel"/>, which is LibRaw's declared 14-bit
-/// maximum (16383). LinearRaw RGB payloads default to BL=0/WL=65535 (Task 9
-/// backend product). Both levels are overridable per call.
+/// maximum (16383). LinearRaw RGB payloads default to BL=0/WL=65535 (backend
+/// product). Both levels are overridable per call.
 /// </summary>
 public static class DngComposer
 {
@@ -88,9 +88,9 @@ public static class DngComposer
     /// Full-control composition path: <paramref name="options"/> is the complete
     /// output profile — domain (BL/WL), photometric/samples, compression,
     /// IFD0 attribution (Software/OmitIfd0Artist), AsShotNeutral/ColorMatrix1
-    /// and geometry overrides. Task 9's LinearRaw RGB fusion entry: the backend
+    /// and geometry overrides. The LinearRaw RGB fusion entry: the backend
     /// product's payload + the reference NEF's metadata blocks.
-    /// Diagnostic seam (post-release fix 5): <see cref="DngWriteOptions.RawStreams"/>
+    /// Diagnostic seam: <see cref="DngWriteOptions.RawStreams"/>
     /// set ⇒ the payload's pixel array is bypassed (may be empty) and the
     /// pre-encoded strip streams are emitted verbatim.
     /// </summary>
@@ -140,7 +140,7 @@ public static class DngComposer
 
     /// <summary>
     /// Rebuilds the parsed IFD surface the writer consumes (Save_Z8's
-    /// TiffIfdExtractor model) from the Task 3 asset blocks. The blocks are
+    /// TiffIfdExtractor model) from the NEF asset blocks. The blocks are
     /// verbatim mid-file source regions whose entry values are absolute file
     /// offsets, so each region is parsed against its original file base: the
     /// ExifBlock region (IFD0 → end of EXIF data, MakerNote and Interop

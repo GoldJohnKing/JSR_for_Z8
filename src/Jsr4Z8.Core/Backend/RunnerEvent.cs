@@ -16,7 +16,7 @@ public sealed record JsrStart(string Stage, string Engine, string Mode, string C
 /// One direct jsr_backend.exe invocation: the engine executable, its argv
 /// (<see cref="BackendRequest.BuildArguments"/>), and the job log file every
 /// streamed line is appended to. No request.json and no config dir — the direct
-/// protocol needs neither (2026-10-15 probe §7: no cfg, no preview, exit code
+/// protocol needs neither (probe §7: no cfg, no preview, exit code
 /// relayed by the spawned parent).
 /// </summary>
 public sealed record BackendRunSpec(

@@ -8,7 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- PayloadPacker lives in the Core library so the packer tool and the tests share
-         one implementation (real payloads are only packed at release time, Task 15). -->
+         one implementation (real payloads are only packed at release time). -->
     <ProjectReference Include="..\..\src\Jsr4Z8.Core\Jsr4Z8.Core.csproj" />
   </ItemGroup>
 </Project>

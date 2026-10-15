@@ -6,7 +6,7 @@
              x:Class="Jsr4Z8.UI.Views.TaskCardView"
              x:DataType="vm:TaskGroupViewModel"
              x:CompileBindings="True">
-    <!-- One task-group card (docs/design/card-states.html 六态). The root border carries
+    <!-- One task-group card (六态). The root border carries
          the st-ready/st-running/st-done/st-failed/st-blocked class (maintained from
          code-behind on State changes) that colors the status pill and bottom state
          bar, plus st-droptarget
@@ -189,7 +189,7 @@
             <Setter Property="Stroke" Value="{DynamicResource SemiColorDanger}" />
         </Style>
 
-        <!-- ±EV 偏差胶囊（F3，非等曝光组替代★）：整颗芯片一体 [±EV 小胶囊|文件名|✕]，
+        <!-- ±EV 偏差胶囊（非等曝光组替代★）：整颗芯片一体 [±EV 小胶囊|文件名|✕]，
              点击胶囊设该帧为基准；非基准胶囊独立底色 Fill1/Text1，基准帧胶囊换基准★
              同款黄底 #F0A020 + 深字 #262626 高亮（与星标基准态同一视觉语言，固定深色
              字在黄底上明暗两主题均可读） -->
@@ -260,7 +260,7 @@
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
 
-        <!-- 校验中 Loading 覆盖层（F4）：半透明遮罩盖住整卡（后绘子元素置顶），可命中
+        <!-- 校验中 Loading 覆盖层：半透明遮罩盖住整卡（后绘子元素置顶），可命中
              （默认）→ 遮罩期间卡上编辑入口被实际阻断；居中旋转 loader 图标 + 校验中 -->
         <Style Selector="Border.validating-overlay">
             <Setter Property="Background" Value="{DynamicResource SemiColorOverlayBackground}" />
@@ -290,7 +290,7 @@
 
     <!-- 卡根同时是拖放目标（卡内补齐）：含 NEF 且可编辑时 Copy+高亮；Drop 先吞再补齐，
          避免冒泡到窗口级新建组（路由事件在 code-behind AddHandler 接线）。
-         内容 Grid 双层：主 StackPanel + 校验中 Loading 覆盖层（后绘置顶，F4） -->
+         内容 Grid 双层：主 StackPanel + 校验中 Loading 覆盖层（后绘置顶） -->
     <Border x:Name="Root" Classes="card" ClipToBounds="True" DragDrop.AllowDrop="True">
         <Grid>
         <StackPanel>
@@ -429,7 +429,7 @@
                          Height="4" MinHeight="4" CornerRadius="0" Padding="0" />
         </StackPanel>
 
-        <!-- 校验中 Loading 覆盖层（F4）：IsValidating 期间盖住整卡（含头部按钮/芯片，
+        <!-- 校验中 Loading 覆盖层：IsValidating 期间盖住整卡（含头部按钮/芯片，
              可命中 → 交互被实际阻断），居中旋转 loader + 校验中文字 -->
         <Border Classes="validating-overlay" IsVisible="{Binding IsValidating}">
             <StackPanel Orientation="Horizontal" Spacing="9"

@@ -2,7 +2,7 @@ namespace Jsr4Z8.Core;
 
 /// <summary>
 /// Metadata for one NEF frame. Camera identity, ISO, black/white levels,
-/// dimensions, CFA and WB multipliers come from LibRaw (Task 2 handle
+/// dimensions, CFA and WB multipliers come from LibRaw (handle
 /// wrapper); exposure/aperture/capture time come from the NEF's EXIF IFD.
 /// </summary>
 public sealed record RawMetadata

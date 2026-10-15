@@ -1,13 +1,13 @@
 # jsr_backend.exe 运行期 argv 探测与直调可行性初析（2026-10-15）
 
-> **版本标注**：本文捕获基于 **2.3.25** 载荷（`%LOCALAPPDATA%\JSR4Z8\backend\3e1f6aa175be089e\`）。Task 3 已以同一监视器对 **2.3.27** 载荷（backend\fa541adff100e78e\）复抓比对：**argv 契约一致**（见 §5，2026-10-15）。
+> **版本标注**：本文捕获基于 **2.3.25** 载荷（`%LOCALAPPDATA%\JSR4Z8\backend\3e1f6aa175be089e\`）。后以同一监视器对 **2.3.27** 载荷（backend\fa541adff100e78e\）复抓比对：**argv 契约一致**（见 §5）。
 
 回答的问题：JSR for Z8 能否绕过 `Jiangtherapee Bridge.exe` 直调 `resources\jsr_backend.exe`？——Bridge 交给引擎的 argv 模板藏在 PyInstaller 字节码里无法静态读出，运行期抓取是最短事实路径。
 
 ## 1. 实验方法
 
-- **监视器**：PowerShell `Get-CimInstance Win32_Process` 200ms 轮询、上限 180s，过滤 Name∈{jsr_backend.exe, jsr_v98_k14_backend.exe, jsr_fast_k14_backend.exe, raw_bridge.exe, jxl_worker.exe, Jiangtherapee Bridge.exe}，按 (pid, commandline) 去重追加日志。脚本与日志在任务工作区（未提交，Task 3 直接复用）：`.superpowers/sdd/2026-10-15-argv-probe-dark-regen-233/argv-monitor.ps1` + `argv-capture.log`。
-- **载具**：E2E `StopMidRun_CancelsWithin5Seconds_NoBackendLeftover_TempDeleted`（真实后端、真机 GPU；运行 30s 进入对齐阶段后取消并树杀）。命令：`set JSR4Z8_E2E=1&& dotnet test --nologo --filter FullyQualifiedName~E2eTests.StopMidRun` —— 通过（1/1，35s）。**本次即抓全，未动用 FullRun_NoDarkFile 重试。**
+- **监视器**：PowerShell `Get-CimInstance Win32_Process` 200ms 轮询、上限 180s，过滤 Name∈{jsr_backend.exe, jsr_v98_k14_backend.exe, jsr_fast_k14_backend.exe, raw_bridge.exe, jxl_worker.exe, Jiangtherapee Bridge.exe}，按 (pid, commandline) 去重追加日志。脚本与日志在任务工作区（未提交）：`.superpowers/sdd/2026-10-15-argv-probe-dark-regen-233/argv-monitor.ps1` + `argv-capture.log`。
+- **载具**：E2E `StopMidRun_CancelsWithin5Seconds_NoBackendLeftover_TempDeleted`（真实后端、真机 GPU；运行 30s 进入对齐阶段后取消并树杀）。命令：`set JSR4Z8_E2E=1&& dotnet test --nologo --filter FullyQualifiedName~E2eTests.StopMidRun` —— 通过（1/1，35s）。
 - **时间**：2026-10-15 20:30–20:33 本地。监视窗口 20:30:40.242–20:33:40.494，661 次轮询、6 条唯一观测；每次进程创建后 ≤240ms 即被首次观测到（最大 237ms，200ms 轮询无漏抓迹象）。
 
 ## 2. 捕获结果
@@ -80,7 +80,7 @@ headless 单队列场景的最小集合——多数已有对应物：
 
 ### 3.4 风险
 
-- **未文档化 CLI**：开关集与语义无上游文档，版本间可变；2.3.27 复验见 Task 3。
+- **未文档化 CLI**：开关集与语义无上游文档，版本间可变；2.3.27 复验见 §5。
 - **预览阶段未知**：preview-input.json/preview.json 内容未采样、是否可省未验证（后续 spike 可在取消前快照 `%TEMP%\Jsr4Z8\<jobId>\cfg\jsr\`）。
 - `--developer-mode` 等默认开关的副作用未知；退出码归属（双实例）未验证。
 - 直调后引擎裸行/退出码语义是否与经 Bridge 转述时一致，需实跑比对。
@@ -89,9 +89,9 @@ headless 单队列场景的最小集合——多数已有对应物：
 
 **有条件可行（倾向可行）**：主算入口的 argv 完全由「我们已持有的请求语义 + 可按观测值硬编码的 Bridge 默认开关」构成，不存在不透明句柄/管道等不可自建依赖；harness 功能面在本项目里几乎全部已有对应物（裸行解析、树杀、产物核验、排他串行）。剩余未知集中在两处：① 预览阶段（`--bridge-preview` 两个 JSON 的内容与必要性）；② 未文档化 CLI 的版本稳定性——**2.3.27 复验已通过（§5）**。
 
-**更新（2026-10-15 晚，§6/§7 实证后）**：两个剩余未知均已实跑关闭——预览产物仅为 Bridge 自身 UI 生成缩略图/元数据（§6 采样），主算链对 cfg/预览零依赖（§7 无 cfg 无预览真机直调全绿）。**用户已裁定：绕过 Bridge、直调立项实施；预览链按用户裁定永久跳过（本 GUI 无预览面）**——即本文 §4 的“spike 后再议”已升级为“已立项实施”，预览非必需由 §6/§7 实证背书。**已实施（Task 3）：载荷不再携带 Bridge.exe（排除清单防回潮；直调端到端 E2E 已全量重验，见 task-3-report）**。
+**后续实证（§6/§7）**：两个剩余未知均已实跑关闭——预览产物仅为 Bridge 自身 UI 生成缩略图/元数据（§6 采样），主算链对 cfg/预览零依赖（§7 无 cfg 无预览真机直调全绿）。**最终裁定与事实：绕过 Bridge、直调实施；预览链永久跳过（本 GUI 无预览面）；载荷不携带 Bridge.exe（排除清单防回潮），直调端到端 E2E 全量重验通过。**
 
-## 5. 2.3.27 复验：argv 契约一致（2026-10-15，Task 3）
+## 5. 2.3.27 复验：argv 契约一致（2026-10-15）
 
 载荷升级 2.3.27（裁剪后 manifest hash `fa541adf…`）后，以同一监视器（argv-monitor.ps1，本次日志 `argv-capture-233.log`，工作区）在 E2E 真机运行中复抓：
 
@@ -101,7 +101,7 @@ headless 单队列场景的最小集合——多数已有对应物：
 
 结论：§3/§4 的直调可行性分析对 2.3.27 继续成立，无需修正。
 
-## 6. 预览链采样：两个 JSON 的实际内容（2026-10-15 23:08–23:14，Task 1）
+## 6. 预览链采样：两个 JSON 的实际内容（2026-10-15 23:08–23:14）
 
 **方法**：E2E `FullRun_NoDarkFile_PresetAutoMatch_ProducesValidJsrDng`（通过，1/1，6m02s）真机运行期间，PowerShell 监视器以 200ms 轮询 `%TEMP%\Jsr4Z8\*\cfg\jsr\*`，文件集一变即整目录快照到工作区——`preview-input.json` 落盘后 215ms（23:08:33.375 写入 → 23:08:33.590 快照）即被捕获，早于预览链进程创建（23:08:33.376）之后的主算阶段；`preview.json` 于预览完成时（23:08:36.947）由第二次快照补齐。共捕获 5 文件：`preview-input.json`(570B)、`preview.json`(426,215B)、`preview.log`(0B)、`EXECUTION.lock`(0B)、`job-1792076917463.log`(15,891B，引擎自写的主算 stdout 副本，尾行 `DONE total 335.9s`)。全文存工作区 `preview-sample/cefbbf9d27934527be62908fa9055254/`（不提交）。
 
@@ -140,7 +140,7 @@ headless 单队列场景的最小集合——多数已有对应物：
 
 **一段话分析**：预览链是 Bridge 自身 UI 的“取景/确认”服务——`preview-input.json` 只有引擎名（`stormer7`）与 7 帧路径（请求方早已持有的信息原样回显）；`preview.json` 则是 Bridge 面向用户的帧清单（逐帧 EXIF：ISO/快门/机身/EV）、参考帧选定（`reference`=3 → DSC_7579）、8280×5520 传感器尺寸、曝光确认/PTC 自动匹配提示文案，外加一张约 415KB 的 base64 JPEG 缩略图（占该文件 99% 体积）。主算 argv 从不引用这两个文件（§2/§5 契约），其“消费方”只可能是 Bridge 的图形界面（曝光确认对话框、预览图）；本 GUI 无预览面，故按用户裁定永久跳过合理且无损——§7 的无 cfg、无预览直调双组全绿进一步实证主算链对预览零依赖。附带收益：跳过预览每任务省 ~4.2s（23:08:33.376→23:08:37.551）与一整对引擎双实例（省 2 进程）。
 
-## 7. 无预览直调实证：裸行协议、退出码归属与杀树完整性（2026-10-15 23:15–23:30，Task 1）
+## 7. 无预览直调实证：裸行协议、退出码归属与杀树完整性（2026-10-15 23:15–23:30）
 
 **方法**：以 §2/§5 捕获的 argv 契约逐字手工拼装（cmd/ps1 脚本，工作区 `scripts/`），直接 spawn `…backend\\fa541adff100e78e\\resources\\jsr_backend.exe`——**不建 cfg、不跑预览、不经 Bridge**；job 目录在独立工作区临时目录，stdout/stderr 重定向到文件，argv-monitor（§1 同款）全程伴跑；RN=14.07 / BL=1008 / FW=1102.2（ISO3200 无损行，z8_presets 102 行表）。
 
@@ -154,11 +154,11 @@ headless 单队列场景的最小集合——多数已有对应物：
 
 注：run2 沿用无损 ISO3200 行的 RN/BL——该组仅验证 HE 解码路径与管线形状，不标定精度。run0（未入表）：首版 harness 把 7 帧误拼成单个逗号串参数，引擎预检即拒（运行时观测，该次日志未留存）：stdout 裸行 `SRHQ_NET_ABORT:preflight|此 Transformer 权重需要七张互不重复的 RAW` + stderr Python `ValueError` 回溯，无 DNG——同时给出失败形态证据：**裸 abort 行走 stdout、诊断回溯走 stderr**，主算对 cfg/预览仍未索取任何前置。
 
-### 7.2 裸 stdout 协议（run1 全量 324 行，run2 同构；存档 `direct_success.log` 供 Task 2 夹具）
+### 7.2 裸 stdout 协议（run1 全量 324 行，run2 同构；存档 `direct_success.log`）
 
 - **零信封**：两跑 `ASSISTANT_JSR` 计数均为 0——裸行即引擎本体输出，与 §3.2 判断一致。
 - 行型清单（run1 计数）：`PTC {…}` 1、`SRHQ_V12_FRAME\|i\|ev\|shutter\|path` 7、ColorMatrix/camera profile 各 1、`SRHQ_EFFECTIVE_ENGINE\|v12\|v12-wgpu\|…` 1、`SENSOR_LEVELS [{…}]` 1、Proxy n/7 若干、`SRHQ_V12_PROGRESS\|pct\|desc` 110、`SRHQ_ETA_PROGRESS\|stage\|done\|total` 87、`V12 output: <dir>` 1、`DONE total <sec>s` 1。
-- 首行为 `PTC {…}`（手动 RN/满阱回显），尾三行 `SRHQ_V12_PROGRESS\|100\|导出完成` → `V12 output: <绝对路径>` → `DONE total 339.2s`；`SRHQ_V12_PROGRESS\|100\|` 恰一次。前 30 行+尾 10 行全文见工作区 `direct_success.log`（15,882B，Task 2 将提交为 `tests/fixtures/protocol/direct_success.log`）。
+- 首行为 `PTC {…}`（手动 RN/满阱回显），尾三行 `SRHQ_V12_PROGRESS\|100\|导出完成` → `V12 output: <绝对路径>` → `DONE total 339.2s`；`SRHQ_V12_PROGRESS\|100\|` 恰一次。前 30 行+尾 10 行全文见工作区 `direct_success.log`（15,882B），已固化为夹具 `tests/fixtures/protocol/direct_success.log`。
 - stderr：run1/run2 均为 0 字节（诊断全部走 stdout；stderr 不参与协议）。
 
 ### 7.3 双实例自重复：时序与退出码归属（Phase A + run0–3 共 6 对观测）

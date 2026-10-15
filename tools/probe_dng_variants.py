@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Forensic tool: ACR-bisection minimal-DNG generator (pylibjpeg decode / imagecodecs encode).
-# Used in the 2026-10 DefaultCropOrigin campaign (ACR refuses absolute-origin crops).
+# Used to adjudicate ACR's crop-origin rejection (ACR refuses absolute-origin crops).
 # Not part of the build; run manually on a machine with ACR for final adjudication.
 """Generate minimal LinearRaw DNG variants (P1 strips / P2 tiles) for ACR bisection.
 Pixels: decoded from our JSR_DSC_7576.dng tiles via pylibjpeg (classic IJG decoder).

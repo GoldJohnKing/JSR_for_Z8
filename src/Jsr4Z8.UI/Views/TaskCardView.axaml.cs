@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.IO;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -87,7 +86,7 @@ public partial class TaskCardView : UserControl
             }
         });
 
-        string[] paths = FilterNefPaths(files.Select(f => f.TryGetLocalPath()));
+        string[] paths = NefFiles.FilterNefPaths(files.Select(f => f.TryGetLocalPath()));
         if (paths.Length > 0)
             await vm.AddFilesAsync(paths);
     }
@@ -97,7 +96,7 @@ public partial class TaskCardView : UserControl
     private void OnCardDragOver(object? sender, DragEventArgs e)
     {
         e.Handled = true;
-        bool accept = DataContext is TaskGroupViewModel { IsEditable: true } && HasNefPayload(e);
+        bool accept = DataContext is TaskGroupViewModel { IsEditable: true } && NefFiles.HasNefPayload(e);
         e.DragEffects = accept ? DragDropEffects.Copy : DragDropEffects.None;
         Root.Classes.Set("st-droptarget", accept);
     }
@@ -109,7 +108,7 @@ public partial class TaskCardView : UserControl
         Root.Classes.Set("st-droptarget", false);
         if (DataContext is not TaskGroupViewModel vm)
             return;
-        string[] paths = FilterNefPaths(
+        string[] paths = NefFiles.FilterNefPaths(
             e.Data.GetFiles()?.Select(f => f.TryGetLocalPath())
             ?? Enumerable.Empty<string?>());
         if (paths.Length > 0)
@@ -120,17 +119,4 @@ public partial class TaskCardView : UserControl
     {
         Root.Classes.Set("st-droptarget", false);
     }
-
-    /// <summary>拖放与文件选择器共用的 NEF 过滤（MainWindow 同式）：非空且扩展名 .nef。</summary>
-    private static string[] FilterNefPaths(IEnumerable<string?> paths) =>
-        paths.Where(p => !string.IsNullOrEmpty(p) && IsNef(p))
-             .Select(p => p!)
-             .ToArray();
-
-    private static bool HasNefPayload(DragEventArgs e) =>
-        e.Data.GetFiles() is { } items && items.Any(f =>
-            f.TryGetLocalPath() is { } path && IsNef(path));
-
-    private static bool IsNef(string path) =>
-        string.Equals(Path.GetExtension(path), ".nef", StringComparison.OrdinalIgnoreCase);
 }

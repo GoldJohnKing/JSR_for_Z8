@@ -16,11 +16,11 @@ public enum IssueKind
     /// <summary>ISO differs from the reference frame beyond the 1e-6 relative tolerance.</summary>
     IsoMismatch,
 
-    /// <summary>A required file raised RawReadException (frames or a user-set dark file).</summary>
+    /// <summary>A required file raised RawReadException (a frame).</summary>
     Unreadable,
 
     /// <summary>ISO is NaN or ±∞ — rejected here so it can never reach PtcTable.Lookup
-    /// (Task 4 carried finding: Lookup(NaN) would return a NaN fit value).</summary>
+    /// (Lookup(NaN) would return a NaN fit value).</summary>
     NotFiniteIso,
 
     /// <summary>Bit depth (TIFF BitsPerSample) differs from the reference frame.</summary>
@@ -53,7 +53,7 @@ public sealed record ValidationResult(
     bool CanRun, IReadOnlyList<ValidationIssue> Issues, PtcMatch? Ptc, DarkMatch? Dark = null);
 
 /// <summary>
-/// Validates a <see cref="TaskGroup"/> (7 frames + optional dark) for the
+/// Validates a <see cref="TaskGroup"/> (7 frames) for the
 /// five-dimension capture contract: 机型/ISO/位深/压缩/画幅 must be pairwise
 /// identical across the 7 frames (model per-file as Nikon Z8; the rest vs the
 /// reference frame). Table matching: PTC is a per-pixel parameter keyed on
@@ -68,8 +68,7 @@ public sealed record ValidationResult(
 /// </summary>
 public static class TaskGroupValidator
 {
-    /// <summary>The exact frame count a <see cref="TaskGroup"/> requires (7 frames);
-    /// the dialog's ✓ line gates on it too.</summary>
+    /// <summary>The exact frame count a <see cref="TaskGroup"/> requires (7 frames).</summary>
     public const int RequiredFrames = 7;
     private const double IsoRelativeTolerance = 1e-6;
     private const string NikonPrefix = "nikon";
@@ -178,10 +177,10 @@ public static class TaskGroupValidator
             double baseIso = referenceMeta.Iso;
             if (double.IsFinite(baseIso))
             {
-                // Five-dimension capture consistency: every file —
-                // the 7 frames AND a user-supplied dark — must match the reference
-                // frame on ISO, bit depth, compression and crop window (model
-                // identity is checked per-file above). Any mismatch blocks the run.
+                // Five-dimension capture consistency: every frame
+                // must match the reference frame on ISO, bit depth, compression and
+                // crop window (model identity is checked per-file above). Any
+                // mismatch blocks the run.
                 foreach ((string path, RawMetadata m) in files)
                 {
                     if (!double.IsFinite(m.Iso))

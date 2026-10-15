@@ -3,7 +3,7 @@ using Jsr4Z8.UI.ViewModels;
 namespace Jsr4Z8.UI.Services;
 
 /// <summary>
-/// Execution seam between a task card and the real pipeline (Task 13's queue engine):
+/// Execution seam between a task card and the real pipeline (the queue engine):
 /// invoked once the card has entered Running; the implementation owns progress/log
 /// events and finishes the card through <see cref="TaskGroupViewModel.GoDone"/> /
 /// <see cref="TaskGroupViewModel.GoFailed"/>. <see cref="IsBusy"/> is the queue's

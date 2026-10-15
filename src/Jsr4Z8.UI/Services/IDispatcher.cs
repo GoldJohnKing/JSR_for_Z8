@@ -4,7 +4,7 @@ namespace Jsr4Z8.UI.Services;
 
 /// <summary>
 /// UI-thread marshal seam for components that receive events on background threads
-/// (Task 13's queue). Production wraps Avalonia's Dispatcher.UIThread; headless tests
+/// (the queue). Production wraps Avalonia's Dispatcher.UIThread; headless tests
 /// inject a synchronous dispatcher that runs posts inline.
 /// </summary>
 public interface IDispatcher

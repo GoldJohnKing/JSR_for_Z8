@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using Avalonia.Controls;
@@ -39,7 +38,7 @@ public partial class MainWindow : Window
         // Drop target opt-in (Avalonia defaults to false → OLE reports no effects).
         DragDrop.SetAllowDrop(this, true);
         // handledEventsToo: cards consume DragOver (e.Handled) for 卡内补齐 — the window
-        // still needs to see those events to hide its overlay instantly (F1).
+        // still needs to see those events to hide its overlay instantly.
         AddHandler(DragDrop.DragOverEvent, OnDragOver, RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(DragDrop.DropEvent, OnDrop);
         AddHandler(DragDrop.DragLeaveEvent, OnDragLeave);
@@ -78,7 +77,7 @@ public partial class MainWindow : Window
     private void OnDragOver(object? sender, DragEventArgs e)
     {
         // A descendant (task card) already consumed the drag — kill the window-level
-        // hint instantly and leave e.Handled/effects to the card (F1).
+        // hint instantly and leave e.Handled/effects to the card.
         if (e.Handled)
         {
             if (ViewModel is { } vmHide)
@@ -88,7 +87,7 @@ public partial class MainWindow : Window
         }
 
         e.Handled = true;
-        bool nef = HasNefPayload(e);
+        bool nef = NefFiles.HasNefPayload(e);
         e.DragEffects = nef ? DragDropEffects.Copy : DragDropEffects.None;
         if (ViewModel is { } vm)
             vm.IsDragOver = nef;
@@ -112,7 +111,7 @@ public partial class MainWindow : Window
         if (ViewModel is not { } vm)
             return;
         vm.IsDragOver = false;
-        string[] paths = FilterNefPaths(
+        string[] paths = NefFiles.FilterNefPaths(
             e.Data.GetFiles()?.Select(f => f.TryGetLocalPath())
             ?? Enumerable.Empty<string?>());
         if (paths.Length > 0)
@@ -133,25 +132,10 @@ public partial class MainWindow : Window
             }
         });
 
-        string[] paths = FilterNefPaths(files.Select(f => f.TryGetLocalPath()));
+        string[] paths = NefFiles.FilterNefPaths(files.Select(f => f.TryGetLocalPath()));
         if (paths.Length > 0 && ViewModel is { } vm)
             await vm.AddFilesAsync(paths);
     }
-
-    /// <summary>拖放与文件选择器共用的 NEF 过滤：非空且扩展名为 .nef（忽略大小写）。</summary>
-    private static string[] FilterNefPaths(IEnumerable<string?> paths) =>
-        paths.Where(p => !string.IsNullOrEmpty(p) && IsNef(p))
-             .Select(p => p!)
-             .ToArray();
-
-    /// <summary>The cursor shows Copy only for payloads carrying at least one .NEF — the
-    /// Z 8 writes NEF only; text/image payloads and NEF-less file lists are rejected.</summary>
-    private static bool HasNefPayload(DragEventArgs e) =>
-        e.Data.GetFiles() is { } items && items.Any(f =>
-            f.TryGetLocalPath() is { } path && IsNef(path));
-
-    private static bool IsNef(string path) =>
-        string.Equals(Path.GetExtension(path), ".nef", StringComparison.OrdinalIgnoreCase);
 
     // ---------- 主题切换 ----------
 

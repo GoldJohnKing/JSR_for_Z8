@@ -5,7 +5,7 @@ using Jsr4Z8.Core.Native;
 
 namespace Jsr4Z8.Core.Dng;
 
-/// <summary>One backend JSR product DNG, fully read back (Task 9 input side).</summary>
+/// <summary>One backend JSR product DNG, fully read back.</summary>
 public sealed record BackendDng
 {
     /// <summary>Interleaved samples, row-major; length = W·H·Samples.</summary>
@@ -39,7 +39,7 @@ public sealed record BackendDng
 /// finalizer carries forward. Strip storage only, both compressed
 /// (lossless JPEG, any predictor 1-7 — decoded via libjpeg-turbo through
 /// <see cref="DngLjpegNative.ljd_decode_stream"/>) and uncompressed.
-/// <see cref="ReadStrips"/> is the no-decode variant (post-release fix 5):
+/// <see cref="ReadStrips"/> is the no-decode variant:
 /// metadata + the encoded strip bytes verbatim, for passthrough re-emission.
 /// </summary>
 public static class BackendDngReader
@@ -87,7 +87,7 @@ public static class BackendDngReader
     }
 
     /// <summary>
-    /// Passthrough read (post-release fix 5 bisection seam): the raw SubIFD's
+    /// Passthrough read (bisection seam): the raw SubIFD's
     /// domain tags plus every strip's encoded bytes VERBATIM — no pixel
     /// decode. Pairs with <see cref="DngWriteOptions.RawStreams"/>: the caller
     /// re-emits the backend's own entropy bytes inside the product wrapper.
