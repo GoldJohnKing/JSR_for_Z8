@@ -32,7 +32,7 @@ public enum TaskState
 /// frame whose read is RECORDED as failed, "" for a frame not yet read — F4: an
 /// instantly created card's frames are uncached until its validation flight lands);
 /// <see cref="EvText"/> is the ±EV deviation tag the view renders instead of the ★ on
-/// bracketed (非等曝光) cards — "0.0" on the reference, "—" without a usable
+/// bracketed (非等曝光) cards — "0.0 EV" on the anchor frame, "—" without a usable
 /// exposure.</summary>
 public sealed partial class FrameChipViewModel : ObservableObject
 {
@@ -45,9 +45,12 @@ public sealed partial class FrameChipViewModel : ObservableObject
     [ObservableProperty] private bool _isReference;
     [ObservableProperty] private string _infoText;
 
-    /// <summary>±EV deviation vs the card's current reference (F3): recomputed by the
-    /// card VM wherever chips are rebuilt and on a reference swap (clicking the tag
-    /// sets that frame as reference). Empty only before the first refresh.</summary>
+    /// <summary>±EV deviation vs the card's FIXED middle-exposure anchor (F3): the
+    /// auto <see cref="TaskGroupCreator.PickReference"/> pick over the current file
+    /// set — NOT the current reference frame — so the values are stable identifiers of
+    /// each frame's bracket position. Recomputed only where chips are rebuilt (file-set
+    /// changes); a reference swap never touches it. Empty only before the first
+    /// refresh.</summary>
     [ObservableProperty] private string _evText = "";
 
     public FrameChipViewModel(string path, bool isReference, RawMetadata? meta, bool readFailed)
@@ -417,7 +420,8 @@ public partial class TaskGroupViewModel : ObservableObject
     /// frames keep display order) and ReferenceName/OutputName follow. No
     /// revalidation here: PTC/dark depend on ISO+compression, which are group-uniform
     /// when runnable (Blocked groups hold null either way), and the existing issues
-    /// text stays. The ±EV tags all re-anchor to the new reference (F3). Removing the
+    /// text stays. The ±EV tags stay put — they are anchored to the fixed
+    /// middle-exposure pick, not the reference (F3). Removing the
     /// starred frame later falls back to the automatic rule.</summary>
     [RelayCommand(CanExecute = nameof(CanSetReference))]
     private void SetReference(FrameChipViewModel chip)
@@ -634,8 +638,9 @@ public partial class TaskGroupViewModel : ObservableObject
     }
 
     /// <summary>Star-only apply (no revalidation): rebuild Group reference-first, follow
-    /// ReferenceName/OutputName, move the ★ flags — chips never change order — and
-    /// re-anchor every chip's ±EV tag to the new reference (F3, no re-read).</summary>
+    /// ReferenceName/OutputName, move the ★ flags — chips never change order. The ±EV
+    /// tags are NOT recomputed: they stay anchored to the fixed middle-exposure anchor,
+    /// so the values never move on a reference swap (F3, no re-read).</summary>
     private void ApplyReference(string reference)
     {
         Group = BuildGroup(_framePaths, reference);
@@ -644,7 +649,6 @@ public partial class TaskGroupViewModel : ObservableObject
         OutputName = $"JSR_{Path.GetFileNameWithoutExtension(ReferenceName)}.dng";
         foreach (FrameChipViewModel chip in FrameChips)
             chip.IsReference = string.Equals(chip.Path, reference, StringComparison.OrdinalIgnoreCase);
-        RefreshEvTags(reference);
     }
 
     /// <summary>Full apply after revalidation: Group, chips (natural order, ★ flags,
@@ -680,7 +684,8 @@ public partial class TaskGroupViewModel : ObservableObject
     /// present in <c>_readErrors</c>) renders 无法读取, and an uncached path — never
     /// read yet, e.g. an F4 instant card before its validation flight lands — renders
     /// "" (not yet read ≠ unreadable). Then refreshes the bracket flag and every ±EV
-    /// tag.</summary>
+    /// tag against the fixed anchor — this rebuild path (ctor + every file-set
+    /// change) is the ONLY place the anchor exposure is (re)computed.</summary>
     private void RebuildChips()
     {
         FrameChips.Clear();
@@ -697,15 +702,18 @@ public partial class TaskGroupViewModel : ObservableObject
                     string.Equals(path, reference, StringComparison.OrdinalIgnoreCase),
                     null,
                     _readErrors.ContainsKey(path)));
-        RefreshEvTags(reference);
+        RefreshEvTags();
     }
 
     /// <summary>±EV 重算 (F3): sets <see cref="IsBracketed"/> (any two readable positive
     /// exposures beyond <see cref="TaskGroupCreator.ExposureEqual"/> — an unreadable
-    /// frame carries no signal and never counts) and every chip's EvText against
-    /// <paramref name="reference"/>. Called wherever chips are (re)built and on a
-    /// reference swap — both read only the metadata caches, never the files.</summary>
-    private void RefreshEvTags(string reference)
+    /// frame carries no signal and never counts) and every chip's EvText against the
+    /// FIXED anchor — the auto <see cref="TaskGroupCreator.PickReference"/> middle
+    /// exposure over the current file set, NOT the current reference frame (values are
+    /// stable identifiers of each frame's bracket position; a reference swap never
+    /// recomputes them). Called only from <see cref="RebuildChips"/> — i.e. on every
+    /// file-set change — and reads only the metadata caches, never the files.</summary>
+    private void RefreshEvTags()
     {
         double[] exposures = _framePaths
             .Select(p => _meta.TryGetValue(p, out RawMetadata? m) ? m.ExposureTime : 0)
@@ -717,27 +725,41 @@ public partial class TaskGroupViewModel : ObservableObject
                 if (!TaskGroupCreator.ExposureEqual(exposures[i], exposures[j]))
                     bracketed = true;
         IsBracketed = bracketed;
+        if (_framePaths.Count == 0)
+            return;   // empty ctor-time group: PickReference needs paths[0] — nothing to tag
 
-        double tRef = _meta.TryGetValue(reference, out RawMetadata? refMeta) ? refMeta.ExposureTime : 0;
+        string anchor = TaskGroupCreator.PickReference(_framePaths, ReadForEvAnchor);
+        double tAnchor = _meta.TryGetValue(anchor, out RawMetadata? anchorMeta) ? anchorMeta.ExposureTime : 0;
         foreach (FrameChipViewModel chip in FrameChips)
             chip.EvText = ComputeEvText(
                 _meta.TryGetValue(chip.Path, out RawMetadata? m) ? m.ExposureTime : 0,
-                tRef);
+                tAnchor);
     }
 
-    /// <summary>±EV text for one chip (F3): ev = log2(t/t基准), displayed with a sign
-    /// on positive values and one decimal ("+1.0"/"-3.0"); |ev|&lt;0.05 — and the
-    /// reference itself (t/t基准 = 1 → ev = 0) — reads "0.0"; an unusable exposure on
-    /// either side (unreadable frame, ExposureTime&lt;=0, missing reference) reads "—"
-    /// for that frame.</summary>
+    /// <summary>EV-anchor read for <see cref="RefreshEvTags"/>: cache hit only — a miss
+    /// (not-yet-read F4 frame or recorded failure) throws, which PickReference's TryRead
+    /// reads as no bracketing signal. Without this, the anchor pick would fall through
+    /// to <see cref="ReadCached"/>'s REAL read and block the UI thread on an F4 instant
+    /// card's construction (its tags stay "—" until the validation flight lands and the
+    /// recompute re-picks the anchor from the now-full cache).</summary>
+    private RawMetadata ReadForEvAnchor(string path) =>
+        _meta.TryGetValue(path, out RawMetadata? cached)
+            ? cached
+            : throw new RawReadException("尚未读取");
+
+    /// <summary>±EV text for one chip (F3): ev = log2(t/t锚点), displayed with the EV
+    /// unit — a sign on positive values and one decimal ("+1.0 EV"/"-3.0 EV");
+    /// |ev|&lt;0.05 — and the anchor itself (t/t锚点 = 1 → ev = 0) — reads "0.0 EV"; an
+    /// unusable exposure on either side (unreadable frame, ExposureTime&lt;=0, missing
+    /// anchor) reads "—" for that frame.</summary>
     public static string ComputeEvText(double exposure, double referenceExposure)
     {
         if (exposure <= 0 || referenceExposure <= 0)
             return "—";
         double ev = Math.Log2(exposure / referenceExposure);
         if (Math.Abs(ev) < 0.05)
-            return "0.0";
-        return (ev > 0 ? "+" : "") + ev.ToString("0.0", CultureInfo.InvariantCulture);
+            return "0.0 EV";
+        return (ev > 0 ? "+" : "") + ev.ToString("0.0", CultureInfo.InvariantCulture) + " EV";
     }
 
     /// <summary>Memoized reader for revalidation/reference recomputes: cache hit → the

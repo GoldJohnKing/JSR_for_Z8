@@ -640,23 +640,35 @@ public class TaskGroupVmTests
     // ---- Task 2 (F3): ±EV 偏差胶囊 -----------------------------------------------
 
     /// <summary>Bracketed card: every chip's EvText is the EV deviation relative to the
-    /// CURRENT reference (the creator's middle-exposure pick 1/1000) — "+"/"-" with one
-    /// decimal, the reference itself 0.0 — and <see cref="TaskGroupViewModel.IsBracketed"/>
-    /// is true, so the view swaps the ★ button for the ±EV tag.</summary>
+    /// FIXED middle-exposure anchor (the creator's auto pick 1/1000 — 0EV 锚点恒为中间
+    /// 曝光，不随基准帧切换) — "+"/"-" with one decimal, the anchor frame itself
+    /// "0.0 EV" — and <see cref="TaskGroupViewModel.IsBracketed"/> is true, so the
+    /// view swaps the ★ button for the ±EV tag. A manual reference on the 1/500 frame
+    /// moves the 基准/★ but leaves every EV anchored to the 1/1000 middle.</summary>
     [Fact]
-    public async Task Bracketed_EvTexts_RelativeToReference()
+    public async Task Bracketed_EvTexts_FixedMiddleAnchor()
     {
         var vm = await BracketedVmAsync();
 
         Assert.True(vm.IsBracketed);
         Assert.Equal(Frames[3], vm.Group.ReferencePath);           // 中间曝光 1/1000 = 基准
         Assert.Equal(
-            new[] { "-3.0", "-2.0", "-1.0", "0.0", "+1.0", "+2.0", "+3.0" },
+            new[] { "-3.0 EV", "-2.0 EV", "-1.0 EV", "0.0 EV", "+1.0 EV", "+2.0 EV", "+3.0 EV" },
+            vm.FrameChips.Select(c => c.EvText).ToArray());
+
+        // 手动基准 = 1/500 帧：EV 仍锚定 1/1000 中间曝光（固定锚点，不随基准切换）
+        vm.SetReferenceCommand.Execute(vm.FrameChips[4]);
+
+        Assert.True(vm.FrameChips[4].IsReference);
+        Assert.False(vm.FrameChips[3].IsReference);                // 中间曝光帧不再是基准
+        Assert.Equal("0.0 EV", vm.FrameChips[3].EvText);           // …却仍恒为 0EV 锚点
+        Assert.Equal(
+            new[] { "-3.0 EV", "-2.0 EV", "-1.0 EV", "0.0 EV", "+1.0 EV", "+2.0 EV", "+3.0 EV" },
             vm.FrameChips.Select(c => c.EvText).ToArray());
     }
 
     /// <summary>Equal exposures keep the star path: IsBracketed false and every EvText
-    /// reads 0.0 (equal cards show ★, not the ±EV tag).</summary>
+    /// reads 0.0 EV (equal cards show ★, not the ±EV tag).</summary>
     [Fact]
     public void EqualExposure_NotBracketed_StarPath()
     {
@@ -664,29 +676,36 @@ public class TaskGroupVmTests
             metadata: Frames.ToDictionary(f => f, _ => Meta(), StringComparer.OrdinalIgnoreCase));
 
         Assert.False(vm.IsBracketed);
-        Assert.All(vm.FrameChips, c => Assert.Equal("0.0", c.EvText));
+        Assert.All(vm.FrameChips, c => Assert.Equal("0.0 EV", c.EvText));
     }
 
-    /// <summary>Review Focus 2: a reference swap recomputes the whole row's EV — starring
-    /// the 1/500 frame makes it 0.0 and re-anchors every other chip (the old reference
-    /// drops to -1.0) without reordering chips or revalidating.</summary>
+    /// <summary>Fixed anchor (EV 恒以中间曝光为 0EV 锚点): starring the 1/500 frame moves
+    /// the 基准/★ but leaves EVERY chip's EvText untouched (the EVs are stable identifiers
+    /// of each frame's bracket position — before/after asserted as exact strings), and
+    /// chips never reorder.</summary>
     [Fact]
-    public async Task SetReference_RecomputesAllEv()
+    public async Task SetReference_DoesNotChangeEv_FixedMiddleAnchor()
     {
         var vm = await BracketedVmAsync();
+        string[] before = vm.FrameChips.Select(c => c.EvText).ToArray();
+        Assert.Equal(
+            new[] { "-3.0 EV", "-2.0 EV", "-1.0 EV", "0.0 EV", "+1.0 EV", "+2.0 EV", "+3.0 EV" },
+            before);
 
         vm.SetReferenceCommand.Execute(vm.FrameChips[4]);          // 1/500 帧设为基准
 
-        Assert.True(vm.FrameChips[4].IsReference);
-        Assert.Equal(
-            new[] { "-4.0", "-3.0", "-2.0", "-1.0", "0.0", "+1.0", "+2.0" },
-            vm.FrameChips.Select(c => c.EvText).ToArray());
+        Assert.True(vm.FrameChips[4].IsReference);                 // 基准移到 1/500
+        Assert.False(vm.FrameChips[3].IsReference);
+        Assert.Equal(before, vm.FrameChips.Select(c => c.EvText).ToArray());   // EV 全部不变
+        Assert.Equal("0.0 EV", vm.FrameChips[3].EvText);           // 中间曝光恒 0EV（非基准也如此）
         Assert.Equal(Frames, vm.FrameChips.Select(c => c.Path).ToArray());   // 星标不重排
     }
 
     /// <summary>An unreadable frame carries no exposure signal: its tag reads — while
-    /// the readable frames keep numeric EVs, and IsBracketed is computed from the
-    /// readable frames only (same missing-metadata condition as 无法读取).</summary>
+    /// the readable frames keep numeric EVs against the fixed middle-exposure anchor
+    /// (PickReference sorts the unreadable frame's 0 exposure first, so the 1/2000
+    /// frame lands mid-list and becomes the anchor), and IsBracketed is computed from
+    /// the readable frames only (same missing-metadata condition as 无法读取).</summary>
     [Fact]
     public void UnreadableFrame_EvDash()
     {
@@ -698,7 +717,7 @@ public class TaskGroupVmTests
 
         Assert.True(vm.IsBracketed);                              // 只看可读帧
         Assert.Equal(
-            new[] { "0.0", "+1.0", "+2.0", "+3.0", "+4.0", "+5.0", "—" },
+            new[] { "-2.0 EV", "-1.0 EV", "0.0 EV", "+1.0 EV", "+2.0 EV", "+3.0 EV", "—" },
             vm.FrameChips.Select(c => c.EvText).ToArray());
         Assert.Equal(string.Empty, vm.FrameChips[6].InfoText);   // 未读取 → 空（F4），非 无法读取
     }
