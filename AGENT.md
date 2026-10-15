@@ -26,7 +26,7 @@
 ## 3. 架构
 
 ```
-Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐/设置)
+Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐)
    └─ QueueMediator(单飞+IDispatcher UI 线程编组+进度节流200ms)
         └─ TaskQueueRunner(顺序队列: 释放载荷→临时目录→BuildArguments argv→BackendRunner(直调)→JsrDngFinalizer)
              ├─ PayloadManager: exe 内嵌载荷(裸DEFLATE) → %LOCALAPPDATA%\JSR4Z8\backend\<hash>\（resources\ 引擎树）释放+SHA校验+自愈+旧版本目录清理
@@ -53,7 +53,7 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐/
 
 ## 5. 关键决策（用户裁定，勿推翻）
 
-1. **不传显存预算**（用户明确要求"始终不限制"）——设置界面无此项。
+1. **不传显存预算**（用户明确要求"始终不限制"）。**设置功能已整体移除（2026-10-16 用户裁定）**：恒默认行为——输出=基准帧同目录、临时=%TEMP%，不再从配置文件保存/加载配置。
 2. **最终 DNG 的 IFD0 无 Artist、Software="JSR for Z8"**——后端算法署名不进 IFD0（载荷不再携带 THIRD_PARTY_NOTICES.md——用户裁定；第三方许可仍在 resources/licenses 内随载荷分发）；NEF EXIF 区内摄影者自有标签照常迁移。
 3. **黑场标定恒为预置自动匹配（无手动黑场文件路径）**。7 帧在 **机型/ISO/位深/压缩/画幅** 五维两两一致（机型逐文件验 Z8；位深=TIFF BitsPerSample、压缩=MakerNote NEFCompression、画幅=raw 尺寸；**陷阱**：Z8 全部 NEF 的 TIFF Compression 恒 34713，HE(13)/HE*(14) 与无损(3) 只能靠 NEFCompression 判别），任一不一致禁止执行。PTC 按机型+ISO 匹配（单像素参数，读出维度不影响归一化 shot 斜率）；预置黑场 `Dark/Embedded/dark_z8.csv`（102 行 = 34 档 ISO × 3 压缩，后端 2.3.27 z8_presets manifest 离线导出：black_dn 标称、RN=√四相位时域方差均值、映射 0→3/3→14/4→13；旧自测 93 行表弃用；Lo 档 32/40/50 为完备性纳入）按 **(压缩,ISO) 双键**精确匹配——画幅不参与（读噪与画幅无关，DX vs FX ≤1%@高ISO，任意画幅取 FX 行）。画像外（12bit）或表外 ISO → `CaptureFormatUnsupported`"拍摄格式不支持"。物理事实：HE/HE\* 读噪比无损 +3~7%（量化噪声叠加；后端 2.3.27 库 Lo 档另见 6~13% 级偏差：无损 Lo32 实测 RN 1.87 vs 64 档 2.00（低约 6%），Lo32 HE 2.12 对无损溢价至 +13%）；ISO500=DCG 切换点故不插值；Lo 扩展档=假ISO（数据≡ISO64，自动命中 64 行）；常规快门不影响标定。
 4. 输出名固定 `JSR_<基准帧名>.dng`；基准帧=等曝光时文件名自然排序第 1 张、曝光包围（仅快门不同）时按曝光升序取中间帧（第 4 张）。任务组可先少后补（卡内「添加 RAW…」按钮或再拖放到卡）；芯片★星标=手动基准（仅就绪/无法执行态可设，星标帧被移除则回退自动选取）；悬浮文件名显示关键参数（机型/快门/光圈/ISO/位深/压缩/画幅/拍摄时间）；>7 或 <7 帧均阻断为「帧数不符」。非等曝光组芯片显示 ±EV 偏差胶囊（点击设基准，等曝光组保留星标；EV 恒以中间曝光为 0EV 锚点，不随基准切换）；拖入/补齐即时建卡并显示校验中 Loading，校验由卡片自持（ValidateAsync），状态条随分组状态着色于卡底。

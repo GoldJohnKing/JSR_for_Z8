@@ -4,34 +4,18 @@ namespace Jsr4Z8.UI.Services;
 
 /// <summary>
 /// Read access to the app settings for the queue (Task 13). Deliberately thin — just
-/// CurrentSettings: the app composes <see cref="SettingsServiceProvider"/> over the
-/// persisted <see cref="SettingsService"/> (Task 14), and the queue keeps reading
-/// whatever is current at each run.
+/// CurrentSettings. The settings feature was removed wholesale (2026-10-16 user
+/// ruling): the app runs on <see cref="DefaultSettingsProvider"/> (plan defaults, no
+/// persistence); the interface stays as QueueMediator's injectable seam for tests.
 /// </summary>
 public interface ISettingsProvider
 {
     AppSettings CurrentSettings { get; }
 }
 
-/// <summary>Headless default: in-memory plan defaults, no persistence. Also the
-/// fallback of a QueueMediator constructed without a provider.</summary>
+/// <summary>Plan defaults, in-memory, no persistence — the app's only settings source
+/// and the fallback of a QueueMediator constructed without a provider.</summary>
 public sealed class DefaultSettingsProvider : ISettingsProvider
 {
     public AppSettings CurrentSettings { get; } = new();
-}
-
-/// <summary>
-/// Task 14 composition: adapts the shared <see cref="SettingsService"/> to
-/// <see cref="ISettingsProvider"/>. CurrentSettings is the service's in-memory current
-/// (loaded from disk at construction, updated by every Save) — the settings dialog and
-/// the queue share one service instance, so a Save is visible to the next run without
-/// any event plumbing.
-/// </summary>
-public sealed class SettingsServiceProvider : ISettingsProvider
-{
-    private readonly SettingsService _service;
-
-    public SettingsServiceProvider(SettingsService service) => _service = service;
-
-    public AppSettings CurrentSettings => _service.Current;
 }

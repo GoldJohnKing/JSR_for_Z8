@@ -19,9 +19,7 @@ namespace Jsr4Z8.UI.ViewModels;
 /// validation:null, 校验中 overlay — and then hands the card its own background
 /// validation flight (<see cref="TaskGroupViewModel.ValidateAsync"/>); the card, not
 /// this VM, owns the validation lifecycle (F4: drop → card appears at once → Ready/
-/// Blocked when the flight lands). The settings dialog is still opened by the app
-/// composition root through <see cref="OpenSettingsRequested"/>, keeping this VM free
-/// of windowing dependencies.
+/// Blocked when the flight lands).
 /// </summary>
 public partial class MainViewModel : ObservableObject
 {
@@ -32,8 +30,6 @@ public partial class MainViewModel : ObservableObject
     private CancellationTokenSource? _queueCts;
 
     public ObservableCollection<TaskGroupViewModel> Tasks { get; } = new();
-
-    public event EventHandler? OpenSettingsRequested;
 
     public MainViewModel(ThemeService? theme = null, ITaskRunner? runner = null, Action<Action>? post = null,
         Func<string, RawMetadata>? read = null)
@@ -181,9 +177,6 @@ public partial class MainViewModel : ObservableObject
         foreach (TaskGroupViewModel vm in Tasks.Where(t => t.State != TaskState.Running).ToList())
             Tasks.Remove(vm);
     }
-
-    [RelayCommand]
-    private void OpenSettings() => OpenSettingsRequested?.Invoke(this, EventArgs.Empty);
 
     [RelayCommand]
     private void ToggleTheme() => _theme.Cycle();

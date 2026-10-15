@@ -21,7 +21,6 @@
         <StreamGeometry x:Key="Icon.Zap">M13 2 3 14h9l-1 8 10-12h-9l1-8z</StreamGeometry>
         <StreamGeometry x:Key="Icon.Moon">M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z</StreamGeometry>
         <StreamGeometry x:Key="Icon.Sun">M7 12a5 5 0 1 0 10 0a5 5 0 1 0-10 0M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42</StreamGeometry>
-        <StreamGeometry x:Key="Icon.Sliders">M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6</StreamGeometry>
     </Window.Resources>
 
     <Window.Styles>
@@ -35,7 +34,7 @@
             <Setter Property="StrokeThickness" Value="1.8" />
         </Style>
 
-        <!-- ============ 顶栏图标按钮（主题/设置）============ -->
+        <!-- ============ 顶栏图标按钮（主题切换）============ -->
         <Style Selector="Button.icon-btn">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -119,12 +118,6 @@
                                   Stroke="{DynamicResource SemiColorText1}" StrokeThickness="2"
                                   Stretch="Uniform" IsVisible="False" />
                         </Panel>
-                    </Button>
-                    <Button Classes="icon-btn" Command="{Binding OpenSettingsCommand}"
-                            ToolTip.Tip="高级设置（输出路径 / 临时路径）">
-                        <Viewbox Width="16" Height="16">
-                            <Path Classes="icon" Data="{StaticResource Icon.Sliders}" />
-                        </Viewbox>
                     </Button>
                 </StackPanel>
             </Grid>

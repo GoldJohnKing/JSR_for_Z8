@@ -22,11 +22,11 @@ public enum TempMode
 
 /// <summary>
 /// App-level settings: a pure record with plan defaults (output next to the reference
-/// frame, OS temp). Task 14 adds persistence on top; the queue reads the values through
+/// frame, OS temp). The settings feature was removed wholesale (2026-10-16 user
+/// ruling) — the app runs on these defaults forever; the queue reads the values through
 /// the UI's ISettingsProvider seam and never mutates them. The VRAM budget field was
 /// removed post-release and the request now omits the memory key entirely (user
-/// directive: 不设预算 — the driver allocates); settings.json files that still
-/// carry a VramGb field keep loading (System.Text.Json ignores unknown members).
+/// directive: 不设预算 — the driver allocates).
 /// </summary>
 public sealed record AppSettings(
     OutputMode OutputMode = OutputMode.SameAsInput,
