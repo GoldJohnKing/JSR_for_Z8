@@ -14,15 +14,15 @@ namespace Jsr4Z8.Tests;
 
 /// <summary>
 /// Task 13: the sequential queue wiring — Core's TaskQueueRunner + UI's QueueMediator +
-/// MainViewModel.StartAll — against the cmd.exe stub harnesses in fixtures\stub_backend\
+/// MainViewModel.StartAll — against the cmd.exe stub engines in fixtures\stub_backend\
 /// (BackendRunnerTests already prove the process runner itself; these tests prove the
 /// queue semantics): sequential one-at-a-time execution, failure/stop continuation,
 /// per-run temp-dir lifecycle (EVERY terminal outcome deletes the job dir — 失败/停止即删),
 /// the missing-product-DNG guard, and the mediator's RunnerEvent → card-state mapping
 /// (payload 0-5%, backend 5-100%). The payload and finalizer
 /// are injected through TaskQueueRunner's internal seams; the backend itself stays
-/// REAL (stub .bat through the same Process path as "Jiangtherapee Bridge.exe").
-/// Windows-host tests.
+/// REAL (stub .bat through the same Process path as jsr_backend.exe — Task 2 direct
+/// invoke: argv in, bare lines out). Windows-host tests.
 /// </summary>
 public class QueueRunnerTests : IClassFixture<TestTemp>
 {
@@ -37,6 +37,16 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
     /// <summary>Locates a stub .bat under fixtures\stub_backend\.</summary>
     private static string StubPath(string name) => SampleFiles.FindUp(Path.Combine("fixtures", "stub_backend", name));
 
+    /// <summary>The no-leftover invariant: the Jsr4Z8 temp root holds no job dir. An
+    /// absent root satisfies it — under parallel-class load a cancel can race ahead
+    /// of the job-dir creation, and "nothing on disk" is exactly the desired end state
+    /// (Assert.Empty on GetDirectories would throw on the missing root instead).</summary>
+    private static void AssertNoJobDirLeft(string jsrTempRoot)
+    {
+        Assert.True(!Directory.Exists(jsrTempRoot) || Directory.GetDirectories(jsrTempRoot).Length == 0,
+            $"job temp root must hold no job dir: {jsrTempRoot}");
+    }
+
     /// <summary>Headless dispatcher: posts run inline (the tests then observe every
     /// mutation synchronously, in arrival order).</summary>
     private sealed class SyncDispatcher : IDispatcher
@@ -50,7 +60,7 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
     }
 
     /// <summary>One queue stack (engine + mediator) whose backend runs the given stub
-    /// .bat harnesses in order (sequential queue ⇒ dequeue order = execution order),
+    /// .bat engines in order (sequential queue ⇒ dequeue order = execution order),
     /// whose temp base is a test-scoped directory, and whose finalizer is a recording fake.</summary>
     private sealed class Harness
     {
@@ -69,7 +79,7 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
             {
                 progress?.Report(1.0); // payload phase completes → 0-5% card progress
                 bats.TryDequeue(out string? bat);
-                return new TaskQueueRunner.BackendPayload(bat ?? StubPath("stub_backend.bat"), TempBase);
+                return new TaskQueueRunner.BackendPayload(bat ?? StubPath("stub_backend.bat"));
             };
             Engine.FinalizeOverride = (backendDng, referenceNef, destDir) =>
             {
@@ -130,7 +140,7 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
             Assert.Contains("_V15_3_5_K7", call.backendDng);                 // found inside the nested product dir
             Assert.EndsWith(".dng", call.backendDng);
 
-            // Success policy: the job temp dir (request.json / cfg / job.log) is deleted.
+            // Success policy: the job temp dir (job.log / engine product) is deleted.
             Assert.False(Directory.Exists(h.JsrTempRoot) && Directory.EnumerateFileSystemEntries(h.JsrTempRoot).Any(),
                 $"job temp dir must be deleted after success: {h.JsrTempRoot}");
         }
@@ -143,7 +153,7 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
     [Fact]
     public async Task BackendCompleteWithoutDng_Fails_DeletesTemp_FinalizerNotCalled()
     {
-        var h = new Harness(_temp, "stub_backend.bat"); // RESULT complete but no product file
+        var h = new Harness(_temp, "stub_backend.bat"); // bare success exit 0 but no product file
         TaskGroupViewModel vm = Card(h.Mediator);
         try
         {
@@ -154,7 +164,7 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
             Assert.DoesNotContain("诊断目录：", vm.ErrorText);   // temp is deleted → no hint
             lock (h.FinalizeCalls) Assert.Empty(h.FinalizeCalls);
 
-            Assert.Empty(Directory.GetDirectories(h.JsrTempRoot));   // temp root holds no leftover dir
+            AssertNoJobDirLeft(h.JsrTempRoot);   // temp root holds no leftover dir
         }
         finally
         {
@@ -176,7 +186,7 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
             Assert.DoesNotContain("MemoryError", vm.ErrorText);
             Assert.DoesNotContain("诊断目录：", vm.ErrorText);
             lock (h.FinalizeCalls) Assert.Empty(h.FinalizeCalls);
-            Assert.Empty(Directory.GetDirectories(h.JsrTempRoot));   // failure now deletes the job dir
+            AssertNoJobDirLeft(h.JsrTempRoot);   // failure now deletes the job dir
         }
         finally
         {
@@ -189,14 +199,12 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
     [Fact]
     public async Task CancelledRun_DeletesTempDir()
     {
-        string tick = _temp.NewFilePath(".tick");
         var h = new Harness(_temp, "stub_kill.bat");
         var main = new MainViewModel(null, h.Mediator);
         TaskGroupViewModel vm = Card(h.Mediator);
         main.Add(vm);
         try
         {
-            Environment.SetEnvironmentVariable("JSR4Z8_TEST_TICK", tick);
             main.StartAllCommand.Execute(null);
             Assert.True(await WaitAsync(() => main.ActiveQueueCts != null && vm.State == TaskState.Running, TimeSpan.FromSeconds(8)),
                 "task never started");
@@ -208,12 +216,10 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
             Assert.DoesNotContain("诊断目录：", vm.ErrorText);
             Assert.True(await WaitAsync(() => main.ActiveQueueCts == null, TimeSpan.FromSeconds(5)), "queue loop never exited");
 
-            Assert.Empty(Directory.GetDirectories(h.JsrTempRoot));   // stopped run leaves nothing behind
+            AssertNoJobDirLeft(h.JsrTempRoot);   // stopped run leaves nothing behind
         }
         finally
         {
-            Environment.SetEnvironmentVariable("JSR4Z8_TEST_TICK", null);
-            try { File.Delete(tick); } catch (IOException) { }
             try { Directory.Delete(h.TempBase, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
     }
@@ -337,7 +343,6 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
     [Fact]
     public async Task StartAll_QueueLevelCancel_StopsCurrentWithin3s_LaterTasksNotStarted()
     {
-        string tick = _temp.NewFilePath(".tick");
         var h = new Harness(_temp, "stub_kill.bat", "stub_dng.bat");
         var main = new MainViewModel(null, h.Mediator);
         TaskGroupViewModel vm1 = Card(h.Mediator), vm2 = Card(h.Mediator);
@@ -345,7 +350,6 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
         main.Add(vm2);
         try
         {
-            Environment.SetEnvironmentVariable("JSR4Z8_TEST_TICK", tick);
             main.StartAllCommand.Execute(null);
             Assert.True(await WaitAsync(() => main.ActiveQueueCts != null && vm1.State == TaskState.Running, TimeSpan.FromSeconds(8)),
                 "first task never started");
@@ -363,8 +367,6 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
         }
         finally
         {
-            Environment.SetEnvironmentVariable("JSR4Z8_TEST_TICK", null);
-            try { File.Delete(tick); } catch (IOException) { }
             try { Directory.Delete(h.TempBase, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
     }
@@ -372,7 +374,6 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
     [Fact]
     public async Task StartAll_StopCurrentTask_QueueContinuesWithRemaining()
     {
-        string tick = _temp.NewFilePath(".tick");
         var h = new Harness(_temp, "stub_kill.bat", "stub_dng.bat");
         var main = new MainViewModel(null, h.Mediator);
         TaskGroupViewModel vm1 = Card(h.Mediator), vm2 = Card(h.Mediator);
@@ -380,7 +381,6 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
         main.Add(vm2);
         try
         {
-            Environment.SetEnvironmentVariable("JSR4Z8_TEST_TICK", tick);
             main.StartAllCommand.Execute(null);
             Assert.True(await WaitAsync(() => vm1.State == TaskState.Running, TimeSpan.FromSeconds(8)),
                 "first task never started");
@@ -397,8 +397,6 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
         }
         finally
         {
-            Environment.SetEnvironmentVariable("JSR4Z8_TEST_TICK", null);
-            try { File.Delete(tick); } catch (IOException) { }
             try { Directory.Delete(h.TempBase, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
     }
@@ -408,12 +406,10 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
     [Fact]
     public async Task PerCardStart_DisabledWhileQueueBusy_ConcurrentEntryIsNoOp()
     {
-        string tick = _temp.NewFilePath(".tick");
         var h = new Harness(_temp, "stub_kill.bat");
         TaskGroupViewModel vm1 = Card(h.Mediator), vm2 = Card(h.Mediator);
         try
         {
-            Environment.SetEnvironmentVariable("JSR4Z8_TEST_TICK", tick);
             Task run1 = vm1.StartAsync();
             Assert.True(await WaitAsync(() => h.Mediator.IsBusy && vm1.State == TaskState.Running, TimeSpan.FromSeconds(8)),
                 "first task never started");
@@ -433,8 +429,6 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
         }
         finally
         {
-            Environment.SetEnvironmentVariable("JSR4Z8_TEST_TICK", null);
-            try { File.Delete(tick); } catch (IOException) { }
             try { Directory.Delete(h.TempBase, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
     }
@@ -491,7 +485,7 @@ public class QueueMediatorTests : IClassFixture<TestTemp>
         engine.ResolveBackendOverride = progress =>
         {
             progress?.Report(1.0); // payload phase completes → 0-5% card progress
-            return new TaskQueueRunner.BackendPayload(StubPath(bat), tempBase);
+            return new TaskQueueRunner.BackendPayload(StubPath(bat));
         };
         engine.FinalizeOverride = (backendDng, referenceNef, destDir) => Path.Combine(destDir, "JSR_fake.dng");
         // Job dirs land under the settings temp base — per-run GUID under the fixture,

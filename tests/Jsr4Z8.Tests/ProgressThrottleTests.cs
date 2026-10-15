@@ -12,8 +12,9 @@ namespace Jsr4Z8.Tests;
 
 /// <summary>
 /// Post-release fix (stage-label flicker): the mediator's UI progress gate. The real
-/// capture fixtures\protocol\stdout3.log (16175 lines, ~7.2k of them SRHQ progress at
-/// ~20/s with rotating subtask stage names) is replayed line by line through
+/// capture fixtures\protocol\direct_success.log (324 lines, 197 of them SRHQ progress —
+/// 110 V12 with rotating subtask stage names + 87 export ETA — the 2026-10-15 direct
+/// run archive) is replayed line by line through
 /// ProtocolParser → QueueEvent → QueueMediator.Handle with a synchronous dispatcher
 /// and a fake clock, asserting the contract:
 /// (1) the final Progress/StageText land correctly (coalescing, terminal bypass);
@@ -94,7 +95,7 @@ public class ProgressThrottleTests
         string? dir = AppContext.BaseDirectory;
         for (int i = 0; i < 10 && dir != null; i++)
         {
-            string candidate = Path.Combine(dir, "fixtures", "protocol", "stdout3.log");
+            string candidate = Path.Combine(dir, "fixtures", "protocol", "direct_success.log");
             if (File.Exists(candidate))
             {
                 string[] lines = File.ReadAllText(candidate, Encoding.UTF8).Split('\n');
@@ -104,18 +105,17 @@ public class ProgressThrottleTests
             }
             dir = Path.GetDirectoryName(dir);
         }
-        throw new InvalidOperationException($"Fixture not found: fixtures\\protocol\\stdout3.log (searched upwards from {AppContext.BaseDirectory})");
+        throw new InvalidOperationException($"Fixture not found: fixtures\\protocol\\direct_success.log (searched upwards from {AppContext.BaseDirectory})");
     }
 
     /// <summary>Maps one parsed protocol event onto the queue event the mediator consumes
-    /// (BackendRunner's own mapping: Start→Started, Log/Unrecognized/ErrorOnStderr→LogLine,
-    /// Result→no per-line event — the outcome drives the terminal state instead).</summary>
+    /// (BackendRunner's own mapping: Log/Unrecognized → LogLine — Started/Finished
+    /// are synthesized by the runner itself, not parsed out of lines; BackendRunner
+    /// emits its synthesized Started before the first line, mirrored by the replays).</summary>
     private static QueueEvent? ToQueueEvent(ProtocolEvent parsed) => parsed switch
     {
-        Start s => new BackendStarted(s.Json),
         Log l => new BackendLogLine(l.Text, l.Progress),
         Unrecognized u => new BackendLogLine(u.Text, null),
-        ErrorOnStderr e => new BackendLogLine("stderr| " + e.Message, null),
         _ => null,
     };
 
@@ -183,11 +183,11 @@ public class ProgressThrottleTests
 
     // ---------------------------------------------------------------- fixture replay
 
-    /// <summary>Replays the 16175-line real success capture through parser → mediator.
-    /// The fake clock advances 0.5 ms per line (~8 s of simulated time): the gate is
-    /// time-based, so the assertion bounds UI updates by gate openings, independent of
-    /// line count. The coalesced pending updates plus the fixture's trailing 100 % line
-    /// must land the final state exactly.</summary>
+    /// <summary>Replays the 324-line real direct-run capture through parser → mediator.
+    /// The fake clock advances 25 ms per line (a bursty ~40 lines/s, 8.1 s of simulated
+    /// stream time): the gate is time-based, so the assertion bounds UI updates by gate
+    /// openings, independent of line count. The coalesced pending updates plus the
+    /// fixture's trailing 100 % line must land the final state exactly.</summary>
     [Fact]
     public void FixtureReplay_DefaultGate_CollapsesUiUpdates_FinalStateLands()
     {
@@ -197,9 +197,12 @@ public class ProgressThrottleTests
         TaskGroupViewModel vm = RunningCard(mediator);
         using var counter = new ChangeCounter(vm);
 
+        // The runner synthesizes Started (stage 重建) at engine spawn, before any line.
+        mediator.Handle(vm, new BackendStarted(new JsrStart("重建", "stormer7", "full", "", 0)));
+
         foreach (string line in lines)
         {
-            clock.Advance(TimeSpan.FromMilliseconds(0.5));
+            clock.Advance(TimeSpan.FromMilliseconds(25));
             if (ToQueueEvent(ProtocolParser.ParseLine(line)) is { } e)
                 mediator.Handle(vm, e);
         }
@@ -208,17 +211,18 @@ public class ProgressThrottleTests
         Assert.Equal(100, vm.Progress);
         Assert.Equal("导出完成", vm.StageText);
 
-        // (2) 16175 lines → gate-bounded UI mutations, not per-line ones. The replay
-        // simulates ~8 s of stream time ⇒ ~40 gate openings — the floor proves the gate
-        // really reopens (a stuck-closed gate would collapse to first+terminal ≈ 2),
-        // the ceiling is the flicker budget.
-        Assert.InRange(counter.Count, 20, 150);
+        // (2) 324 lines → gate-bounded UI mutations, not per-line ones. The replay
+        // simulates ~8.1 s of bursty stream ⇒ roughly one gate opening per 8 lines —
+        // the floor proves the gate really reopens (a stuck-closed gate would collapse
+        // to first+terminal ≈ 2), the ceiling is the flicker budget (per-line would be
+        // ~190+; the exact unthrottled count is pinned by the disabled-gate test below).
+        Assert.InRange(counter.Count, 15, 80);
     }
 
     /// <summary>Sanity for the disabled gate (TimeSpan.Zero ⇒ zero elapsed requirement ⇒
     /// every update forwards — the old pre-fix behavior): the change count must match a
-    /// bare card replayed with the same unthrottled mapping EXACTLY, and stay an order
-    /// of magnitude above the gated count.</summary>
+    /// bare card replayed with the same unthrottled mapping EXACTLY, and stay well
+    /// above the gated count.</summary>
     [Fact]
     public void FixtureReplay_GateDisabled_MatchesOldUnthrottledBehavior()
     {
@@ -228,36 +232,30 @@ public class ProgressThrottleTests
         QueueMediator mediator = Mediator(clock, gate: TimeSpan.Zero);
         TaskGroupViewModel vm = RunningCard(mediator);
         using var counter = new ChangeCounter(vm);
+        mediator.Handle(vm, new BackendStarted(new JsrStart("重建", "stormer7", "full", "", 0)));
         foreach (string line in lines)
         {
-            clock.Advance(TimeSpan.FromMilliseconds(0.5));
+            clock.Advance(TimeSpan.FromMilliseconds(25));
             if (ToQueueEvent(ProtocolParser.ParseLine(line)) is { } e)
                 mediator.Handle(vm, e);
         }
 
         // Baseline: the same replay against a bare card with the mediator's exact
-        // pre-fix mapping (START sets the stage; progress lines ReportProgress — the
+        // pre-fix mapping (Started sets the stage; progress lines ReportProgress — the
         // code as it was before the gate).
         TaskGroupViewModel bare = RunningCard(Mediator(clock, gate: TimeSpan.Zero));
         using var baseline = new ChangeCounter(bare);
+        bare.ReportProgress(bare.Progress, "重建");
         foreach (string line in lines)
         {
-            switch (ToQueueEvent(ProtocolParser.ParseLine(line)))
-            {
-                case BackendStarted s:
-                    bare.ReportProgress(bare.Progress, s.Start.Stage);
-                    break;
-                case BackendLogLine l:
-                    if (l.Progress is { } p)
-                        bare.ReportProgress(5 + (int)Math.Round(95 * p.Percent / 100.0), p.Stage);
-                    break;
-            }
+            if (ToQueueEvent(ProtocolParser.ParseLine(line)) is BackendLogLine { Progress: { } p })
+                bare.ReportProgress(5 + (int)Math.Round(95 * p.Percent / 100.0), p.Stage);
         }
 
         Assert.Equal(bare.Progress, vm.Progress);               // both end on the last line's state
         Assert.Equal(bare.StageText, vm.StageText);
         Assert.Equal(baseline.Count, counter.Count);             // old behavior reproduced exactly
-        Assert.True(counter.Count > 1000,
-            $"expected the old per-line behavior to stay expensive, got {counter.Count}");
+        Assert.True(counter.Count > 50,
+            $"expected the old per-line behavior to stay expensive, got {counter.Count}"); // measured: 197 progress lines → 88 transitions
     }
 }

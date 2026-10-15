@@ -1,0 +1,12 @@
+PTC {"selection": "manual_fullwell", "shot": 0.0009072763563781527, "prnu": 0.0, "effective_fullwell_e": 1102.2, "fullwell_scope": "effective electrons at RAW white level for the actual ISO/readout mode", "prnu_source": "not supplied; zero, no camera catalog substitution", "read_source": "manual RN(DN)", "metadata_warnings": [], "exposure_policy": "capture_metadata"}
+SRHQ_V12_FRAME|0|+0.00|0.01|D:\pics\DSC_7576.NEF
+SRHQ_V12_FRAME|1|+0.00|0.01|D:\pics\DSC_7577.NEF
+SRHQ_V12_FRAME|2|+0.00|0.01|D:\pics\DSC_7578.NEF
+SRHQ_V12_FRAME|3|+0.00|0.01|D:\pics\DSC_7579.NEF
+SRHQ_V12_FRAME|4|+0.00|0.01|D:\pics\DSC_7580.NEF
+SRHQ_V12_FRAME|5|+0.00|0.01|D:\pics\DSC_7581.NEF
+SRHQ_V12_FRAME|6|+0.00|0.01|D:\pics\DSC_7582.NEF
+SRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，使用手动 RN / 黑电平
+SRHQ_V12_PROGRESS|8|WGPU 对齐与 Transformer 恢复
+MemoryError: Driver reports process GPU usage 4105961472 above configured budget
+SRHQ_NET_ABORT:runtime|Alignment cannot fit the current effective 4.00 GB budget. No CPU/CUDA fallback was used.

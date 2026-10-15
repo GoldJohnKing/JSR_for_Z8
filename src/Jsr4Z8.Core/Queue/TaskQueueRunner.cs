@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text;
 using Jsr4Z8.Core.Backend;
 using Jsr4Z8.Core.Dng;
 using Jsr4Z8.Core.Dark;
@@ -43,13 +42,14 @@ public sealed record BackendFinished(RunnerResult Result) : QueueEvent;
 /// Runs ONE task group end to end behind the sequential queue (one at a time; the
 /// caller — the UI's queue mediator — owns the loop and the single-flight gate):
 /// ① <see cref="PayloadManager.EnsureExtracted"/> (progress → 0-5% of the card),
-/// ② per-run temp dir &lt;TempBase&gt;\Jsr4Z8\&lt;jobId&gt;\ with its own cfg\ config dir
-/// (protocol fact #3: the backend locks its config dir exclusively, so it must be
-/// unique per run), ③ request.json via <see cref="BackendRequest.BuildJson"/>
-/// (no memory field at all — 不设预算，驱动自行分配; fullwell = the
-/// validated PTC match; output = the job dir, prefix = jobId), ④ <see cref="BackendRunner.RunAsync"/> with events forwarded,
-/// ⑤ on backend success the newest &lt;prefix&gt;*.dng under the job dir (the backend
-/// nests it in &lt;prefix&gt;_V15_3_5_K7_&lt;ts&gt;_&lt;n&gt;\) is finalized via
+/// ② per-run temp dir &lt;TempBase&gt;\Jsr4Z8\&lt;jobId&gt;\ (unique per run — no cfg dir:
+/// the direct invocation needs none, probe §7), ③ the jsr_backend.exe argv via
+/// <see cref="BackendRequest.BuildArguments"/> (no memory budget at all — 不设预算，驱动自行分配;
+/// fullwell = the validated PTC match rounded to 1 decimal; output = the job dir,
+/// prefix = jobId), ④ <see cref="BackendRunner.RunAsync"/> — the DIRECT engine
+/// invocation (no Bridge, no request.json) — with events forwarded, ⑤ on backend
+/// success the newest &lt;prefix&gt;*.dng under the job dir (the engine nests it in
+/// &lt;prefix&gt;_V15_3_5_K7_&lt;ts&gt;_&lt;n&gt;\) is finalized via
 /// <see cref="JsrDngFinalizer.Finalize"/> into JSR_&lt;基准帧名&gt;.dng next to the
 /// reference frame (or the configured custom dir), ⑥ every terminal outcome deletes
 /// the job temp dir (success cleanup and the failure/stopped paths alike — no more
@@ -59,8 +59,8 @@ public sealed record BackendFinished(RunnerResult Result) : QueueEvent;
 /// </summary>
 public sealed class TaskQueueRunner
 {
-    /// <summary>The bridge executable inside the extracted payload root.</summary>
-    public const string BridgeFileName = "Jiangtherapee Bridge.exe";
+    /// <summary>The backend engine executable inside the extracted payload's resources\.</summary>
+    public const string EngineFileName = "jsr_backend.exe";
 
     private const string NoDngMessage = "后端未产出 DNG";
     private const string CancelledMessage = "已停止";
@@ -68,9 +68,9 @@ public sealed class TaskQueueRunner
     private readonly PayloadManager _payload;
 
     /// <summary>Test seam: replaces payload resolution — receives the payload-phase
-    /// progress reporter, returns the bridge executable and resources dir to run. The
-    /// default path extracts/verifies the embedded payload and resolves
-    /// <see cref="BridgeFileName"/> + resources\ inside it.</summary>
+    /// progress reporter, returns the engine executable to run. The default path
+    /// extracts/verifies the embedded payload and resolves
+    /// resources\<see cref="EngineFileName"/> inside it.</summary>
     internal Func<IProgress<double>?, BackendPayload>? ResolveBackendOverride { get; set; }
 
     /// <summary>Test seam: replaces <see cref="JsrDngFinalizer.Finalize"/> —
@@ -82,8 +82,8 @@ public sealed class TaskQueueRunner
         _payload = payload ?? new PayloadManager();
     }
 
-    /// <summary>The backend launch resolved from the payload root.</summary>
-    internal sealed record BackendPayload(string BridgeExe, string ResourcesDir);
+    /// <summary>The backend engine executable resolved from the payload root.</summary>
+    internal sealed record BackendPayload(string EngineExe);
 
     /// <summary>Runs one group through the six steps above; events go to
     /// <paramref name="onEvent"/> on background threads (the caller marshals).</summary>
@@ -109,25 +109,22 @@ public sealed class TaskQueueRunner
                 : await Task.Run(() =>
                 {
                     string root = _payload.EnsureExtracted(payloadProgress);
-                    return new BackendPayload(Path.Combine(root, BridgeFileName), Path.Combine(root, "resources"));
+                    return new BackendPayload(Path.Combine(root, "resources", EngineFileName));
                 }, ct).ConfigureAwait(false);
 
-            // ② per-run temp dir (jobId is unique) with its own config dir.
+            // ② per-run temp dir (jobId is unique — the engine's output dir).
             Directory.CreateDirectory(jobDir);
-            string configDir = Path.Combine(jobDir, "cfg");
-            string requestPath = Path.Combine(jobDir, "request.json");
             string logFile = Path.Combine(jobDir, "job.log");
 
-            // ③ request.json: UTF-8 without BOM (backend contract), output = job dir, prefix = jobId.
-            // No memory field is sent (不设预算，驱动自行分配): the backend/driver owns
-            // allocation, and driver-level OOM errors flow through the generic
-            // humanized failure path.
-            string request = BackendRequest.BuildJson(g, ptc, dark, jobDir, jobId);
-            File.WriteAllText(requestPath, request, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            // ③ the engine argv (probe-verified contract): output = job dir, prefix =
+            // jobId, one --raw-frame per frame. No memory budget is sent (不设预算，驱动
+            // 自行分配): the engine/driver owns allocation, and driver-level OOM errors
+            // flow through the generic humanized failure path.
+            IReadOnlyList<string> arguments = BackendRequest.BuildArguments(g, ptc, dark, jobDir, jobId);
 
-            // ④ backend run; events forwarded for the UI to map onto the card.
+            // ④ the direct engine run; events forwarded for the UI to map onto the card.
             RunnerResult result = await new BackendRunner().RunAsync(
-                new BackendRunSpec(payload.BridgeExe, payload.ResourcesDir, configDir, requestPath, logFile),
+                new BackendRunSpec(payload.EngineExe, arguments, logFile),
                 e => onEvent?.Invoke(Map(e)),
                 ct).ConfigureAwait(false);
 
@@ -178,7 +175,7 @@ public sealed class TaskQueueRunner
 
     private static QueueEvent Map(RunnerEvent e) => e switch
     {
-        Started s => new BackendStarted(s.Json),
+        Started s => new BackendStarted(s.Start),
         LogLine l => new BackendLogLine(l.Text, l.Progress),
         Finished f => new BackendFinished(f.Result),
         _ => throw new InvalidOperationException($"未知 RunnerEvent: {e.GetType().Name}"),

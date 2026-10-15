@@ -1,0 +1,324 @@
+PTC {"selection": "manual_fullwell", "shot": 0.0009072763563781527, "prnu": 0.0, "effective_fullwell_e": 1102.2, "fullwell_scope": "effective electrons at RAW white level for the actual ISO/readout mode", "prnu_source": "not supplied; zero, no camera catalog substitution", "read_source": "manual RN(DN)", "metadata_warnings": [], "exposure_policy": "capture_metadata"}
+SRHQ_V12_FRAME|0|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\test_frames\FX\Lossless\DSC_7576.NEF
+SRHQ_V12_FRAME|1|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\test_frames\FX\Lossless\DSC_7577.NEF
+SRHQ_V12_FRAME|2|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\test_frames\FX\Lossless\DSC_7578.NEF
+SRHQ_V12_FRAME|3|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\test_frames\FX\Lossless\DSC_7579.NEF
+SRHQ_V12_FRAME|4|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\test_frames\FX\Lossless\DSC_7580.NEF
+SRHQ_V12_FRAME|5|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\test_frames\FX\Lossless\DSC_7581.NEF
+SRHQ_V12_FRAME|6|+0.00|0.01|D:\GitRepos\JSR_for_Z8\samples\test_frames\FX\Lossless\DSC_7582.NEF
+ColorMatrix cross-check: selected vs 'Nikon Z 8' max_abs=1.8405914e-08
+camera profile: Nikon Z 8 -> 'Z 8'; source=joraw2-native LibRaw 0.22.2-Release libraw cam_xyz; AsShotNeutral=[0.560175, 1.0, 0.557734]; embedded=none; fallback=['ColorMatrix1', 'CalibrationIlluminant1', 'AsShotNeutral']
+SRHQ_EFFECTIVE_ENGINE|v12|v12-wgpu|V15.3.5 Transformer / manual DN
+SRHQ_V12_PROGRESS|2|解码七张 RAW；PTC 已匹配，使用手动 RN / 黑电平
+Decoded RAW 1/7: DSC_7576.NEF
+Decoded RAW 2/7: DSC_7577.NEF
+Decoded RAW 3/7: DSC_7578.NEF
+Decoded RAW 4/7: DSC_7579.NEF
+Decoded RAW 5/7: DSC_7580.NEF
+Decoded RAW 6/7: DSC_7581.NEF
+Decoded RAW 7/7: DSC_7582.NEF
+SENSOR_LEVELS [{"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\test_frames\\FX\\Lossless\\DSC_7576.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\test_frames\\FX\\Lossless\\DSC_7577.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\test_frames\\FX\\Lossless\\DSC_7578.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\test_frames\\FX\\Lossless\\DSC_7579.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\test_frames\\FX\\Lossless\\DSC_7580.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\test_frames\\FX\\Lossless\\DSC_7581.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}, {"source": "D:\\GitRepos\\JSR_for_Z8\\samples\\test_frames\\FX\\Lossless\\DSC_7582.NEF", "black_dn": [[1008.0, 1008.0], [1008.0, 1008.0]], "declared_white_dn": [[16383.0, 16383.0], [16383.0, 16383.0]], "saturation_threshold_dn": [[16378.0, 16378.0], [16378.0, 16378.0]], "headroom_dn": 5.0, "white_source": "native decoder metadata/profile", "white_scope": "camera profile linear white; distinct from ADC ceiling and exported DNG WhiteLevel"}]
+SRHQ_V12_PROGRESS|8|WGPU 对齐与 Transformer 恢复
+Proxy 1/7 prepared
+SRHQ_V12_PROGRESS|9|准备对齐代理图
+Proxy 2/7 prepared
+SRHQ_V12_PROGRESS|11|准备对齐代理图
+Proxy 3/7 prepared
+SRHQ_V12_PROGRESS|13|准备对齐代理图
+Proxy 4/7 prepared
+SRHQ_V12_PROGRESS|14|准备对齐代理图
+Proxy 5/7 prepared
+SRHQ_V12_PROGRESS|16|准备对齐代理图
+Proxy 6/7 prepared
+SRHQ_V12_PROGRESS|18|准备对齐代理图
+Proxy 7/7 prepared
+SRHQ_V12_PROGRESS|20|准备对齐代理图
+Global registration: similarity, similarity, similarity, affine, affine, affine
+SPyNet pair 1/6: 1.980s
+SRHQ_V12_PROGRESS|22|估计跨帧运动
+SPyNet pair 2/6: 1.788s
+SRHQ_V12_PROGRESS|25|估计跨帧运动
+SPyNet pair 3/6: 1.795s
+SRHQ_V12_PROGRESS|27|估计跨帧运动
+SPyNet pair 4/6: 1.793s
+SRHQ_V12_PROGRESS|30|估计跨帧运动
+SPyNet pair 5/6: 1.804s
+SRHQ_V12_PROGRESS|32|估计跨帧运动
+SPyNet pair 6/6: 1.794s
+SRHQ_V12_PROGRESS|35|估计跨帧运动
+Restored 10/925 tiles (3.3s)
+SRHQ_V12_PROGRESS|35|Transformer 恢复
+Restored 20/925 tiles (6.5s)
+SRHQ_V12_PROGRESS|36|Transformer 恢复
+Restored 30/925 tiles (9.6s)
+SRHQ_V12_PROGRESS|36|Transformer 恢复
+Restored 40/925 tiles (12.9s)
+SRHQ_V12_PROGRESS|37|Transformer 恢复
+Restored 50/925 tiles (16.1s)
+SRHQ_V12_PROGRESS|38|Transformer 恢复
+Restored 60/925 tiles (19.4s)
+SRHQ_V12_PROGRESS|38|Transformer 恢复
+Restored 70/925 tiles (22.6s)
+SRHQ_V12_PROGRESS|39|Transformer 恢复
+Restored 80/925 tiles (26.1s)
+SRHQ_V12_PROGRESS|40|Transformer 恢复
+Restored 90/925 tiles (29.3s)
+SRHQ_V12_PROGRESS|40|Transformer 恢复
+Restored 100/925 tiles (32.5s)
+SRHQ_V12_PROGRESS|41|Transformer 恢复
+Restored 110/925 tiles (35.7s)
+SRHQ_V12_PROGRESS|42|Transformer 恢复
+Restored 120/925 tiles (39.1s)
+SRHQ_V12_PROGRESS|42|Transformer 恢复
+Restored 130/925 tiles (42.3s)
+SRHQ_V12_PROGRESS|43|Transformer 恢复
+Restored 140/925 tiles (45.5s)
+SRHQ_V12_PROGRESS|43|Transformer 恢复
+Restored 150/925 tiles (48.8s)
+SRHQ_V12_PROGRESS|44|Transformer 恢复
+Restored 160/925 tiles (52.0s)
+SRHQ_V12_PROGRESS|45|Transformer 恢复
+Restored 170/925 tiles (55.2s)
+SRHQ_V12_PROGRESS|45|Transformer 恢复
+Restored 180/925 tiles (58.4s)
+SRHQ_V12_PROGRESS|46|Transformer 恢复
+Restored 190/925 tiles (61.8s)
+SRHQ_V12_PROGRESS|47|Transformer 恢复
+Restored 200/925 tiles (65.0s)
+SRHQ_V12_PROGRESS|47|Transformer 恢复
+Restored 210/925 tiles (68.3s)
+SRHQ_V12_PROGRESS|48|Transformer 恢复
+Restored 220/925 tiles (71.5s)
+SRHQ_V12_PROGRESS|49|Transformer 恢复
+Restored 230/925 tiles (74.9s)
+SRHQ_V12_PROGRESS|49|Transformer 恢复
+Restored 240/925 tiles (78.1s)
+SRHQ_V12_PROGRESS|50|Transformer 恢复
+Restored 250/925 tiles (81.3s)
+SRHQ_V12_PROGRESS|50|Transformer 恢复
+Restored 260/925 tiles (84.8s)
+SRHQ_V12_PROGRESS|51|Transformer 恢复
+Restored 270/925 tiles (87.9s)
+SRHQ_V12_PROGRESS|52|Transformer 恢复
+Restored 280/925 tiles (91.1s)
+SRHQ_V12_PROGRESS|52|Transformer 恢复
+Restored 290/925 tiles (94.3s)
+SRHQ_V12_PROGRESS|53|Transformer 恢复
+Restored 300/925 tiles (97.7s)
+SRHQ_V12_PROGRESS|54|Transformer 恢复
+Restored 310/925 tiles (100.8s)
+SRHQ_V12_PROGRESS|54|Transformer 恢复
+Restored 320/925 tiles (103.9s)
+SRHQ_V12_PROGRESS|55|Transformer 恢复
+Restored 330/925 tiles (107.0s)
+SRHQ_V12_PROGRESS|56|Transformer 恢复
+Restored 340/925 tiles (110.3s)
+SRHQ_V12_PROGRESS|56|Transformer 恢复
+Restored 350/925 tiles (113.4s)
+SRHQ_V12_PROGRESS|57|Transformer 恢复
+Restored 360/925 tiles (116.5s)
+SRHQ_V12_PROGRESS|57|Transformer 恢复
+Restored 370/925 tiles (119.6s)
+SRHQ_V12_PROGRESS|58|Transformer 恢复
+Restored 380/925 tiles (123.0s)
+SRHQ_V12_PROGRESS|59|Transformer 恢复
+Restored 390/925 tiles (126.1s)
+SRHQ_V12_PROGRESS|59|Transformer 恢复
+Restored 400/925 tiles (129.2s)
+SRHQ_V12_PROGRESS|60|Transformer 恢复
+Restored 410/925 tiles (132.5s)
+SRHQ_V12_PROGRESS|61|Transformer 恢复
+Restored 420/925 tiles (135.7s)
+SRHQ_V12_PROGRESS|61|Transformer 恢复
+Restored 430/925 tiles (138.8s)
+SRHQ_V12_PROGRESS|62|Transformer 恢复
+Restored 440/925 tiles (141.9s)
+SRHQ_V12_PROGRESS|63|Transformer 恢复
+Restored 450/925 tiles (145.3s)
+SRHQ_V12_PROGRESS|63|Transformer 恢复
+Restored 460/925 tiles (148.4s)
+SRHQ_V12_PROGRESS|64|Transformer 恢复
+Restored 470/925 tiles (151.5s)
+SRHQ_V12_PROGRESS|64|Transformer 恢复
+Restored 480/925 tiles (154.7s)
+SRHQ_V12_PROGRESS|65|Transformer 恢复
+Restored 490/925 tiles (158.0s)
+SRHQ_V12_PROGRESS|66|Transformer 恢复
+Restored 500/925 tiles (161.1s)
+SRHQ_V12_PROGRESS|66|Transformer 恢复
+Restored 510/925 tiles (164.2s)
+SRHQ_V12_PROGRESS|67|Transformer 恢复
+Restored 520/925 tiles (167.6s)
+SRHQ_V12_PROGRESS|68|Transformer 恢复
+Restored 530/925 tiles (170.7s)
+SRHQ_V12_PROGRESS|68|Transformer 恢复
+Restored 540/925 tiles (173.9s)
+SRHQ_V12_PROGRESS|69|Transformer 恢复
+Restored 550/925 tiles (177.0s)
+SRHQ_V12_PROGRESS|70|Transformer 恢复
+Restored 560/925 tiles (180.4s)
+SRHQ_V12_PROGRESS|70|Transformer 恢复
+Restored 570/925 tiles (183.6s)
+SRHQ_V12_PROGRESS|71|Transformer 恢复
+Restored 580/925 tiles (186.6s)
+SRHQ_V12_PROGRESS|71|Transformer 恢复
+Restored 590/925 tiles (189.7s)
+SRHQ_V12_PROGRESS|72|Transformer 恢复
+Restored 600/925 tiles (193.0s)
+SRHQ_V12_PROGRESS|73|Transformer 恢复
+Restored 610/925 tiles (196.1s)
+SRHQ_V12_PROGRESS|73|Transformer 恢复
+Restored 620/925 tiles (199.3s)
+SRHQ_V12_PROGRESS|74|Transformer 恢复
+Restored 630/925 tiles (202.5s)
+SRHQ_V12_PROGRESS|75|Transformer 恢复
+Restored 640/925 tiles (205.7s)
+SRHQ_V12_PROGRESS|75|Transformer 恢复
+Restored 650/925 tiles (208.8s)
+SRHQ_V12_PROGRESS|76|Transformer 恢复
+Restored 660/925 tiles (211.9s)
+SRHQ_V12_PROGRESS|77|Transformer 恢复
+Restored 670/925 tiles (215.3s)
+SRHQ_V12_PROGRESS|77|Transformer 恢复
+Restored 680/925 tiles (218.4s)
+SRHQ_V12_PROGRESS|78|Transformer 恢复
+Restored 690/925 tiles (221.6s)
+SRHQ_V12_PROGRESS|79|Transformer 恢复
+Restored 700/925 tiles (224.7s)
+SRHQ_V12_PROGRESS|79|Transformer 恢复
+Restored 710/925 tiles (228.0s)
+SRHQ_V12_PROGRESS|80|Transformer 恢复
+Restored 720/925 tiles (231.2s)
+SRHQ_V12_PROGRESS|80|Transformer 恢复
+Restored 730/925 tiles (234.4s)
+SRHQ_V12_PROGRESS|81|Transformer 恢复
+Restored 740/925 tiles (237.6s)
+SRHQ_V12_PROGRESS|82|Transformer 恢复
+Restored 750/925 tiles (240.9s)
+SRHQ_V12_PROGRESS|82|Transformer 恢复
+Restored 760/925 tiles (244.0s)
+SRHQ_V12_PROGRESS|83|Transformer 恢复
+Restored 770/925 tiles (247.1s)
+SRHQ_V12_PROGRESS|84|Transformer 恢复
+Restored 780/925 tiles (250.4s)
+SRHQ_V12_PROGRESS|84|Transformer 恢复
+Restored 790/925 tiles (253.6s)
+SRHQ_V12_PROGRESS|85|Transformer 恢复
+Restored 800/925 tiles (256.7s)
+SRHQ_V12_PROGRESS|86|Transformer 恢复
+Restored 810/925 tiles (259.8s)
+SRHQ_V12_PROGRESS|86|Transformer 恢复
+Restored 820/925 tiles (263.2s)
+SRHQ_V12_PROGRESS|87|Transformer 恢复
+Restored 830/925 tiles (266.4s)
+SRHQ_V12_PROGRESS|87|Transformer 恢复
+Restored 840/925 tiles (269.5s)
+SRHQ_V12_PROGRESS|88|Transformer 恢复
+Restored 850/925 tiles (272.7s)
+SRHQ_V12_PROGRESS|89|Transformer 恢复
+Restored 860/925 tiles (276.0s)
+SRHQ_V12_PROGRESS|89|Transformer 恢复
+Restored 870/925 tiles (279.0s)
+SRHQ_V12_PROGRESS|90|Transformer 恢复
+Restored 880/925 tiles (282.1s)
+SRHQ_V12_PROGRESS|91|Transformer 恢复
+Restored 890/925 tiles (285.3s)
+SRHQ_V12_PROGRESS|91|Transformer 恢复
+Restored 900/925 tiles (288.3s)
+SRHQ_V12_PROGRESS|92|Transformer 恢复
+Restored 910/925 tiles (291.3s)
+SRHQ_V12_PROGRESS|93|Transformer 恢复
+Restored 920/925 tiles (294.4s)
+SRHQ_V12_PROGRESS|93|Transformer 恢复
+SRHQ_V12_PROGRESS|95|按 V12.5 写入 DNG / TIFF / 色彩预览
+SRHQ_ETA_PROGRESS|dng|128|11040
+SRHQ_ETA_PROGRESS|dng|256|11040
+SRHQ_ETA_PROGRESS|dng|384|11040
+SRHQ_ETA_PROGRESS|dng|512|11040
+SRHQ_ETA_PROGRESS|dng|640|11040
+SRHQ_ETA_PROGRESS|dng|768|11040
+SRHQ_ETA_PROGRESS|dng|896|11040
+SRHQ_ETA_PROGRESS|dng|1024|11040
+SRHQ_ETA_PROGRESS|dng|1152|11040
+SRHQ_ETA_PROGRESS|dng|1280|11040
+SRHQ_ETA_PROGRESS|dng|1408|11040
+SRHQ_ETA_PROGRESS|dng|1536|11040
+SRHQ_ETA_PROGRESS|dng|1664|11040
+SRHQ_ETA_PROGRESS|dng|1792|11040
+SRHQ_ETA_PROGRESS|dng|1920|11040
+SRHQ_ETA_PROGRESS|dng|2048|11040
+SRHQ_ETA_PROGRESS|dng|2176|11040
+SRHQ_ETA_PROGRESS|dng|2304|11040
+SRHQ_ETA_PROGRESS|dng|2432|11040
+SRHQ_ETA_PROGRESS|dng|2560|11040
+SRHQ_ETA_PROGRESS|dng|2688|11040
+SRHQ_ETA_PROGRESS|dng|2816|11040
+SRHQ_ETA_PROGRESS|dng|2944|11040
+SRHQ_ETA_PROGRESS|dng|3072|11040
+SRHQ_ETA_PROGRESS|dng|3200|11040
+SRHQ_ETA_PROGRESS|dng|3328|11040
+SRHQ_ETA_PROGRESS|dng|3456|11040
+SRHQ_ETA_PROGRESS|dng|3584|11040
+SRHQ_ETA_PROGRESS|dng|3712|11040
+SRHQ_ETA_PROGRESS|dng|3840|11040
+SRHQ_ETA_PROGRESS|dng|3968|11040
+SRHQ_ETA_PROGRESS|dng|4096|11040
+SRHQ_ETA_PROGRESS|dng|4224|11040
+SRHQ_ETA_PROGRESS|dng|4352|11040
+SRHQ_ETA_PROGRESS|dng|4480|11040
+SRHQ_ETA_PROGRESS|dng|4608|11040
+SRHQ_ETA_PROGRESS|dng|4736|11040
+SRHQ_ETA_PROGRESS|dng|4864|11040
+SRHQ_ETA_PROGRESS|dng|4992|11040
+SRHQ_ETA_PROGRESS|dng|5120|11040
+SRHQ_ETA_PROGRESS|dng|5248|11040
+SRHQ_ETA_PROGRESS|dng|5376|11040
+SRHQ_ETA_PROGRESS|dng|5504|11040
+SRHQ_ETA_PROGRESS|dng|5632|11040
+SRHQ_ETA_PROGRESS|dng|5760|11040
+SRHQ_ETA_PROGRESS|dng|5888|11040
+SRHQ_ETA_PROGRESS|dng|6016|11040
+SRHQ_ETA_PROGRESS|dng|6144|11040
+SRHQ_ETA_PROGRESS|dng|6272|11040
+SRHQ_ETA_PROGRESS|dng|6400|11040
+SRHQ_ETA_PROGRESS|dng|6528|11040
+SRHQ_ETA_PROGRESS|dng|6656|11040
+SRHQ_ETA_PROGRESS|dng|6784|11040
+SRHQ_ETA_PROGRESS|dng|6912|11040
+SRHQ_ETA_PROGRESS|dng|7040|11040
+SRHQ_ETA_PROGRESS|dng|7168|11040
+SRHQ_ETA_PROGRESS|dng|7296|11040
+SRHQ_ETA_PROGRESS|dng|7424|11040
+SRHQ_ETA_PROGRESS|dng|7552|11040
+SRHQ_ETA_PROGRESS|dng|7680|11040
+SRHQ_ETA_PROGRESS|dng|7808|11040
+SRHQ_ETA_PROGRESS|dng|7936|11040
+SRHQ_ETA_PROGRESS|dng|8064|11040
+SRHQ_ETA_PROGRESS|dng|8192|11040
+SRHQ_ETA_PROGRESS|dng|8320|11040
+SRHQ_ETA_PROGRESS|dng|8448|11040
+SRHQ_ETA_PROGRESS|dng|8576|11040
+SRHQ_ETA_PROGRESS|dng|8704|11040
+SRHQ_ETA_PROGRESS|dng|8832|11040
+SRHQ_ETA_PROGRESS|dng|8960|11040
+SRHQ_ETA_PROGRESS|dng|9088|11040
+SRHQ_ETA_PROGRESS|dng|9216|11040
+SRHQ_ETA_PROGRESS|dng|9344|11040
+SRHQ_ETA_PROGRESS|dng|9472|11040
+SRHQ_ETA_PROGRESS|dng|9600|11040
+SRHQ_ETA_PROGRESS|dng|9728|11040
+SRHQ_ETA_PROGRESS|dng|9856|11040
+SRHQ_ETA_PROGRESS|dng|9984|11040
+SRHQ_ETA_PROGRESS|dng|10112|11040
+SRHQ_ETA_PROGRESS|dng|10240|11040
+SRHQ_ETA_PROGRESS|dng|10368|11040
+SRHQ_ETA_PROGRESS|dng|10496|11040
+SRHQ_ETA_PROGRESS|dng|10624|11040
+SRHQ_ETA_PROGRESS|dng|10752|11040
+SRHQ_ETA_PROGRESS|dng|10880|11040
+SRHQ_ETA_PROGRESS|dng|11008|11040
+SRHQ_ETA_PROGRESS|dng|11040|11040
+SRHQ_V12_PROGRESS|96|Lossless DNG compression and pixel verification
+SRHQ_V12_PROGRESS|100|导出完成
+V12 output: D:\GitRepos\JSR_for_Z8\.superpowers\sdd\2026-10-15-direct-invoke-bypass\jobs\run1-lossless\run1lossless_V15_3_5_K7_20261015_231736_534682
+DONE total 339.2s

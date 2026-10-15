@@ -4,31 +4,35 @@ using System.Text;
 namespace Jsr4Z8.Core.Backend;
 
 /// <summary>
-/// Runs one "Jiangtherapee Bridge.exe --assistant-jsr-job" invocation end to end
-/// (protocol facts #1-#4): spawns the harness process — which itself spawns the real
-/// jsr_backend.exe child — streams stdout/stderr through ProtocolParser, and appends
-/// every received line to the spec's log file (UTF-8, stderr lines prefixed "stderr| ").
-/// Success = the single RESULT envelope with state "complete" and host exit code 0;
-/// failure messages are distilled from the log tail (SRHQ_NET_ABORT:&lt;stage&gt;|&lt;msg&gt;
-/// or a MemoryError line). Cancellation kills the whole process tree with
-/// "cmd /c taskkill /T /F /PID": killing only the harness PID would leave the real
-/// backend child running. If the harness dies without a RESULT envelope, the backend
-/// pid reported in the START envelope is killed the same way — descendants of a dead
-/// parent are unreachable via a pid tree walk. Callbacks and log writes are serialized
-/// across the two reader tasks, so onEvent is never invoked concurrently.
+/// Runs one DIRECT jsr_backend.exe invocation end to end (2026-10-15 probe §7):
+/// spawns the engine executable with the argv from the spec — no Bridge, no
+/// request.json, no config dir — and streams its bare stdout lines (zero
+/// ASSISTANT_* envelopes): SRHQ progress parsing stays in ProtocolParser, every
+/// line is forwarded as LogLine and appended to the spec's log file (UTF-8,
+/// stderr lines prefixed "stderr| "). Started is synthesized at spawn (pid = the
+/// engine parent we spawned — the same-argv child it relays never gets a pid of
+/// its own on this side), Finished at exit from the parent's ExitCode plus the
+/// humanized tail extraction (SRHQ_NET_ABORT:&lt;stage&gt;|&lt;msg&gt; or a
+/// MemoryError line). Cancellation kills the whole process tree with
+/// "cmd /c taskkill /T /F /PID": every engine invocation self-respawns a
+/// same-argv child ~2s in and the tree can hold a third unnamed grandchild —
+/// killing only the spawned pid's direct child would leak them. Callbacks and
+/// log writes are serialized across the two reader tasks, so onEvent is never
+/// invoked concurrently.
 /// </summary>
 public sealed class BackendRunner
 {
     private const string CancelledMessage = "已停止";
-    private const string NoResultMessage = "后端未返回结果";
     private const string GenericFailureMessage = "后端执行失败";
     private const string SuccessMessage = "完成";
     private const string StderrPrefix = "stderr| ";
     private const string AbortTag = "SRHQ_NET_ABORT:";
     private const string MemoryErrorPrefix = "MemoryError:";
-    private const string EnvelopePrefix = "ASSISTANT_JSR_";
+    private const string StartedStage = "重建";
+    private const string StartedEngine = "stormer7";
+    private const string StartedMode = "full";
 
-    /// <summary>Spawns the harness per <paramref name="spec"/> and streams it to completion.</summary>
+    /// <summary>Spawns the engine per <paramref name="spec"/> and streams it to completion.</summary>
     public async Task<RunnerResult> RunAsync(BackendRunSpec spec, Action<RunnerEvent> onEvent, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(spec);
@@ -41,7 +45,6 @@ public sealed class BackendRunner
             return neverStarted;
         }
 
-        Directory.CreateDirectory(spec.ConfigDir); // per-run config dir: exclusive lock territory, the runner only creates it
         string? logDir = Path.GetDirectoryName(Path.GetFullPath(spec.LogFile));
         if (!string.IsNullOrEmpty(logDir))
             Directory.CreateDirectory(logDir);
@@ -50,13 +53,10 @@ public sealed class BackendRunner
         var clock = Stopwatch.StartNew();
         var lines = new List<string>(); // every received line in arrival order (stderr prefixed): the tail used for message extraction
         string? lastStderr = null;
-        string? stderrError = null;
-        JsrStart? startJson = null; // the pid inside it is the orphan-cleanup target when no RESULT arrives
-        JsrResult? result = null;
 
         var psi = new ProcessStartInfo
         {
-            FileName = spec.BridgeExe,
+            FileName = spec.EngineExe,
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardOutput = true,
@@ -64,10 +64,8 @@ public sealed class BackendRunner
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
         };
-        psi.ArgumentList.Add("--assistant-jsr-job");
-        psi.ArgumentList.Add(spec.RequestJsonPath);
-        psi.ArgumentList.Add(spec.ResourcesDir);
-        psi.ArgumentList.Add(spec.ConfigDir);
+        foreach (string argument in spec.Arguments)
+            psi.ArgumentList.Add(argument);
 
         using var process = new Process { StartInfo = psi };
         using var log = new StreamWriter(
@@ -76,12 +74,20 @@ public sealed class BackendRunner
         { AutoFlush = true };
 
         process.Start();
-        int harnessPid = process.Id; // captured once: the kill task outlives the disposed Process object
+        int enginePid = process.Id; // captured once: the kill task outlives the disposed Process object
 
-        // Tree kill: /T walks harness -> jsr_backend -> any grandchild; /F because the backend
-        // does not respond to polite termination. Guarded so cancel + no-RESULT cleanup kill once.
-        // taskkill runs on the thread pool: ct.Register callbacks may fire on a UI thread, which
-        // must not block waiting for the killer to exit.
+        // The bare-line protocol has no START envelope: synthesize it. Our own pid IS
+        // the root — the same-argv child the engine spawns never surfaces here.
+        lock (gate)
+        {
+            onEvent(new Started(new JsrStart(StartedStage, StartedEngine, StartedMode, spec.EngineExe, enginePid)));
+        }
+
+        // Tree kill: /T walks engine parent -> same-argv child -> the unnamed third
+        // grandchild; /F because the engine does not respond to polite termination.
+        // Guarded so cancel + failure-cleanup kill once. taskkill runs on the thread
+        // pool: ct.Register callbacks may fire on a UI thread, which must not block
+        // waiting for the killer to exit.
         int killDone = 0;
         int killExitCode = 0; // 0 = not run or succeeded; >0 = taskkill's exit code; -1 timeout; -2 not started
         Task killTask = Task.CompletedTask;
@@ -89,7 +95,7 @@ public sealed class BackendRunner
         {
             if (Interlocked.CompareExchange(ref killDone, 1, 0) != 0)
                 return;
-            killTask = Task.Run(() => killExitCode = RunTaskKill(harnessPid));
+            killTask = Task.Run(() => killExitCode = RunTaskKill(enginePid));
         }
 
         using CancellationTokenRegistration registration = ct.Register(KillTree);
@@ -102,39 +108,9 @@ public sealed class BackendRunner
                 ProtocolEvent parsed = ProtocolParser.ParseLine(line);
                 lock (gate)
                 {
-                    switch (parsed)
-                    {
-                        case Start start: // envelope line: persisted raw, surfaced as Started
-                            lines.Add(line);
-                            log.WriteLine(line);
-                            startJson = start.Json;
-                            onEvent(new Started(start.Json));
-                            break;
-
-                        case Result r: // the envelope is persisted, but no event yet: Finished reports the outcome
-                            lines.Add(line);
-                            log.WriteLine(line);
-                            result = r.Json;
-                            break;
-
-                        case Log l: // unwrapped text is what the UI log should show
-                            lines.Add(l.Text);
-                            log.WriteLine(l.Text);
-                            onEvent(new LogLine(l.Text, l.Progress));
-                            break;
-
-                        case ErrorOnStderr: // protocol error lines belong on stderr; if one lands on stdout keep it verbatim
-                            lines.Add(line);
-                            log.WriteLine(line);
-                            onEvent(new LogLine(line, null));
-                            break;
-
-                        case Unrecognized u: // backend chatter without envelope: still a log line, nothing is dropped
-                            lines.Add(u.Text);
-                            log.WriteLine(u.Text);
-                            onEvent(new LogLine(u.Text, null));
-                            break;
-                    }
+                    lines.Add(line);
+                    log.WriteLine(line);
+                    onEvent(new LogLine(line, parsed is Log l ? l.Progress : null));
                 }
             }
         });
@@ -152,33 +128,28 @@ public sealed class BackendRunner
                     log.WriteLine(text);
                     if (line.Length > 0)
                         lastStderr = line;
-                    if (parsed is ErrorOnStderr e)
-                        stderrError = e.Message;
                     onEvent(new LogLine(text, parsed is Log l ? l.Progress : null));
                 }
             }
         });
 
+        // Waiting the pipes (both writers gone) AND the parent process: the parent
+        // relays the same-argv child's exit code 0.3-0.5s after the child dies.
         await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
         await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
         registration.Dispose();
 
-        // The harness died without a RESULT envelope. Its backend child may still be alive —
-        // but a dead parent's descendants are unreachable (taskkill /T on the dead harness pid
-        // finds nothing, they were orphaned at parent death) — so kill the harness tree as a
-        // cheap belt-and-braces, then the jsr_backend pid reported in the START envelope.
-        // Best effort: that pid may be stale or already gone; failures are swallowed.
-        if (result is null)
-        {
+        bool cancelled = ct.IsCancellationRequested;
+        bool success = !cancelled && process.ExitCode == 0;
+
+        // Belt-and-braces (the old code killed the START-envelope pid here): a
+        // failed/killed parent may have left its same-argv child or the unnamed
+        // grandchild running — /T on our own root pid reaps whatever is still
+        // attached to the tree. Best effort; harmless when the tree is already gone.
+        if (!success)
             KillTree();
-            if (startJson is { Pid: > 0 })
-                RunTaskKill(startJson.Pid);
-        }
 
         await killTask.ConfigureAwait(false); // taskkill's exit code is final before the message is composed
-
-        bool cancelled = ct.IsCancellationRequested;
-        bool success = !cancelled && result is { State: "complete" } && process.ExitCode == 0;
 
         string message;
         if (success)
@@ -189,10 +160,8 @@ public sealed class BackendRunner
             if (killExitCode != 0) // a failed tree kill must not be reported as a clean stop
                 message += $"（taskkill 退出码 {killExitCode}）";
         }
-        else if (result is null)
-            message = stderrError ?? lastStderr ?? NoResultMessage;
         else
-            message = ExtractFailureMessage(lines) ?? GenericFailureMessage;
+            message = ExtractFailureMessage(lines) ?? lastStderr ?? GenericFailureMessage;
 
         var final = new RunnerResult(success, message, clock.Elapsed);
         lock (gate)
@@ -224,25 +193,15 @@ public sealed class BackendRunner
     }
 
     /// <summary>Distills a user-readable failure message from the log tail: the last
-    /// SRHQ_NET_ABORT:&lt;stage&gt;|&lt;msg&gt; message (what the backend itself chose to report,
-    /// works both bare and LOG-wrapped), else the last MemoryError line, else the last
-    /// non-empty line. ASSISTANT_* envelope lines are skipped entirely — their JSON
-    /// log field embeds the same abort/MemoryError text and would otherwise win as
-    /// the "last" line (they arrive last) and surface raw JSON to the user.</summary>
+    /// SRHQ_NET_ABORT:&lt;stage&gt;|&lt;msg&gt; message (what the engine itself chose to
+    /// report, a bare stdout line in the direct protocol), else the last MemoryError
+    /// line, else the last non-empty line.</summary>
     private static string? ExtractFailureMessage(List<string> lines)
     {
         string? lastAbort = null, lastMemory = null, lastNonEmpty = null;
         foreach (string line in lines)
         {
             if (line.Length == 0)
-                continue;
-            // Envelope lines — raw ASSISTANT_* on stdout and the stderr|-prefixed ERROR
-            // wrapper — embed the backend's whole log (abort and MemoryError text
-            // included) inside JSON, and the RESULT envelope arrives last. Without
-            // this skip the envelope wins the "last abort line" scan and the card
-            // shows raw JSON (Task 16 real-run finding, 2026-10-14).
-            if (line.StartsWith(EnvelopePrefix, StringComparison.Ordinal) ||
-                line.StartsWith(StderrPrefix + EnvelopePrefix, StringComparison.Ordinal))
                 continue;
             lastNonEmpty = line;
             if (line.Contains(AbortTag, StringComparison.Ordinal))

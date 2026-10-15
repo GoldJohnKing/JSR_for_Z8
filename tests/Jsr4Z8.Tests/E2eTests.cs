@@ -59,16 +59,17 @@ public class E2eTests
     private static string[] FramesFor(string samplesDir) =>
         Enumerable.Range(7576, 7).Select(i => Path.Combine(samplesDir, "test_frames", "FX", "Lossless", $"DSC_{i}.NEF")).ToArray();
 
-    /// <summary>The payload the release selftest extracted; asserts the operator ran it first.</summary>
-    private static (string Bridge, string Resources) ResolveExtractedBackend()
+    /// <summary>The payload the release selftest extracted; asserts the operator ran it first.
+    /// Returns the direct-invoke engine executable (resources\jsr_backend.exe).</summary>
+    private static string ResolveExtractedBackend()
     {
         Assert.True(Directory.Exists(PayloadManager.DefaultBackendRoot),
             $"后端载荷根不存在: {PayloadManager.DefaultBackendRoot}（先运行 out\\Jsr4Z8_v1.0.0.exe --selftest 释放载荷）");
         string[] candidates = Directory.GetDirectories(PayloadManager.DefaultBackendRoot)
-            .Where(d => File.Exists(Path.Combine(d, TaskQueueRunner.BridgeFileName)))
+            .Where(d => File.Exists(Path.Combine(d, "resources", TaskQueueRunner.EngineFileName)))
             .ToArray();
         string backend = Assert.Single(candidates);
-        return (Path.Combine(backend, TaskQueueRunner.BridgeFileName), Path.Combine(backend, "resources"));
+        return Path.Combine(backend, "resources", TaskQueueRunner.EngineFileName);
     }
 
     /// <summary>Queue events collected during one run (background threads → lock).</summary>
@@ -111,10 +112,9 @@ public class E2eTests
         Ev($"校验: Z8 · ISO3200 · 满阱 {ptc.FullwellE:0.0} e⁻（{(ptc.Exact ? "表值" : ptc.Source)}）" +
            $" · 黑场预置匹配（black {validation.Dark!.BlackDn} DN · RN {validation.Dark.ReadNoiseDn} DN）");
 
-        var (bridge, resources) = ResolveExtractedBackend();
         var engine = new TaskQueueRunner
         {
-            ResolveBackendOverride = _ => new TaskQueueRunner.BackendPayload(bridge, resources),
+            ResolveBackendOverride = _ => new TaskQueueRunner.BackendPayload(ResolveExtractedBackend()),
         };
         return (group, ptc, validation.Dark!, engine, new RunCapture());
     }
@@ -213,8 +213,7 @@ public class E2eTests
         Ev($"校验: Z8·HE·ISO3200 · 满阱 {validation.Ptc!.FullwellE:0.0} e⁻ · 黑场 HE 预置行 " +
            $"（black {validation.Dark.BlackDn} DN · RN {validation.Dark.ReadNoiseDn} DN；无损行 RN {DarkTable.LoadDefault().Lookup(3200, 3)!.ReadNoiseDn} DN 不适用）");
 
-        var (bridge, resources) = ResolveExtractedBackend();
-        var engine = new TaskQueueRunner { ResolveBackendOverride = _ => new TaskQueueRunner.BackendPayload(bridge, resources) };
+        var engine = new TaskQueueRunner { ResolveBackendOverride = _ => new TaskQueueRunner.BackendPayload(ResolveExtractedBackend()) };
         TaskRunOutcome outcome = await engine
             .RunAsync(group, validation.Ptc, validation.Dark, new AppSettings(), CancellationToken.None, _ => { });
         ReportOutcome(outcome, new RunCapture(), "全流程·HE 预置黑场");
@@ -455,11 +454,11 @@ public class E2eTests
         Ev($"中文路径产物: {new FileInfo(expected).Length / 1024.0 / 1024.0:F1} MB");
     }
 
-    // ---- Step 4 capture: raw ASSISTANT_* stdout stream of one full success run ----
+    // ---- Step 4 capture: raw bare-line stdout stream of one full direct run ----
 
     [Fact]
     [Trait("Category", "E2E")]
-    public async Task SuccessStdoutCapture_SpawnsBridgeDirectly_SavesRawEnvelopeStream()
+    public async Task SuccessStdoutCapture_SpawnsEngineDirectly_SavesRawBareLineStream()
     {
         if (!Enabled)
         {
@@ -468,26 +467,23 @@ public class E2eTests
         }
 
         var (group, ptc, dark, _, _) = PrepareRun(SamplesDir());
-        var (bridge, resources) = ResolveExtractedBackend();
+        string engineExe = ResolveExtractedBackend();
         string workDir = Path.Combine(ArtifactsDir(), "capture");
         try { Directory.Delete(workDir, recursive: true); } catch (DirectoryNotFoundException) { }
         Directory.CreateDirectory(Path.Combine(workDir, "out"));
-        Directory.CreateDirectory(Path.Combine(workDir, "cfg"));
         string outDir = Path.Combine(workDir, "out");
-        string requestPath = Path.Combine(workDir, "request.json");
         string stdoutPath = Path.Combine(workDir, "success.log");
         string stderrPath = Path.Combine(workDir, "success.stderr.log");
 
-        // The same request the queue builds (UTF-8 no BOM, prefix=cap1).
-        string request = BackendRequest.BuildJson(group, ptc, dark, outputDir: outDir, prefix: "cap1");
-        File.WriteAllText(requestPath, request, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-
-        // Raw tap: spawn the bridge exactly as BackendRunner does, but persist every
-        // stdout/stderr line VERBATIM (CRLF) instead of through the parser — this is
-        // the ASSISTANT_* envelope stream the success.log fixture needs.
+        // Raw tap: spawn the engine exactly as BackendRunner does (Task 2 direct
+        // invoke: argv from BackendRequest.BuildArguments, no Bridge/request.json/cfg),
+        // but persist every stdout/stderr line VERBATIM (CRLF) instead of through the
+        // parser — this is the bare-line stream the direct_success.log fixture shape
+        // comes from. (Full re-capture/rewrite lands in Task 3.)
+        IReadOnlyList<string> arguments = BackendRequest.BuildArguments(group, ptc, dark, outputDir: outDir, prefix: "cap1");
         var psi = new ProcessStartInfo
         {
-            FileName = bridge,
+            FileName = engineExe,
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardOutput = true,
@@ -495,10 +491,8 @@ public class E2eTests
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
         };
-        psi.ArgumentList.Add("--assistant-jsr-job");
-        psi.ArgumentList.Add(requestPath);
-        psi.ArgumentList.Add(resources);
-        psi.ArgumentList.Add(Path.Combine(workDir, "cfg"));
+        foreach (string argument in arguments)
+            psi.ArgumentList.Add(argument);
 
         var clock = Stopwatch.StartNew();
         using var process = Process.Start(psi)!;
@@ -519,7 +513,7 @@ public class E2eTests
         await Task.WhenAll(pumpOut, pumpErr);
         await process.WaitForExitAsync(CancellationToken.None);
         clock.Stop();
-        Ev($"抓取运行: bridge 退出码 {process.ExitCode}, 耗时 {clock.Elapsed.TotalSeconds:F1}s, " +
+        Ev($"抓取运行: engine 退出码 {process.ExitCode}, 耗时 {clock.Elapsed.TotalSeconds:F1}s, " +
            $"stdout {new FileInfo(stdoutPath).Length / 1024.0 / 1024.0:F2} MB");
         Assert.Equal(0, process.ExitCode);
 
@@ -529,34 +523,25 @@ public class E2eTests
         stdoutFile.Dispose();
         stderrFile.Dispose();
 
-        // Pre-commit validation of the captured stream: single START, single complete RESULT.
+        // Pre-commit validation of the captured bare-line stream: zero envelopes,
+        // SRHQ progress present, the DONE tail present.
         string[] lines = File.ReadAllLines(stdoutPath);
-        int starts = 0, results = 0, v12 = 0, eta = 0;
-        JsrResult? resultJson = null;
+        int v12 = 0, eta = 0, envelopes = 0;
         foreach (string line in lines)
         {
+            if (line.StartsWith("ASSISTANT", StringComparison.Ordinal))
+                envelopes++;
             switch (ProtocolParser.ParseLine(line))
             {
-                case Start:
-                    starts++;
-                    break;
-                case Result r:
-                    results++;
-                    resultJson = r.Json;
-                    break;
                 case Log l when l.Progress is not null:
                     if (l.Progress.Stage == DngExportStage) eta++;
                     else v12++;
                     break;
             }
         }
-        Ev($"抓取流: {lines.Length} 行, START {starts}, RESULT {results}, " +
+        Ev($"抓取流: {lines.Length} 行, 信封 {envelopes}, " +
            $"V12 进度 {v12}, ETA 进度 {eta}");
-        Assert.Equal(1, starts);
-        Assert.Equal(1, results);
-        Assert.NotNull(resultJson);
-        Assert.Equal("complete", resultJson!.State);
-        Assert.Equal(0, resultJson.ExitCode);
+        Assert.Equal(0, envelopes);
         Assert.True(v12 > 0 && eta > 0);
 
         // The backend really produced its DNG (kept for reference; not finalized here).

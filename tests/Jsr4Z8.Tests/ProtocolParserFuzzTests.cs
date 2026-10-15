@@ -10,10 +10,12 @@ namespace Jsr4Z8.Tests;
 /// the job hangs without a diagnosis). Property-style checks:
 ///  (a) every malformed/hostile line returns an event and never throws, and
 ///      parsing is deterministic (same line → equal event, twice);
-///  (b) determinism over every line of the real captured fixtures;
+///  (b) determinism over every line of the real captured fixtures (direct bare-line
+///      captures and the legacy envelope captures alike);
 ///  (c) lines starting with a known prefix family map to the right event kind
-///      (well-formed → Start/Result/ErrorOnStderr/Log-with-progress; malformed
-///      envelope JSON → Unrecognized — the documented degradation).
+///      (well-formed SRHQ progress → Log-with-progress; everything else —
+///      legacy ASSISTANT_* envelope text included, a second grammar the parser
+///      no longer has — → Unrecognized).
 /// </summary>
 public class ProtocolParserFuzzTests
 {
@@ -42,12 +44,9 @@ public class ProtocolParserFuzzTests
         "ASSISTANT_JSR_RESULT|",
         "ASSISTANT_JSR_RESULT|{\"exit_code\":",
         "ASSISTANT_JSR_RESULT|{\"exit_code\":3",
-        // escaped unpaired surrogate: the JSON reader accepts the escape, so the
-        // envelope parses to a normal event. (A RAW lone-surrogate char in the
-        // payload makes JsonSerializer throw ArgumentException — not JsonException
-        // — which ParseLine does not catch. Unreachable through a real Process
-        // stdout pipe, which decodes invalid UTF-8 to U+FFFD and never yields lone
-        // surrogates; excluded from the corpus as a known, reported product hole.)
+        // escaped unpaired surrogate: plain text to the bare-line parser (the JSON
+        // reader that used to reject some envelope payloads is gone with the
+        // envelopes); kept as hostile-UTF-8 residue.
         "ASSISTANT_JSR_RESULT|{\"exit_code\":0,\"state\":\"complete\",\"log\":\"\\uD800\"}",
         "ASSISTANT_JSR_RESULT|" + new string('Y', 10_000),
         "ASSISTANT_JSR_LOG|",
@@ -105,13 +104,15 @@ public class ProtocolParserFuzzTests
     // ---- (b) determinism over the real captured fixtures ----------------------
 
     [Theory]
+    [InlineData("direct_success.log")]
+    [InlineData("direct_fail.log")]
     [InlineData("stdout2.log")]
     [InlineData("stdout3.log")]
     [InlineData("success.log")]
     public void ParseLine_RealFixtureLines_ParseDeterministically(string fixture)
     {
         string[] lines = ReadFixtureLines(fixture);
-        Assert.True(lines.Length > 100, $"fixture unexpectedly small: {lines.Length} lines");
+        Assert.True(lines.Length > 10, $"fixture unexpectedly small: {lines.Length} lines");
         foreach (string line in lines)
         {
             ProtocolEvent first = ProtocolParser.ParseLine(line);
@@ -126,17 +127,9 @@ public class ProtocolParserFuzzTests
     [Fact]
     public void ParseLine_KnownPrefixFamilies_MapToRightEventKind()
     {
-        // Well-formed synthetic envelopes → exact kinds.
-        Assert.IsType<Start>(ProtocolParser.ParseLine(
-            "ASSISTANT_JSR_START|{\"job_id\":\"j\",\"state\":\"running\",\"stage\":\"s\",\"output\":\"o\"," +
-            "\"engine\":\"e\",\"mode\":\"m\",\"compressor\":\"c\",\"pid\":1,\"started\":1.0,\"dng\":true}"));
-        Assert.IsType<Result>(ProtocolParser.ParseLine(
-            "ASSISTANT_JSR_RESULT|{\"exit_code\":0,\"state\":\"complete\",\"log\":\"l\",\"job_id\":\"j\"," +
-            "\"output\":\"o\",\"engine\":\"e\",\"mode\":\"m\",\"compressor\":\"c\",\"pid\":1,\"started\":1.0,\"dng\":true}"));
-        var err = Assert.IsType<ErrorOnStderr>(ProtocolParser.ParseLine("ASSISTANT_JSR_ERROR|boom"));
-        Assert.Equal("boom", err.Message);
-        var log = Assert.IsType<Log>(ProtocolParser.ParseLine("ASSISTANT_JSR_LOG|plain text"));
-        Assert.Null(log.Progress);
+        // Well-formed SRHQ progress → exact Log-with-progress; everything else —
+        // including legacy ASSISTANT_* envelope text (a second grammar the parser
+        // no longer has) → Unrecognized with the full line preserved.
         var v12 = Assert.IsType<Log>(ProtocolParser.ParseLine("SRHQ_V12_PROGRESS|42|stage"));
         Assert.NotNull(v12.Progress);
         Assert.Equal(42, v12.Progress!.Percent);
@@ -145,33 +138,28 @@ public class ProtocolParserFuzzTests
         Assert.NotNull(eta.Progress);
         Assert.Equal(97, eta.Progress!.Percent);            // 95 + 5·1/2
         Assert.IsType<Unrecognized>(ProtocolParser.ParseLine("totally unknown line"));
-
-        // Malformed envelope JSON after a known prefix → the documented
-        // Unrecognized degradation (full line preserved), never a throw.
+        Assert.IsType<Unrecognized>(ProtocolParser.ParseLine("ASSISTANT_JSR_LOG|plain text"));
+        Assert.IsType<Unrecognized>(ProtocolParser.ParseLine("ASSISTANT_JSR_LOG|SRHQ_V12_PROGRESS|42|stage"));
         Assert.IsType<Unrecognized>(ProtocolParser.ParseLine("ASSISTANT_JSR_START|{"));
-        Assert.IsType<Unrecognized>(ProtocolParser.ParseLine("ASSISTANT_JSR_RESULT|{\"exit_code\":"));
+        Assert.IsType<Unrecognized>(ProtocolParser.ParseLine("ASSISTANT_JSR_ERROR|boom"));
     }
 
     [Theory]
+    [InlineData("direct_success.log")]
+    [InlineData("direct_fail.log")]
     [InlineData("stdout2.log")]
     [InlineData("stdout3.log")]
     [InlineData("success.log")]
     public void ParseLine_FixtureLinesWithKnownPrefix_LandInRightFamily(string fixture)
     {
-        // Every REAL line starting with a known prefix family lands in the
-        // expected kind (or Unrecognized for malformed payloads) — never in a
-        // sibling family: a START line may not surface as Log/Result.
+        // Every REAL line starting with an SRHQ progress prefix lands in Log (or
+        // Unrecognized for malformed payloads) — never in a sibling family; every
+        // other line, legacy envelope captures included, is Unrecognized.
         foreach (string line in ReadFixtureLines(fixture))
         {
             ProtocolEvent evt = ProtocolParser.ParseLine(line);
-            if (line.StartsWith("ASSISTANT_JSR_START|", StringComparison.Ordinal))
-                Assert.True(evt is Start or Unrecognized, $"{Truncate(line)} → {evt.GetType().Name}");
-            else if (line.StartsWith("ASSISTANT_JSR_RESULT|", StringComparison.Ordinal))
-                Assert.True(evt is Result or Unrecognized, $"{Truncate(line)} → {evt.GetType().Name}");
-            else if (line.StartsWith("ASSISTANT_JSR_LOG|", StringComparison.Ordinal))
-                Assert.IsType<Log>(evt);
-            else if (line.StartsWith("SRHQ_V12_PROGRESS|", StringComparison.Ordinal) ||
-                     line.StartsWith("SRHQ_ETA_PROGRESS|", StringComparison.Ordinal))
+            if (line.StartsWith("SRHQ_V12_PROGRESS|", StringComparison.Ordinal) ||
+                line.StartsWith("SRHQ_ETA_PROGRESS|", StringComparison.Ordinal))
                 Assert.True(evt is Log or Unrecognized, $"{Truncate(line)} → {evt.GetType().Name}");
             else
                 Assert.IsType<Unrecognized>(evt);

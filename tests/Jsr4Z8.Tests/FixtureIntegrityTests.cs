@@ -22,15 +22,19 @@ public class FixtureIntegrityTests
         { "protocol/stdout2.log", "32f745aac1445031efcecc85b6eafbc8ca1b67bbed5c68fe8d0f3323740c9381" },
         { "protocol/stdout3.log", "58e941f4aa0715d628dc544329ae2103ac595666f003b54931e0ac57a4a5615b" },
         { "protocol/success.log", "58e941f4aa0715d628dc544329ae2103ac595666f003b54931e0ac57a4a5615b" },
+        // real captured DIRECT-RUN stdout (2026-10-15 probe §7: bare lines, zero envelopes)
+        { "protocol/direct_success.log", "eaafc02c391b6f253495238c5ca79c6355b9df34bc539d99840aba283ce60cf0" },
+        { "protocol/direct_fail.log", "1c867d7279a2fbb37056c6c4b3cdfa1706d52f628f34ac2b8b98d06ee27dd288" },
         // real backend product DNG (foreign PIL/tifffile LJ stream)
         { "backend-dng/roi_sample.dng", "9d51d3b58756348bbdd8bc55dd04bbdc1eb52398b29eac0cfcffd9dd38db8127" },
-        // stub backend harnesses (BackendRunnerTests)
-        { "stub_backend/stub_backend.bat", "7f998740236716f8b132f7dd858c4a09aaf83f275ec9e1be9e307be9ebae5b35" },
-        { "stub_backend/stub_dng.bat", "1ab02a82c3be9f4860d8d4bc8bd4ccb6443662d51b509726103bbbed4d143b84" },
-        { "stub_backend/stub_fail.bat", "1460152dfb67f9d17dbae5f3ecfdca1b76868ab060836f94aae6c8d2e1a5430f" },
-        { "stub_backend/stub_fail_envelope.bat", "abec05c21eb95178ba385f262b39f3736991fa4a84d61bc6a5a71fa69c467df4" },
-        { "stub_backend/stub_kill.bat", "60b5feb2d3425aa8d0227d593c150fb567f434a4d1c91b5dd60192de27669c3c" },
-        { "stub_backend/stub_orphan.bat", "354da2f7b509588f205071879f2dbaaf585f537665c206e65d20fb1a3ecf226f" },
+        // stub backend engines (BackendRunnerTests; stub_dual_* replicate the
+        // engine's same-argv child self-respawn, probe §7.3)
+        { "stub_backend/stub_backend.bat", "a7717c7263a00e29fbc850a81d41ce609d4852e201b956f9c84e0375b47644c4" },
+        { "stub_backend/stub_dng.bat", "29746cf8057b25fdf616e7c1047f9f2bb9a1b202a9451f04db02a421955a94cf" },
+        { "stub_backend/stub_dual.bat", "a4112811ca31765f0e082cb4e86a74f64eac03661fcecc6e84d5b6ed2b653ccc" },
+        { "stub_backend/stub_dual_child.bat", "787d4d094392c4efdc77a0e190865a8e98c61f654bcb7989794be17f1ce7abed" },
+        { "stub_backend/stub_fail.bat", "e6c96684ea0e30ee4ab9ebf100446054ede3044b184e1d44c0cd305e2fce1e73" },
+        { "stub_backend/stub_kill.bat", "a89693405df8235a6108ca30b806a0575c8f83d7a00e1486246f6b5682faf4af" },
     };
 
     [Theory]
