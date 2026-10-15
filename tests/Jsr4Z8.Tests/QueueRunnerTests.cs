@@ -119,8 +119,7 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
             Assert.Equal(100, vm.Progress);
             Assert.Equal(Path.Combine(Path.GetDirectoryName(Frames[0])!, "JSR_fake.dng"), vm.OutputPath);
             Assert.Contains("已输出", vm.MetaText);
-            Assert.Contains(vm.LogLines, l => l.Contains("模拟后端启动"));   // backend lines forwarded to the card log
-            Assert.Contains(vm.LogLines, l => l.Contains("已输出"));        // [完成] line with the final path
+            Assert.Contains("JSR_fake.dng", vm.MetaText);       // Done meta line carries the written path
 
             // Finalize received the **/<prefix>*.dng glob hit, the reference NEF and the SameAsInput dest dir.
             (string backendDng, string referenceNef, string destDir) call;
@@ -410,11 +409,12 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
 }
 
 /// <summary>Task 13: QueueMediator's RunnerEvent → card mapping (headless, synchronous
-/// dispatcher): payload 0-5%, backend percent 5-100, log lines, stage text, terminal
-/// states with humanized messages. progressGate: TimeSpan.Zero disables the UI
-/// throttle — these tests pin the pure event→percent mapping over a fast stub whose
-/// lines all arrive inside the default 200 ms gate; the throttle itself is pinned by
-/// ProgressThrottleTests.</summary>
+/// dispatcher): payload 0-5%, backend percent 5-100, stage text, terminal
+/// states with humanized messages (backend log lines are consumed for progress only —
+/// the card carries no log surface since Task 5). progressGate: TimeSpan.Zero disables
+/// the UI throttle — these tests pin the pure event→percent mapping over a fast stub
+/// whose lines all arrive inside the default 200 ms gate; the throttle itself is pinned
+/// by ProgressThrottleTests.</summary>
 public class QueueMediatorTests : IClassFixture<TestTemp>
 {
     private readonly TestTemp _temp;
@@ -477,7 +477,7 @@ public class QueueMediatorTests : IClassFixture<TestTemp>
     }
 
     [Fact]
-    public async Task EventMapping_Payload0To5_Backend5To100_StageAndLogLines()
+    public async Task EventMapping_Payload0To5_Backend5To100_StageText()
     {
         var (mediator, tempBase) = MediatorWithStub("stub_dng.bat");
         try
@@ -499,7 +499,6 @@ public class QueueMediatorTests : IClassFixture<TestTemp>
             Assert.Equal(100, vm.Progress);                    // Done pins 100
             Assert.Equal("模拟阶段", vm.StageText);            // backend stage became the badge text
             Assert.Equal(TaskState.Done, vm.State);
-            Assert.Contains("模拟后端启动", vm.LogLines);
         }
         finally
         {

@@ -69,6 +69,9 @@ public class TaskGroupVmTests
         var vm = ReadyVm();
         Assert.Equal(TaskState.Ready, vm.State);
         Assert.Equal("就绪", vm.StateText);
+        Assert.Equal("待输出 JSR_DSC_7576.dng", vm.MetaText);   // Task 5: meta line is the output name only
+        Assert.DoesNotContain("PTC", vm.MetaText);
+        Assert.DoesNotContain("黑场", vm.MetaText);
 
         Assert.True(vm.GoRunning());
         Assert.Equal(TaskState.Running, vm.State);
@@ -84,6 +87,7 @@ public class TaskGroupVmTests
         Assert.Equal(100, vm.Progress);
         Assert.Equal("已完成", vm.StateText);
         Assert.Equal(output, vm.OutputPath);
+        Assert.Equal($"已输出 {output}", vm.MetaText);          // Done shows the written path
         Assert.True(vm.OpenFolderCommand.CanExecute(null));
         Assert.False(vm.StartCommand.CanExecute(null));
     }
@@ -110,21 +114,6 @@ public class TaskGroupVmTests
         Assert.True(fresh.GoFailed("x"));     // Ready → Failed is valid (immediate run error)
         Assert.Equal(TaskState.Failed, fresh.State);
         Assert.True(fresh.GoRunning());        // Failed → Running is the retry edge
-    }
-
-    [Fact]
-    public void LogLinesAppend_And_ToggleLogFlipsExpanded()
-    {
-        var vm = ReadyVm();
-        Assert.Empty(vm.LogLines);
-        Assert.False(vm.IsLogExpanded);
-
-        vm.LogLines.Add("[19:22:31] 黑场预置参数已按 ISO400 自动匹配");
-        vm.IsLogExpanded = true;
-        Assert.True(vm.IsLogExpanded);
-        vm.IsLogExpanded = false;
-        Assert.False(vm.IsLogExpanded);
-        Assert.Single(vm.LogLines);
     }
 
     [Fact]
@@ -179,6 +168,42 @@ public class TaskGroupVmTests
         Assert.False(blocked.StopCommand.CanExecute(null));
         Assert.False(blocked.RetryCommand.CanExecute(null));
         Assert.False(blocked.OpenFolderCommand.CanExecute(null));
+    }
+
+    /// <summary>Task 5 (卡内换基准): clicking a chip on a Ready card makes that frame
+    /// the reference — chips [0]/[i] swap slots and ★ flags, Group.FramePaths is rebuilt
+    /// with the new reference first (remaining frames keep their chip order), and
+    /// ReferenceName/OutputName follow (JSR_&lt;基准帧名&gt;.dng).</summary>
+    [Fact]
+    public void SetReference_SwapsGroupOrderAndOutputName()
+    {
+        var vm = ReadyVm();
+        Assert.True(vm.SetReferenceCommand.CanExecute(null));   // Ready cards allow the swap
+        vm.SetReferenceCommand.Execute(vm.FrameChips[3]);       // 4th chip: DSC_7579
+
+        Assert.Equal(Frames[3], vm.Group.FramePaths[0]);        // clicked frame is the new reference
+        Assert.Equal("DSC_7579.NEF", vm.ReferenceName);
+        Assert.Equal("JSR_DSC_7579.dng", vm.OutputName);
+        Assert.Equal("待输出 JSR_DSC_7579.dng", vm.MetaText);
+        Assert.True(vm.FrameChips[0].IsReference);
+        Assert.Equal("DSC_7579.NEF", vm.FrameChips[0].FileName);
+        Assert.False(vm.FrameChips[3].IsReference);             // old reference demoted in place
+        Assert.Equal("DSC_7576.NEF", vm.FrameChips[3].FileName);
+        // Swap, not rotate: only slots 0 and 3 exchange; the rest keep their order.
+        Assert.Equal(
+            new[] { Frames[3], Frames[1], Frames[2], Frames[0], Frames[4], Frames[5], Frames[6] },
+            vm.Group.FramePaths);
+    }
+
+    /// <summary>Review Focus 5: the swap is a Ready/Blocked-only interaction —
+    /// Running/Done/Failed cards disable it (a Done output was produced from the old
+    /// reference; a Running group is in flight).</summary>
+    [Fact]
+    public void SetReference_DisabledWhenRunningOrDone()
+    {
+        Assert.True(To(TaskState.Blocked).SetReferenceCommand.CanExecute(null));  // Blocked keeps the swap
+        foreach (TaskState state in new[] { TaskState.Running, TaskState.Done, TaskState.Failed })
+            Assert.False(To(state).SetReferenceCommand.CanExecute(null));
     }
 
     /// <summary>Task 6 carried finding: backend PROGRESS lines can exceed 100 —

@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Jsr4Z8.Core.Dark;
@@ -27,11 +26,12 @@ public enum TaskState
 public sealed record FrameChipViewModel(string FileName, bool IsReference);
 
 /// <summary>
-/// Pure-state ViewModel for one task-group card. Binds Core's TaskGroup/ValidationResult
-/// without mutating them and is deliberately UI-thread-agnostic — no Avalonia dispatcher or
-/// Application dependency — so it runs headless under xUnit and Task 13 can drive it from
-/// background threads via the queue mediator. Invalid state transitions are ignored
-/// (never thrown): see <see cref="GoRunning"/>.
+/// Pure-state ViewModel for one task-group card. Wraps Core's TaskGroup/ValidationResult
+/// without mutating them (a reference swap replaces the group instance, notified via
+/// <see cref="Group"/>) and is deliberately UI-thread-agnostic — no Avalonia dispatcher
+/// or Application dependency — so it runs headless under xUnit and Task 13 can drive it
+/// from background threads via the queue mediator. Invalid state transitions are
+/// ignored (never thrown): see <see cref="GoRunning"/>.
 /// </summary>
 public partial class TaskGroupViewModel : ObservableObject
 {
@@ -40,7 +40,9 @@ public partial class TaskGroupViewModel : ObservableObject
     private readonly DarkMatch? _dark;
     private CancellationTokenSource? _cts;
 
-    public TaskGroup Group { get; }
+    /// <summary>The 7-frame job; <see cref="SetReferenceCommand"/> replaces the instance
+    /// (with change notification) when the card swaps its reference frame.</summary>
+    public TaskGroup Group { get; private set; }
 
     /// <summary>The PTC match captured at creation validation — the queue's request
     /// JSON needs its fullwell (BuildJson rounds inside); null only for unvalidated cards.</summary>
@@ -50,17 +52,15 @@ public partial class TaskGroupViewModel : ObservableObject
     /// <summary>The preset dark resolved at creation validation — the queue's request
     /// JSON needs its black/read-noise pair; null only for unvalidated cards.</summary>
     public DarkMatch? Dark => _dark;
-    public string ReferenceName { get; }
 
-    public string DarkName { get; }
+    /// <summary>Reference frame filename (FramePaths[0]); follows a reference swap.</summary>
+    [ObservableProperty] private string _referenceName = "";
 
-    /// <summary>Output file the pipeline produces: JSR_&lt;基准帧名&gt;.dng.</summary>
-    public string OutputName { get; }
+    /// <summary>Output file the pipeline produces: JSR_&lt;基准帧名&gt;.dng; follows a
+    /// reference swap.</summary>
+    [ObservableProperty] private string _outputName = "";
 
     public ObservableCollection<FrameChipViewModel> FrameChips { get; }
-
-    /// <summary>Card log; expansion is manual-only per the user's card-states.html decision.</summary>
-    public ObservableCollection<string> LogLines { get; } = new();
 
     /// <summary>Raised by the Remove command; the owning MainViewModel removes this card.</summary>
     public event EventHandler? RemoveRequested;
@@ -68,7 +68,6 @@ public partial class TaskGroupViewModel : ObservableObject
     [ObservableProperty] private TaskState _state;
     [ObservableProperty] private int _progress;
     [ObservableProperty] private string _stageText = "";
-    [ObservableProperty] private bool _isLogExpanded;
     [ObservableProperty] private string _issuesText = "";
     [ObservableProperty] private string _errorText = "";
     [ObservableProperty] private string? _outputPath;
@@ -83,7 +82,6 @@ public partial class TaskGroupViewModel : ObservableObject
             .Select((path, i) => new FrameChipViewModel(Path.GetFileName(path), i == 0)));
         ReferenceName = group.FramePaths.Count > 0 ? Path.GetFileName(group.ReferencePath) : "";
         _dark = validation?.Dark;
-        DarkName = "自动匹配"; // dark calibration is always preset-matched
         OutputName = $"JSR_{Path.GetFileNameWithoutExtension(ReferenceName)}.dng";
         _state = validation is { CanRun: true } ? TaskState.Ready : TaskState.Blocked;
         if (validation is { CanRun: false })
@@ -104,20 +102,15 @@ public partial class TaskGroupViewModel : ObservableObject
     /// <summary>Drives the progress bar row visibility (mockup ② shows it only while running).</summary>
     public bool IsRunning => State == TaskState.Running;
 
-    /// <summary>Meta line under the chips: PTC 满阱 + output name (the written path once Done).</summary>
-    public string MetaText
+    /// <summary>Meta line under the chips: the pending output name on Ready/Blocked,
+    /// the written path once Done; empty while Running/Failed (the stage badge and
+    /// error bar carry those states).</summary>
+    public string MetaText => State switch
     {
-        get
-        {
-            if (State == TaskState.Done)
-                return $"已输出 {OutputPath ?? OutputName}";
-            var parts = new List<string>();
-            if (_ptc is { } ptc)
-                parts.Add($"PTC {Fmt(ptc.FullwellE)} e⁻");
-            parts.Add($"待输出 {OutputName}");
-            return string.Join(" · ", parts);
-        }
-    }
+        TaskState.Done => $"已输出 {OutputPath ?? OutputName}",
+        TaskState.Ready or TaskState.Blocked => $"待输出 {OutputName}",
+        _ => "",
+    };
 
     /// <summary>
     /// State machine edges: Blocked→Ready (revalidated); Ready→Running (start) / Blocked
@@ -260,6 +253,33 @@ public partial class TaskGroupViewModel : ObservableObject
     // cards; Running(②) shows only ■停止.
     private bool CanRemove() => State is TaskState.Blocked or TaskState.Ready or TaskState.Done or TaskState.Failed;
 
+    /// <summary>卡内换基准 (docs/design decision 4): clicking a chip while Ready/Blocked
+    /// makes that frame the reference — chips [0]/[i] swap slots and ★ flags, and
+    /// <see cref="Group"/> is rebuilt with the clicked frame first (the remaining
+    /// frames keep their chip order); ReferenceName/OutputName follow. Not available
+    /// on Running/Done/Failed cards (a Done output was produced from the old
+    /// reference; a Running group is in flight). Ptc/Dark stay as captured: the five
+    /// consistency dimensions are group-wide, so the preset matches never depend on
+    /// which frame is the reference (Blocked groups captured null either way).</summary>
+    [RelayCommand(CanExecute = nameof(CanSetReference))]
+    private void SetReference(FrameChipViewModel chip)
+    {
+        int i = FrameChips.IndexOf(chip);
+        if (i <= 0 || State is not (TaskState.Ready or TaskState.Blocked))
+            return;
+        FrameChipViewModel oldReference = FrameChips[0];
+        FrameChips[0] = FrameChips[i] with { IsReference = true };
+        FrameChips[i] = oldReference with { IsReference = false };
+        string[] paths = Group.FramePaths.ToArray();
+        (paths[0], paths[i]) = (paths[i], paths[0]);
+        Group = new TaskGroup(paths);
+        OnPropertyChanged(nameof(Group));
+        ReferenceName = Path.GetFileName(Group.ReferencePath);
+        OutputName = $"JSR_{Path.GetFileNameWithoutExtension(ReferenceName)}.dng";
+    }
+
+    private bool CanSetReference() => State is TaskState.Ready or TaskState.Blocked;
+
     /// <summary>Done card's 📂 button (final-review finding 1): opens Explorer with the
     /// written output file selected (/select). Guards: a null/empty or unresolvable
     /// OutputPath is a no-op; when the containing folder still exists but the file was
@@ -298,12 +318,12 @@ public partial class TaskGroupViewModel : ObservableObject
         RetryCommand.NotifyCanExecuteChanged();
         RemoveCommand.NotifyCanExecuteChanged();
         OpenFolderCommand.NotifyCanExecuteChanged();
+        SetReferenceCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnStageTextChanged(string value) => OnPropertyChanged(nameof(StateText));
 
     partial void OnOutputPathChanged(string? value) => OnPropertyChanged(nameof(MetaText));
 
-    private static string Fmt(double fullwell) =>
-        fullwell.ToString(fullwell == Math.Truncate(fullwell) ? "N0" : "N1", CultureInfo.InvariantCulture);
+    partial void OnOutputNameChanged(string value) => OnPropertyChanged(nameof(MetaText));
 }

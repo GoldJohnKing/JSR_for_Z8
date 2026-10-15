@@ -21,8 +21,9 @@ namespace Jsr4Z8.Tests;
 ///     from per-line to a gate-bounded count;
 /// (3) with the gate disabled (TimeSpan.Zero ⇒ every update passes — the old
 ///     behavior), the change count matches a bare unthrottled card replay exactly;
-/// (d) LogLines appends are never throttled. A synthetic test pins the gate
-/// boundaries precisely. Windows-host tests.
+/// (d) non-progress lines produce NO UI change at all (no card log surface since
+///     Task 5 — ChangeCounter stays flat across plain traffic). A synthetic test
+/// pins the gate boundaries precisely. Windows-host tests.
 /// </summary>
 public class ProgressThrottleTests
 {
@@ -126,11 +127,13 @@ public class ProgressThrottleTests
         var clock = new FakeClock();
         QueueMediator mediator = Mediator(clock, gate: QueueMediator.UiProgressGate);
         TaskGroupViewModel vm = RunningCard(mediator);
+        using var counter = new ChangeCounter(vm);
 
         // (a) first update of a run passes immediately.
         mediator.Handle(vm, new BackendLogLine("SRHQ_V12_PROGRESS|20|阶段A", new ProgressLine(20, "阶段A")));
         Assert.Equal(5 + 95 * 20 / 100, vm.Progress);          // 24
         Assert.Equal("阶段A", vm.StageText);
+        int afterFirst = counter.Count;
 
         // (b) inside the gate: dropped and coalesced — only the latest is kept pending.
         clock.Advance(TimeSpan.FromMilliseconds(50));
@@ -139,12 +142,13 @@ public class ProgressThrottleTests
         Assert.Equal("阶段A", vm.StageText);
 
         // Still within the gate (150 ms since the forward): a plain log line must NOT
-        // flush the pending update, but the line itself still lands in the log (d).
+        // flush the pending update — and with no card log surface it produces no UI
+        // change at all (d): zero ChangeCounter increments.
         clock.Advance(TimeSpan.FromMilliseconds(100));
         mediator.Handle(vm, new BackendLogLine("plain traffic", null));
         Assert.Equal(24, vm.Progress);
         Assert.Equal("阶段A", vm.StageText);
-        Assert.Contains("plain traffic", vm.LogLines);
+        Assert.Equal(afterFirst, counter.Count);               // (d): non-progress line ⇒ no UI change
 
         // Gate reopened (210 ms since the forward): plain traffic lands the LATEST
         // coalesced update — the final state was kept, not dropped.
@@ -175,7 +179,6 @@ public class ProgressThrottleTests
         Assert.Equal(TaskState.Failed, vm.State);
         Assert.Equal(24, vm.Progress);                          // stopped card not clobbered
         Assert.Equal("阶段A", vm.StageText);
-        Assert.Contains("SRHQ_V12_PROGRESS|40|阶段B", vm.LogLines);  // but the line still logged (d)
     }
 
     // ---------------------------------------------------------------- fixture replay
@@ -210,9 +213,6 @@ public class ProgressThrottleTests
         // really reopens (a stuck-closed gate would collapse to first+terminal ≈ 2),
         // the ceiling is the flicker budget.
         Assert.InRange(counter.Count, 20, 150);
-
-        // (d) log appends are never throttled: every non-envelope line landed.
-        Assert.Equal(lines.Length - 2, vm.LogLines.Count);      // minus START + RESULT envelopes
     }
 
     /// <summary>Sanity for the disabled gate (TimeSpan.Zero ⇒ zero elapsed requirement ⇒
@@ -236,8 +236,8 @@ public class ProgressThrottleTests
         }
 
         // Baseline: the same replay against a bare card with the mediator's exact
-        // pre-fix mapping (START sets the stage; every line appends; progress lines
-        // ReportProgress — the code as it was before the gate).
+        // pre-fix mapping (START sets the stage; progress lines ReportProgress — the
+        // code as it was before the gate).
         TaskGroupViewModel bare = RunningCard(Mediator(clock, gate: TimeSpan.Zero));
         using var baseline = new ChangeCounter(bare);
         foreach (string line in lines)
@@ -248,7 +248,6 @@ public class ProgressThrottleTests
                     bare.ReportProgress(bare.Progress, s.Start.Stage);
                     break;
                 case BackendLogLine l:
-                    bare.LogLines.Add(l.Text);
                     if (l.Progress is { } p)
                         bare.ReportProgress(5 + (int)Math.Round(95 * p.Percent / 100.0), p.Stage);
                     break;
@@ -260,6 +259,5 @@ public class ProgressThrottleTests
         Assert.Equal(baseline.Count, counter.Count);             // old behavior reproduced exactly
         Assert.True(counter.Count > 1000,
             $"expected the old per-line behavior to stay expensive, got {counter.Count}");
-        Assert.Equal(lines.Length - 2, vm.LogLines.Count);
     }
 }

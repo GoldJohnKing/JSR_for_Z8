@@ -1,4 +1,3 @@
-using System.Globalization;
 using Jsr4Z8.Core.Queue;
 using Jsr4Z8.Core.Settings;
 using Jsr4Z8.UI.Services;
@@ -22,7 +21,7 @@ namespace Jsr4Z8.UI.ViewModels;
 /// now pass a time gate (<see cref="UiProgressGate"/> via an injectable
 /// <see cref="TimeProvider"/>): the first update after idle passes immediately,
 /// updates inside the gate are coalesced (latest kept, landing when traffic reopens
-/// the gate), and terminal outcomes bypass it; LogLines appends are never throttled.
+/// the gate), and terminal outcomes bypass it.
 /// </summary>
 public sealed class QueueMediator : ITaskRunner
 {
@@ -110,8 +109,9 @@ public sealed class QueueMediator : ITaskRunner
 
     /// <summary>Engine event → card mutation, each marshaled to the UI thread. Progress
     /// updates only apply while the card is still Running (a late progress line after a
-    /// user stop must not clobber the stopped/failed card); log lines always append and
-    /// are NOT throttled — only ReportProgress/StageText go through the UI gate. Internal
+    /// user stop must not clobber the stopped/failed card); backend log lines are
+    /// consumed for progress extraction and gate reopening only — the card has carried
+    /// no log surface since Task 5. Internal
     /// test seam: ProgressThrottleTests replay captured protocol streams through it.</summary>
     internal void Handle(TaskGroupViewModel vm, QueueEvent e)
     {
@@ -139,7 +139,6 @@ public sealed class QueueMediator : ITaskRunner
             case BackendLogLine l:
                 _dispatcher.Post(() =>
                 {
-                    vm.LogLines.Add(l.Text);
                     if (l.Progress is { } progress)
                     {
                         if (vm.State != TaskState.Running)
@@ -151,7 +150,8 @@ public sealed class QueueMediator : ITaskRunner
                     else
                     {
                         // Non-progress traffic reopens the gate: the latest coalesced
-                        // update lands instead of being silently dropped.
+                        // update lands instead of being silently dropped. The line itself
+                        // is consumed for progress only (no card log surface since Task 5).
                         FlushPendingUiProgress(vm);
                     }
                 });
@@ -198,7 +198,6 @@ public sealed class QueueMediator : ITaskRunner
         {
             if (outcome.Success)
             {
-                vm.LogLines.Add($"[完成] 耗时 {outcome.Elapsed.TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture)}s · 已输出 {outcome.OutputPath}");
                 vm.GoDone(outcome.OutputPath);
             }
             else

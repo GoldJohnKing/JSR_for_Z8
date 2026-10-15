@@ -144,7 +144,7 @@
         <Grid ColumnDefinitions="3,*">
             <Rectangle Grid.Column="0" Classes="accent" Width="3" RadiusX="1.5" RadiusY="1.5" />
             <Grid Grid.Column="1" Margin="10,0,0,0"
-                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
                 <!-- 标题行：基准帧名 + 状态徽标 + 动作（按状态由 CanExecute 自动启停） -->
                 <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto">
                     <TextBlock Grid.Column="0" Text="{Binding ReferenceName}" FontSize="14"
@@ -167,7 +167,7 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- 文件芯片行：★基准 + 其余帧 + 🕯黑场 -->
+                <!-- 文件芯片行：★基准 + 其余帧 -->
                 <WrapPanel Grid.Row="1" Margin="0,6,0,0">
                     <ItemsControl ItemsSource="{Binding FrameChips}">
                         <ItemsControl.ItemsPanel>
@@ -187,13 +187,9 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <Border Classes="chip dark"
-                            IsVisible="{Binding DarkName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                        <TextBlock Text="{Binding DarkName, StringFormat=🕯 {0}}" />
-                    </Border>
                 </WrapPanel>
 
-                <!-- 元信息行：PTC 满阱 / 输出名 -->
+                <!-- 元信息行：待输出/已输出文件名 -->
                 <TextBlock Grid.Row="2" Text="{Binding MetaText}" FontSize="11" Opacity="0.65"
                            Margin="0,4,0,0" TextWrapping="Wrap" />
 
@@ -209,15 +205,6 @@
                 <Border Grid.Row="5" Classes="msg"
                         IsVisible="{Binding ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                     <TextBlock Text="{Binding ErrorText}" />
-                </Border>
-
-                <!-- ▾ 日志（手动展开） -->
-                <ToggleButton Grid.Row="6" Classes="logtoggle" Content="▾ 日志"
-                              IsChecked="{Binding IsLogExpanded}" />
-
-                <!-- 日志区：只读滚动面板，贴底自动跟随（上滚钉住） -->
-                <Border Grid.Row="7" Classes="logbox" IsVisible="{Binding IsLogExpanded}">
-                    <views:LogPanel LogLines="{Binding LogLines}" />
                 </Border>
             </Grid>
         </Grid>
