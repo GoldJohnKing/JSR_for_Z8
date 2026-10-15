@@ -67,7 +67,5 @@ Bridge 发布），最后单文件自包含发布（原生 DLL 压缩内嵌）�
 ## 致谢与许可
 
 - 超分辨率后端与算法来自 **y-g-jiang** 的 Jiangtherapee 项目，本仓库仅做
-  打包与 GUI 集成。后端及其第三方组件的完整声明随载荷分发：安装后见
-  `%LOCALAPPDATA%\JSR4Z8\backend\<hash>\THIRD_PARTY_NOTICES.md` 与
-  `resources\licenses\`。
-- LibRaw、libjpeg-turbo 等原生组件的权利声明见上述载荷内文件。
+  打包与 GUI 集成。第三方许可随载荷在 `resources\licenses\` 目录内分发。
+- LibRaw、libjpeg-turbo 等原生组件的权利声明见上述许可目录内文件。
