@@ -23,10 +23,10 @@ public partial class App : Application
         {
             // Minimal constructor DI (Task 13): the queue mediator replaces NullTaskRunner —
             // engine events are marshaled back onto the UI thread through the same
-            // dispatcher the dialog validation uses. Task 14: ONE shared persisted
+            // dispatcher the dialog validation uses. ONE shared persisted
             // SettingsService (%LOCALAPPDATA%\JSR4Z8\settings.json) backs the queue's
-            // ISettingsProvider, the settings dialog and the dark picker's LastDarkPath
-            // memory — a Save is visible to the next run without restart.
+            // ISettingsProvider and the settings dialog — a Save is visible to the
+            // next run without restart.
             var theme = new ThemeService();
             theme.Apply();
             var settings = new SettingsService();
@@ -44,13 +44,12 @@ public partial class App : Application
 
     /// <summary>Task 12 composition: ＋添加任务组 opens the NewTaskDialog; CreateCompleted
     /// turns the validated group into a card via MainViewModel.AddValidated and closes.
-    /// Task 14: the dialog VM gets the settings service (dark picker start dir + LastDarkPath memory).
-    /// Post-release fix 2: <paramref name="preloadFiles"/> (a main-window drop) opens the
-    /// same dialog with those files preloaded as chips — the dark frame stays a user choice.</summary>
+    /// <paramref name="preloadFiles"/> (a main-window drop) opens the same dialog with
+    /// those files preloaded as chips.</summary>
     private static void ShowNewTaskDialog(Window owner, MainViewModel main, SettingsService settings,
         IReadOnlyList<string>? preloadFiles = null)
     {
-        var vm = new NewTaskViewModel(post: action => Dispatcher.UIThread.Post(action), settings: settings);
+        var vm = new NewTaskViewModel(post: action => Dispatcher.UIThread.Post(action));
         if (preloadFiles is { Count: > 0 })
             vm.PreloadFiles(preloadFiles);
         var dialog = new NewTaskDialog { DataContext = vm };

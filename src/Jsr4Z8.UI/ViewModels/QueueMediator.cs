@@ -85,15 +85,15 @@ public sealed class QueueMediator : ITaskRunner
         _pendingUiProgress = null;
         try
         {
-            if (vm.Ptc is not { } ptc)
+            if (vm.Ptc is not { } ptc || vm.Dark is not { } dark)
             {
-                _dispatcher.Post(() => vm.GoFailed("缺少 PTC 匹配（任务组未经有效校验）"));
+                _dispatcher.Post(() => vm.GoFailed("缺少 PTC/黑场预置匹配（任务组未经有效校验）"));
                 return;
             }
             try
             {
                 TaskRunOutcome outcome = await _engine
-                    .RunAsync(vm.Group, ptc, vm.Dark, _settings.CurrentSettings, cancellationToken, e => Handle(vm, e))
+                    .RunAsync(vm.Group, ptc, dark, _settings.CurrentSettings, cancellationToken, e => Handle(vm, e))
                     .ConfigureAwait(false);
                 ApplyOutcome(vm, outcome);
             }

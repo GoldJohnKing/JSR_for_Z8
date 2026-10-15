@@ -22,12 +22,12 @@ public sealed record RawMetadata
     /// <summary>White level (LibRaw imgdata.color.maximum).</summary>
     public required int WhiteLevel { get; init; }
 
-    /// <summary>TIFF BitsPerSample of the raw strip (LibRaw tiff_bps): 14 standard,
-    /// 12 in high-speed readout modes.</summary>
+    /// <summary>TIFF BitsPerSample of the raw strip (LibRaw tiff_bps): 14 in all
+    /// supported modes; 12-bit drive modes are rejected upstream.</summary>
     public required int BitsPerSample { get; init; }
 
-    /// <summary>TIFF Compression code of the raw strip (LibRaw tiff_compress).
-    /// NOTE: every Z8 NEF — lossless AND HE/HE* — carries 34713 here; see
+    /// <summary>TIFF Compression code of the raw strip (LibRaw tiff_compress):
+    /// 34713 for every Z8 NEF — lossless, HE and HE* alike; see
     /// <see cref="NefCompression"/> for the real discriminator.</summary>
     public required int Compression { get; init; }
 

@@ -48,8 +48,7 @@ public partial class TaskGroupViewModel : ObservableObject
 
 
     /// <summary>The preset dark resolved at creation validation — the queue's request
-    /// JSON needs its black/read-noise pair; null for user-dark cards (path in the
-    /// group) and unvalidated cards alike.</summary>
+    /// JSON needs its black/read-noise pair; null only for unvalidated cards.</summary>
     public DarkMatch? Dark => _dark;
     public string ReferenceName { get; }
 
@@ -84,7 +83,7 @@ public partial class TaskGroupViewModel : ObservableObject
             .Select((path, i) => new FrameChipViewModel(Path.GetFileName(path), i == 0)));
         ReferenceName = group.FramePaths.Count > 0 ? Path.GetFileName(group.ReferencePath) : "";
         _dark = validation?.Dark;
-        DarkName = "自动匹配"; // dark calibration is always preset-matched (2026-10-15)
+        DarkName = "自动匹配"; // dark calibration is always preset-matched
         OutputName = $"JSR_{Path.GetFileNameWithoutExtension(ReferenceName)}.dng";
         _state = validation is { CanRun: true } ? TaskState.Ready : TaskState.Blocked;
         if (validation is { CanRun: false })

@@ -5,8 +5,7 @@ namespace Jsr4Z8.Core.Model;
 /// already deduplicated and sorted by filename in natural ascending order (the
 /// new-task dialog owns that ordering); the first frame is the reference frame
 /// every later rule compares against. Dark calibration is always resolved from the
-/// embedded preset table by the reference frame's (crop, compression, ISO) — the
-/// manual dark-file path was removed by user ruling (2026-10-15).
+/// embedded preset table by the reference frame's (compression, ISO).
 /// </summary>
 public sealed record TaskGroup(IReadOnlyList<string> FramePaths)
 {

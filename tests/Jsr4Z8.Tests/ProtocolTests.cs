@@ -80,7 +80,7 @@ public class ProtocolTests
     {
         var group = new TaskGroup(new[] { @"D:\pics\a.NEF" });
         Assert.Throws<ArgumentNullException>(() => BackendRequest.BuildJson(
-            group, new PtcMatch(1102.2, true, "table"), dark: null, outputDir: @"D:\pics\out", prefix: "p"));
+            group, new PtcMatch(1102.2, true, "table"), dark: null!, outputDir: @"D:\pics\out", prefix: "p"));
     }
 
     // ---- ProtocolParser.ParseLine: envelope lines ---------------------------------

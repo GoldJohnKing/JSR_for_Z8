@@ -12,7 +12,7 @@ namespace Jsr4Z8.Tests;
 ///
 /// Fixture fixtures/backend-dng/roi_sample.dng: real backend product
 /// (Transformer-JSR V15.3.5, mode=roi @(512,512,1024,768), frames
-/// DSC_7576..7582 + dark DSC_7575, fullwell 1102.2, generated 2026-10-13 via
+/// DSC_7576..7582, fullwell 1102.2, generated 2026-10-13 via
 /// --assistant-jsr-job). Measured raw SubIFD: 2048×1536, SamplesPerPixel=3,
 /// 16-bit, Photometric=34892, Compression=7 (tifffile LJ strips, predictor 4,
 /// 12 strips × 128 rows), BlackLevel=0 / WhiteLevel=65535; IFD0

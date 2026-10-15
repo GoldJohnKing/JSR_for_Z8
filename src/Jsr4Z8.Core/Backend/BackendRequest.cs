@@ -22,10 +22,8 @@ public static class BackendRequest
     };
 
     /// <summary>fullwell = ptc.FullwellE rounded to 1 decimal (AwayFromZero). No memory
-    /// field is emitted at all (post-release directive: 不设预算 — probed to run
-    /// state=complete with the key absent, so the backend/driver owns allocation).
-    /// <paramref name="dark"/> is the validator-resolved preset row (always required
-    /// since the manual dark-file path was removed, 2026-10-15).</summary>
+    /// field is emitted (不设预算 — the backend/driver owns allocation).
+    /// <paramref name="dark"/> is the validator-resolved preset row (required).</summary>
     public static string BuildJson(TaskGroup g, PtcMatch ptc, DarkMatch dark, string outputDir, string prefix)
     {
         ArgumentNullException.ThrowIfNull(dark);

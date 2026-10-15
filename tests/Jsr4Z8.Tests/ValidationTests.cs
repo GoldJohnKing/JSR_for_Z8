@@ -8,7 +8,7 @@ namespace Jsr4Z8.Tests;
 /// <summary>
 /// Task 5: TaskGroup + TaskGroupValidator — 8-file consistency validation.
 /// Negative cases inject a mock reader via the Validate(TaskGroup, Func&lt;string,RawMetadata&gt;)
-/// seam; the positive case reads the real samples DSC_7576..7582 + dark DSC_7575 with
+/// seam; the positive case reads the real sample frames DSC_7576..7582 with
 /// RawMetadataReader (all Z 8 at ISO 3200 → exact PTC hit 1102.2 e⁻). Non-finite ISO is
 /// rejected as NotFiniteIso before it can reach PtcTable.Lookup (Task 4 carried finding:
 /// Lookup(NaN) would otherwise return a NaN fit value).
@@ -194,7 +194,7 @@ public class ValidationTests
     public void OffTableIso_FlaggedCaptureFormatUnsupported()
     {
         // ISO 51.5 sits inside the PTC bounds [50, 102400] (fit works) but has no
-        // preset dark row — unsupported with no manual-dark fallback.
+        // preset dark row — unsupported.
         ValidationResult r = TaskGroupValidator.Validate(new TaskGroup(FrameNames), Reader(iso: 51.5));
 
         Assert.False(r.CanRun);
@@ -210,7 +210,7 @@ public class ValidationTests
     public void TwelveBitReadout_FlaggedCaptureFormatUnsupported()
     {
         // 12-bit readout: unsupported — no preset rows (PTC itself is per-pixel,
-        // keyed on model+ISO only, per the 2026-10-14 carried correction).
+        // keyed on model+ISO only).
         var twelveBit = new Dictionary<string, RawMetadata>();
         foreach (string name in FrameNames)
             twelveBit[name] = Meta() with { BitsPerSample = 12, WhiteLevel = 4095 };
@@ -228,10 +228,9 @@ public class ValidationTests
     [Fact]
     public void HeUniformGroup_AutoMatchesHePresetRow()
     {
-        // The 2026-10-14 extension: HE darks were measured into their own preset rows
-        // (HE's lossy coding flattens the noise floor — NOT interchangeable with the
-        // lossless rows). A uniform HE group now auto-matches by (13, ISO) without a
-        // dark file. This was previously the leak this test's ancestor guarded.
+        // HE carries its own preset rows (lossy coding adds +3..8% read noise —
+        // not interchangeable with lossless rows): a uniform HE group auto-matches
+        // by (13, ISO).
         var he = new Dictionary<string, RawMetadata>();
         foreach (string name in FrameNames)
             he[name] = Meta() with { NefCompression = 13 };
@@ -267,8 +266,8 @@ public class ValidationTests
     [Fact]
     public void DxHeStarGroup_CropBlind_MatchesFxHeStarRow()
     {
-        // 2026-10-15 ruling: crop is not a matching key — a uniform DX HE* group
-        // takes the FX-measured HE* row (measured DX-vs-FX deviation ≤1% at high ISO).
+        // Crop is not a matching key: a uniform DX HE* group takes the
+        // FX-measured HE* row (crop-independent read noise).
         var dxHeStar = new Dictionary<string, RawMetadata>();
         foreach (string name in FrameNames)
             dxHeStar[name] = Meta() with { NefCompression = 14, Width = 5408, Height = 3608 };
@@ -288,9 +287,8 @@ public class ValidationTests
     [InlineData(6900, 5520)]  // 5:4 crop — full FX height, narrow window
     public void AnyUniformCropWindow_RunsOnFxRows(int width, int height)
     {
-        // Crop was removed from the matching key (measured DX≈FX ≤1% at high ISO);
-        // frames still must be pairwise crop-consistent, but the preset lookup
-        // itself no longer rejects any window.
+        // Crop is not a matching key; frames still must be pairwise
+        // crop-consistent, but the preset lookup accepts any window.
         var cropped = new Dictionary<string, RawMetadata>();
         foreach (string name in FrameNames)
             cropped[name] = Meta() with { Width = width, Height = height };
@@ -304,8 +302,8 @@ public class ValidationTests
     [Fact]
     public void DxLosslessGroup_CropBlind_MatchesFxLosslessRow()
     {
-        // 2026-10-15 ruling: crop-blind preset matching — a uniform DX group takes
-        // the FX lossless row (DX rows were discarded; measured deviation ≤1%).
+        // Crop-blind preset matching: a uniform DX group takes the FX lossless row
+        // (read noise is crop-independent).
         var dx = new Dictionary<string, RawMetadata>();
         foreach (string name in FrameNames)
             dx[name] = Meta() with { Width = 5408, Height = 3608 };

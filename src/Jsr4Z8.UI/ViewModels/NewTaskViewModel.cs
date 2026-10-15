@@ -53,13 +53,12 @@ public sealed record ValidationState(bool CanRun, string IssuesText, string PtcI
 public sealed record CreatedTaskGroup(TaskGroup Group, ValidationResult Validation);
 
 /// <summary>
-/// Headless ViewModel of the 新建任务组 dialog (docs/design/add-task-flow-v3.html):
-/// one dashed drop zone whose 7 NEF frames live as chips (natural-sorted by file name,
-/// first = ★基准, click a chip to swap), and live
-/// validation debounced 300 ms on a background thread (result marshaled back through
-/// the injectable <c>post</c> seam — Dispatcher.UIThread in the app, inline in tests).
-/// All rules live here; NewTaskDialog code-behind only wires drag-drop, file pickers
-/// and closing. Drop semantics (carried ruling): a drop REPLACES the whole frame set.
+/// Headless ViewModel of the 新建任务组 dialog: one dashed drop zone whose 7 NEF
+/// frames live as chips (natural-sorted by file name, first = ★基准, click a chip
+/// to swap), and live validation debounced 300 ms on a background thread (result
+/// marshaled back through the injectable <c>post</c> seam — Dispatcher.UIThread in
+/// the app, inline in tests). All rules live here; NewTaskDialog code-behind only
+/// wires drag-drop, the frame picker and closing. A drop REPLACES the whole frame set.
 /// </summary>
 public partial class NewTaskViewModel : ObservableObject
 {
@@ -69,7 +68,6 @@ public partial class NewTaskViewModel : ObservableObject
     private readonly Func<string, RawMetadata> _read;
     private readonly TimeSpan _debounce;
     private readonly Action<Action> _post;
-    private readonly SettingsService? _settings;
     private CancellationTokenSource? _validateCts;
     private Task _validationTask = Task.CompletedTask;
     private ValidationResult? _lastValidation;
@@ -78,13 +76,11 @@ public partial class NewTaskViewModel : ObservableObject
     public NewTaskViewModel(
         Func<string, RawMetadata>? read = null,
         TimeSpan? debounce = null,
-        Action<Action>? post = null,
-        SettingsService? settings = null)
+        Action<Action>? post = null)
     {
         _read = read ?? RawMetadataReader.Read;
         _debounce = debounce ?? DefaultDebounce;
         _post = post ?? (action => action());
-        _settings = settings;
         Frames.CollectionChanged += OnFramesChanged;
     }
 
@@ -107,8 +103,8 @@ public partial class NewTaskViewModel : ObservableObject
 
     /// <summary>Drag-drop AND click-to-pick entry: keeps only .NEF (case-insensitive — the
     /// Z 8 writes NEF, .nrw is rejected), dedupes case-insensitively, natural-sorts by file
-    /// name and REPLACES the whole frame set (carried ruling: a drop is 补齐/替换 by
-    /// re-dropping the full set). A drop containing no NEF at all is ignored, so a stray
+    /// name and REPLACES the whole frame set (a drop 补齐/替换 by re-dropping the
+    /// full set). A drop containing no NEF at all is ignored, so a stray
     /// non-raw drop cannot wipe a full set.</summary>
     public void HandleFilesDropped(IEnumerable<string> paths)
     {

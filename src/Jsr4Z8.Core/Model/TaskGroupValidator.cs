@@ -33,9 +33,8 @@ public enum IssueKind
     CropMismatch,
 
     /// <summary>The capture format is unsupported: readout outside the profile the
-    /// preset dark table covers (14bit · lossless/HE/HE* · FX/DX), or an off-table
-    /// ISO. With the manual dark-file path removed there is no fallback — the user
-    /// must reshoot in a supported format.</summary>
+    /// preset dark table covers (14bit · lossless/HE/HE*), or an off-table ISO —
+    /// there is no fallback; the user must reshoot in a supported format.</summary>
     CaptureFormatUnsupported,
 
     /// <summary>Reference-frame ISO is outside the PTC table bounds [50, 102400].</summary>
@@ -49,22 +48,21 @@ public sealed record ValidationIssue(string File, IssueKind Kind, string Message
 
 /// <summary>Ptc is non-null if and only if CanRun is true (the exact/fit match for the base ISO).
 /// Dark is non-null if and only if CanRun is true — the preset row the request
-/// builder sends as the backend's manual calibration pair (always preset-matched;
-/// the manual dark-file path was removed 2026-10-15).</summary>
+/// builder sends as the backend's manual calibration pair.</summary>
 public sealed record ValidationResult(
     bool CanRun, IReadOnlyList<ValidationIssue> Issues, PtcMatch? Ptc, DarkMatch? Dark = null);
 
 /// <summary>
 /// Validates a <see cref="TaskGroup"/> (7 frames + optional dark) for the
-/// five-dimension capture contract (2026-10-14 carried ruling): 机型/ISO/位深/压缩/画幅
-/// must be pairwise identical across the 7 frames (model per-file as Nikon Z8; the
-/// rest vs the reference frame). Table matching: PTC is a per-pixel parameter keyed
-/// on model+ISO only (carried correction — readout does not change it); the dark
-/// calibration is ALWAYS preset-matched on (compression, ISO) — the manual
-/// dark-file path was removed (2026-10-15) — and only exists for the measured
-/// profiles (14bit · NEFCompression∈{3,13,14}); crop is deliberately NOT matched
-/// (2026-10-15 ruling: measured crop-independence, DX vs FX ≤1% at ISO≥1000) — any
-/// crop window takes the FX-measured rows. Anything outside is an unsupported format.
+/// five-dimension capture contract: 机型/ISO/位深/压缩/画幅 must be pairwise
+/// identical across the 7 frames (model per-file as Nikon Z8; the rest vs the
+/// reference frame). Table matching: PTC is a per-pixel parameter keyed on
+/// model+ISO only (readout does not change the normalized shot slope); the dark
+/// calibration is always preset-matched on (compression, ISO) and only exists for
+/// the measured profiles (14bit · NEFCompression∈{3,13,14}) — crop is not a
+/// matching dimension (read noise is crop-independent, DX vs FX ≤1% at high ISO),
+/// so any crop window takes the FX-measured rows. Anything outside is an
+/// unsupported capture format.
 /// CanRun=false always comes with at least one issue whose Chinese message
 /// names the offending file.
 /// </summary>
@@ -79,11 +77,10 @@ public static class TaskGroupValidator
 
     /// <summary>The readout profile the preset dark table covers: TIFF BitsPerSample
     /// 14, NEF family compression 34713 AND — the actual discriminator — MakerNote
-    /// NEFCompression 3 (lossless, Lossless/ darks), 13 (High Efficiency, HE/ darks)
-    /// or 14 (High Efficiency*, HE-/ darks), each measured 2026-10-14 into its own
-    /// rows: HE/HE* lossy coding flattens the measured noise floor by up to −98% at
-    /// high ISO, so compression types are not interchangeable. The TIFF compression
-    /// code alone cannot gate: every Z8 NEF — lossless, HE and HE* — carries 34713.</summary>
+    /// NEFCompression 3 (lossless), 13 (High Efficiency) or 14 (High Efficiency*),
+    /// each carrying its own measured rows (+3..7% quantization noise on the lossy
+    /// codecs). The TIFF compression code alone cannot gate: every Z8 NEF —
+    /// lossless, HE and HE* — carries 34713.</summary>
     private const int SupportedBitsPerSample = 14;
     private const int SupportedCompression = 34713;
     private static readonly int[] SupportedNefCompressions = { 3, 13, 14 };
@@ -102,8 +99,8 @@ public static class TaskGroupValidator
             issues.Add(new ValidationIssue("", IssueKind.FrameCount,
                 $"帧数不符：任务组需要 {RequiredFrames} 帧，实际 {g.FramePaths.Count} 帧"));
 
-        // Dark calibration is always preset-matched from the reference frame's
-        // (crop, compression, ISO) — the manual dark-file path is gone (2026-10-15).
+        // Dark calibration is preset-matched from the reference frame's
+        // (compression, ISO).
         DarkMatch? dark = null;
 
         var files = new List<(string Path, RawMetadata Meta)>();
@@ -160,7 +157,7 @@ public static class TaskGroupValidator
             double baseIso = referenceMeta.Iso;
             if (double.IsFinite(baseIso))
             {
-                // Five-dimension capture consistency (carried ruling): every file —
+                // Five-dimension capture consistency: every file —
                 // the 7 frames AND a user-supplied dark — must match the reference
                 // frame on ISO, bit depth, compression and crop window (model
                 // identity is checked per-file above). Any mismatch blocks the run.
@@ -182,24 +179,22 @@ public static class TaskGroupValidator
                             $"{Path.GetFileName(path)} 的画幅({m.Width}×{m.Height}) 与基准帧({referenceMeta.Width}×{referenceMeta.Height}) 不一致"));
                 }
 
-                // PTC is a per-pixel parameter: it varies with model and ISO only
-                // (2026-10-14 carried correction — encoding/crop do not change the
-                // normalized shot slope), so nothing about the readout gates it.
+                // PTC is a per-pixel parameter: it varies with model and ISO only —
+                // encoding/crop do not change the normalized shot slope.
                 ptc = PtcTable.LoadDefault().Lookup(baseIso);
                 if (ptc == null)
-                    issues.Add(new ValidationIssue(referencePath, IssueKind.PtcUnavailable,
+                    issues.Add(new ValidationIssue(referencePath!, IssueKind.PtcUnavailable,
                         $"基准帧 {Path.GetFileName(referencePath)} 的 ISO {Fmt(baseIso)} 超出 PTC 表范围 {PtcRange()}，无法估算满阱"));
 
                 // The preset dark is a readout measurement: it only exists for the
-                // profiles the table was derived on. Since the manual dark-file path
-                // was removed (2026-10-15 user ruling), anything outside those
-                // profiles is simply an unsupported capture format.
+                // profiles the table was derived on — anything outside is an
+                // unsupported capture format.
                 bool profileOk = referenceMeta.BitsPerSample == SupportedBitsPerSample
                               && referenceMeta.Compression == SupportedCompression
                               && SupportedNefCompressions.Contains(referenceMeta.NefCompression);
                 if (!profileOk)
                 {
-                    issues.Add(new ValidationIssue(referencePath, IssueKind.CaptureFormatUnsupported,
+                    issues.Add(new ValidationIssue(referencePath!, IssueKind.CaptureFormatUnsupported,
                         $"基准帧 {Path.GetFileName(referencePath)} 的拍摄格式不支持（{referenceMeta.BitsPerSample}bit · " +
                         $"{NefCompressionName(referenceMeta.NefCompression)}）；" +
                         $"本软件仅支持 14bit · 无损/HE/HE* 压缩的 NEF，请改用受支持的拍摄格式"));
@@ -208,7 +203,7 @@ public static class TaskGroupValidator
                 {
                     dark = DarkTable.LoadDefault().Lookup(baseIso, referenceMeta.NefCompression);
                     if (dark is null)
-                        issues.Add(new ValidationIssue(referencePath, IssueKind.CaptureFormatUnsupported,
+                        issues.Add(new ValidationIssue(referencePath!, IssueKind.CaptureFormatUnsupported,
                             $"基准帧 ISO {Fmt(baseIso)} 不在预置黑场参数表覆盖范围（无损/HE/HE* 各覆盖 64–102400 的 31 档），此类格式不支持"));
                 }
             }

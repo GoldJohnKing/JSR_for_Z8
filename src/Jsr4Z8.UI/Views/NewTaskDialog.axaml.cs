@@ -9,8 +9,8 @@ namespace Jsr4Z8.UI.Views;
 /// 新建任务组 dialog (docs/design/add-task-flow-v3.html). Per the headless-VM contract
 /// this code-behind only wires interaction onto <see cref="NewTaskViewModel"/>: drag-drop
 /// and click-to-pick for the frame chips, and chip clicks. All rules — filtering,
-/// ordering, validation, gating — live in the VM. (The dark-frame picker was removed
-/// 2026-10-15: dark calibration is always preset-matched.)
+/// ordering, validation, gating — live in the VM. Dark calibration is always
+/// preset-matched; there is no dark picker.
 /// </summary>
 public partial class NewTaskDialog : Window
 {

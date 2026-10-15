@@ -11,7 +11,7 @@ namespace Jsr4Z8.Tests;
 /// add-task-flow-v3.html). The VM debounces validation on a background thread with a
 /// 1 ms delay here (production 300 ms); ValidationIdle is the test seam that awaits the
 /// settled pass. Negative cases inject mock readers; the final test reads the real
-/// samples DSC_7576..7582 + dark DSC_7575 through the production LibRaw reader
+/// samples DSC_7576..7582 through the production LibRaw reader
 /// (integration-style, ~1-2 s).
 /// </summary>
 public class NewTaskVmTests

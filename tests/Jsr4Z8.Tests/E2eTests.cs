@@ -100,7 +100,7 @@ public class E2eTests
         }
     }
 
-    private static (TaskGroup Group, PtcMatch Ptc, DarkMatch? Dark, TaskQueueRunner Engine, RunCapture Capture) PrepareRun(
+    private static (TaskGroup Group, PtcMatch Ptc, DarkMatch Dark, TaskQueueRunner Engine, RunCapture Capture) PrepareRun(
         string samplesDir)
     {
         var group = new TaskGroup(FramesFor(samplesDir));
@@ -116,7 +116,7 @@ public class E2eTests
         {
             ResolveBackendOverride = _ => new TaskQueueRunner.BackendPayload(bridge, resources),
         };
-        return (group, ptc, validation.Dark, engine, new RunCapture());
+        return (group, ptc, validation.Dark!, engine, new RunCapture());
     }
 
     private static void ReportOutcome(TaskRunOutcome outcome, RunCapture capture, string label)
@@ -197,9 +197,9 @@ public class E2eTests
             return;
         }
 
-        // samples/he_frames = the 7 HE ISO-3200 frames (2026-10-14): the group must
-        // auto-match the HE preset row (13, 3200) — NOT the lossless row, whose
-        // read noise is −46% off — and run the manual-DN path end to end.
+        // The 7 HE ISO-3200 frames: the group must auto-match the HE preset row
+        // (13, 3200) — not the lossless row, whose read noise is ~6% lower — and
+        // run the manual-DN path end to end.
         string heDir = Path.Combine(SamplesDir(), "test_frames", "FX", "he_frames");
         var group = new TaskGroup(Directory.GetFiles(heDir, "*.NEF").OrderBy(p => p).ToArray());
         var validation = TaskGroupValidator.Validate(group);

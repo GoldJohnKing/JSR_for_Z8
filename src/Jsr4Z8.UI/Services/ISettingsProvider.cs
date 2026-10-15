@@ -23,9 +23,9 @@ public sealed class DefaultSettingsProvider : ISettingsProvider
 /// <summary>
 /// Task 14 composition: adapts the shared <see cref="SettingsService"/> to
 /// <see cref="ISettingsProvider"/>. CurrentSettings is the service's in-memory current
-/// (loaded from disk at construction, updated by every Save) — the settings dialog, the
-/// dark picker's LastDarkPath memory and the queue all share one service instance, so a
-/// Save is visible to the next run without any event plumbing.
+/// (loaded from disk at construction, updated by every Save) — the settings dialog and
+/// the queue share one service instance, so a Save is visible to the next run without
+/// any event plumbing.
 /// </summary>
 public sealed class SettingsServiceProvider : ISettingsProvider
 {

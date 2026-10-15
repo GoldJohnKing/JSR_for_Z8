@@ -99,7 +99,9 @@ public static class LibRawNative
     public static int GetBitsPerSample(IntPtr handle)
         => lr_get_bits_per_sample(handle);
 
-    /// <summary>TIFF Compression code of the raw strip (34713 = Nikon lossless NEF; other codes = HE/HE*/uncompressed variants).</summary>
+    /// <summary>TIFF Compression code of the raw strip. Every Z8 NEF — lossless, HE and
+    /// HE* alike — carries 34713 here; see <see cref="GetNefCompression"/> for the
+    /// actual discriminator.</summary>
     public static int GetCompression(IntPtr handle)
         => lr_get_compression(handle);
 

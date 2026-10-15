@@ -15,8 +15,8 @@ public class RawMetadataTests
     [Fact]
     public void Read_HiIsoDarkFrame_LibRawExpandsExif65535To102400()
     {
-        // The preset dark table keys the Hi step as 102400; this locks the reader
-        // side of that contract (EXIF writes 65535, LibRaw reports the expansion).
+        // The preset dark table keys the Hi step as 102400: EXIF writes 65535,
+        // LibRaw reports the expansion.
         RawMetadata m = RawMetadataReader.Read(FindSample(Path.Combine("dark_frames", "FX", "Lossless", "DSC_7642.NEF")));
 
         Assert.Equal(102400d, m.Iso);
@@ -29,10 +29,9 @@ public class RawMetadataTests
     [Fact]
     public void Read_HeDarkFrame_TiffCompressionCannotDiscriminate()
     {
-        // The HE trap (found 2026-10-14): HE NEFs carry the SAME TIFF Compression
-        // (34713) and BitsPerSample (14) as lossless — only the MakerNote
-        // NEFCompression field (13 = HE, 14 = HE*) tells them apart. This locks
-        // the reader side of the discriminator the preset dark gate relies on.
+        // HE NEFs carry the SAME TIFF Compression (34713) and BitsPerSample (14)
+        // as lossless — only the MakerNote NEFCompression field (13 = HE,
+        // 14 = HE*) tells them apart; the preset gate relies on it.
         RawMetadata m = RawMetadataReader.Read(FindSample(Path.Combine("dark_frames", "FX", "HE", "DSC_7662.NEF")));
 
         Assert.Equal(64d, m.Iso);
@@ -48,9 +47,8 @@ public class RawMetadataTests
     [Fact]
     public void Read_HeStarDarkFrame_NefCompression14_SameTiffCode()
     {
-        // HE* completes the compression trio: same TIFF Compression (34713) and
-        // 14-bit full-frame shape as lossless and HE — NEFCompression (14) is the
-        // only discriminator, exactly like the HE case.
+        // HE*: same TIFF Compression (34713) and 14-bit shape as lossless and
+        // HE — NEFCompression (14) is the only discriminator.
         RawMetadata m = RawMetadataReader.Read(FindSample(Path.Combine("dark_frames", "FX", "HE Star", "DSC_7696.NEF")));
 
         Assert.Equal(64d, m.Iso);

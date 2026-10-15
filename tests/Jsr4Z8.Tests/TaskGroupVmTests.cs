@@ -119,7 +119,7 @@ public class TaskGroupVmTests
         Assert.Empty(vm.LogLines);
         Assert.False(vm.IsLogExpanded);
 
-        vm.LogLines.Add("[19:22:31] 黑场 DSC_7575.NEF 已加载（ISO400/1/8000s）");
+        vm.LogLines.Add("[19:22:31] 黑场预置参数已按 ISO400 自动匹配");
         vm.IsLogExpanded = true;
         Assert.True(vm.IsLogExpanded);
         vm.IsLogExpanded = false;

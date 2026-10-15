@@ -11,8 +11,8 @@ namespace Jsr4Z8.UI.ViewModels;
 /// 与输入 RAW 同目录 / 自定义 + input + 浏览…; 临时文件路径 radio 系统默认（%TEMP%）/
 /// 自定义 + input + 浏览…; a live 示例输出 line (custom dir, or 基准帧所在目录示意 —
 /// placeholder sample JSR_DSC_7576.dng); footer 取消/保存. Save writes through the shared
-/// SettingsService (load-modify: only the dialog's own fields change — LastDarkPath
-/// etc. survive) and raises SettingsChanged; Cancel discards. The folder picker is the
+/// SettingsService (load-modify: only the dialog's own fields change) and raises
+/// SettingsChanged; Cancel discards. The folder picker is the
 /// IFolderPicker seam (fake-pickable in tests).
 /// </summary>
 public partial class SettingsViewModel : ObservableObject

@@ -8,9 +8,9 @@ namespace Jsr4Z8.Tests;
 /// black/read-noise lookup that replaces the user's dark file): 93 rows = 31 ISOs
 /// × three compression types (NEFCompression 3 = lossless, 13 = HE, 14 = HE*),
 /// measured on FX darks, exact-match only — ISO 500 is the dual-conversion-gain
-/// switch where interpolation would be physically wrong. Crop is deliberately not
-/// a key (2026-10-15 ruling): measured DX-vs-FX deviation is ≤1% at ISO ≥1000
-/// (+0.03% overall), so every crop window takes these FX values.
+/// switch where interpolation would be physically wrong. Crop is not a key:
+/// read noise is crop-independent (DX vs FX ≤1% at ISO ≥1000, +0.03% overall),
+/// so every crop window takes these FX values.
 /// </summary>
 public class DarkTableTests
 {
@@ -77,18 +77,17 @@ public class DarkTableTests
     }
 
     [Fact]
-    public void Table_HeSlightlyAboveLossless_NoFlatteningFloor()
+    public void Table_HeSlightlyAboveLossless_NoEncoderNoiseFloor()
     {
         var table = DarkTable.LoadDefault();
 
-        // The corrected 2026-10-15 re-measurement (backend-exact estimator): lossy
-        // HE/HE* coding adds only +3..+8% to the measured read noise, and every
-        // profile stays in the hundreds of DN at high ISO — the earlier "8.5 DN
-        // floor" flattening was a broken-estimator artifact and must never return.
+        // Backend-exact estimator facts: lossy HE/HE* coding adds only +3..+8% to
+        // the measured read noise, and every profile stays in the hundreds of DN
+        // at high ISO (no encoder-imposed noise floor).
         foreach (double iso in new[] { 3200d, 6400d, 102400d })
         {
             double fx = table.Rows.First(r => r.NefCompression == 3 && r.Iso == iso).ReadNoiseDn;
-            Assert.True(fx > 8.5 * 1.5, $"FX lossless read noise at ISO {iso} must sit well above the dead 8.5-floor artifact: {fx}");
+            Assert.True(fx > 12.75, $"FX lossless read noise at ISO {iso} must sit in the physically expected range: {fx}");
             foreach (DarkRow other in new[]
                      {
                          table.Rows.First(r => r.NefCompression == 13 && r.Iso == iso),

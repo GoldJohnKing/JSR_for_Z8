@@ -8,8 +8,8 @@ namespace Jsr4Z8.Core.Dark;
 /// contributes to the reconstruction — the measured black pedestal (DN, 4-CFA-phase
 /// mean) and the read-noise floor (DN, √median of the 4 phase Haar variances).
 /// Lossless/HE/HE* are measured separately (+3..7% quantization noise on the lossy
-/// codecs); crop is deliberately NOT a key — measured crop-independence (DX vs FX
-/// ≤1% at ISO ≥1000, +0.03% overall) made it a non-dimension (2026-10-15 ruling).</summary>
+/// codecs); crop is not a key — read noise is crop-independent (DX vs FX ≤1% at
+/// ISO ≥1000: crop is just a smaller window of the same readout).</summary>
 public sealed record DarkRow(int NefCompression, double Iso, double BlackDn, double ReadNoiseDn);
 
 /// <summary>Preset dark lookup result: the backend manual-calibration pair
@@ -23,9 +23,9 @@ public sealed record DarkMatch(double Iso, double BlackDn, double ReadNoiseDn, s
 /// (NEFCompression 3 = lossless, 13 = HE, 14 = HE*), keyed by compression + ISO.
 /// Lookup is exact-match on both keys (1e-6 relative ISO tolerance) — deliberately
 /// NO interpolation, because ISO 500 is the sensor's dual conversion gain switch
-/// where the read-noise curve is discontinuous. Crop-blind by ruling: any crop
-/// window (FX/DX/5:4/16:9) takes these FX-measured values; the caller still gates
-/// on the 14-bit readout before trusting a match.
+/// where the read-noise curve is discontinuous. Crop-blind: any crop window
+/// (FX/DX/5:4/16:9) takes these FX-measured values; the caller gates on the
+/// 14-bit readout before trusting a match.
 /// </summary>
 public sealed class DarkTable
 {
