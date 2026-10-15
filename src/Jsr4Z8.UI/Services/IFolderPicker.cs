@@ -6,7 +6,7 @@ namespace Jsr4Z8.UI.Services;
 /// <summary>
 /// Folder-picker seam for the ⚙高级设置 dialog (Task 14): the ViewModel stays
 /// headless-testable while production opens the OS picker through the host window's
-/// StorageProvider (the same mechanism NewTaskDialog uses for files).
+/// StorageProvider (the same mechanism the main window uses for picked RAW files).
 /// </summary>
 public interface IFolderPicker
 {
