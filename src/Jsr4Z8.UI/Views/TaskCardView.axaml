@@ -162,6 +162,17 @@
         <Style Selector="Button.chip-ev:pressed /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="Transparent" />
         </Style>
+        <!-- EV 胶囊本体悬停/按下反馈：非基准 Fill1→Fill2/主色浅底；基准黄底胶囊悬停保持黄色
+             （黄底样式声明在后、悬停时两者皆匹配→后者胜=基准态恒黄，其高亮即当前基准标识） -->
+        <Style Selector="Button.chip-ev:pointerover Border.ev-pill">
+            <Setter Property="Background" Value="{DynamicResource SemiColorFill2}" />
+        </Style>
+        <Style Selector="Button.chip-ev:pressed Border.ev-pill">
+            <Setter Property="Background" Value="{DynamicResource SemiColorPrimaryLight}" />
+        </Style>
+        <Style Selector="Button.chip-ev:pointerover:pressed Border.ev-pill">
+            <Setter Property="Background" Value="{DynamicResource SemiColorPrimaryLight}" />
+        </Style>
         <!-- ★：非基准=Text3 空心；基准=#F0A020 实心（Blocked 橙警告色系一致） -->
         <Style Selector="Button.chip-action Path.star-icon">
             <Setter Property="Stroke" Value="{DynamicResource SemiColorText3}" />
