@@ -152,14 +152,14 @@ headless 单队列场景的最小集合——多数已有对应物：
 | run2 HE | `he_frames\DSC_7652..7658.NEF` | **0** | 339.9s（23:23:44.88→23:29:24.80） | `DONE total 336.8s` | `jobs/run2-he/run2he_V15_3_5_K7_20261015_232347_569923/run2he_V15_3_5_K7_20261015_232347_569923.dng` | 360,236,480 |
 | run3 杀树 | 无损 argv，+30.2s 处 `taskkill /T /F` | 1（强杀） | 杀于 23:30:12.022 | 杀时 `SRHQ_V12_PROGRESS\|32\|估计跨帧运动` | （预期无产物，实测无） | — |
 
-注：run2 沿用无损 ISO3200 行的 RN/BL——该组仅验证 HE 解码路径与管线形状，不标定精度。run0（未入表）：首版 harness 把 7 帧误拼成单个逗号串参数，引擎预检即拒：stdout 裸行 `SRHQ_NET_ABORT:preflight|此 Transformer 权重需要七张互不重复的 RAW` + stderr Python `ValueError` 回溯，无 DNG——同时给出失败形态证据：**裸 abort 行走 stdout、诊断回溯走 stderr**，主算对 cfg/预览仍未索取任何前置。
+注：run2 沿用无损 ISO3200 行的 RN/BL——该组仅验证 HE 解码路径与管线形状，不标定精度。run0（未入表）：首版 harness 把 7 帧误拼成单个逗号串参数，引擎预检即拒（运行时观测，该次日志未留存）：stdout 裸行 `SRHQ_NET_ABORT:preflight|此 Transformer 权重需要七张互不重复的 RAW` + stderr Python `ValueError` 回溯，无 DNG——同时给出失败形态证据：**裸 abort 行走 stdout、诊断回溯走 stderr**，主算对 cfg/预览仍未索取任何前置。
 
 ### 7.2 裸 stdout 协议（run1 全量 324 行，run2 同构；存档 `direct_success.log` 供 Task 2 夹具）
 
 - **零信封**：两跑 `ASSISTANT_JSR` 计数均为 0——裸行即引擎本体输出，与 §3.2 判断一致。
 - 行型清单（run1 计数）：`PTC {…}` 1、`SRHQ_V12_FRAME\|i\|ev\|shutter\|path` 7、ColorMatrix/camera profile 各 1、`SRHQ_EFFECTIVE_ENGINE\|v12\|v12-wgpu\|…` 1、`SENSOR_LEVELS [{…}]` 1、Proxy n/7 若干、`SRHQ_V12_PROGRESS\|pct\|desc` 110、`SRHQ_ETA_PROGRESS\|stage\|done\|total` 87、`V12 output: <dir>` 1、`DONE total <sec>s` 1。
 - 首行为 `PTC {…}`（手动 RN/满阱回显），尾三行 `SRHQ_V12_PROGRESS\|100\|导出完成` → `V12 output: <绝对路径>` → `DONE total 339.2s`；`SRHQ_V12_PROGRESS\|100\|` 恰一次。前 30 行+尾 10 行全文见工作区 `direct_success.log`（15,882B，Task 2 将提交为 `tests/fixtures/protocol/direct_success.log`）。
-- stderr：run2 为 0 字节；run1 仅尾部若干常规行；run0 为 Python 回溯——即 stderr 仅承载诊断，不参与协议。
+- stderr：run1/run2 均为 0 字节（诊断全部走 stdout；stderr 不参与协议）。
 
 ### 7.3 双实例自重复：时序与退出码归属（Phase A + run0–3 共 6 对观测）
 
