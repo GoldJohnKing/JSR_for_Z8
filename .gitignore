@@ -10,8 +10,14 @@ libs/
 # Temp
 tmp*/
 
+# Payload
+reference
+
 # Generated release payload pair (~200 MB) — produced by tools/pack-payload, embedded at release build
 src/Jsr4Z8.Core/Payload/Embedded/
 
 # VS / Rider
 *.user
+
+# Test samples
+samples
