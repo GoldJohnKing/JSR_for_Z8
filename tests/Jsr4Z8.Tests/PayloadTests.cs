@@ -429,6 +429,30 @@ public class PayloadTests : IClassFixture<TestTemp>
     }
 
     [Fact]
+    public void Pack_UnchangedManifest_ManifestOnlyEmbedded_Replaces()
+    {
+        // Incomplete embedded pair — manifest kept, bin deleted for fast dev builds
+        // (exactly the state build.bat's tail NOTE leaves behind). A same-manifest
+        // pack must repair it, never bless the half pair with a keep decision.
+        byte[] manifest = { 0x7B, 0x22, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6F, 0x6E, 0x22 }; // {"version"
+        byte[] bin = { 4, 5, 6 };
+        string embedded = TempDir();
+        Directory.CreateDirectory(embedded);
+        // Manifest-only remnant: no payload.bin in the embedded dir.
+        File.WriteAllBytes(Path.Combine(embedded, PayloadPacker.ManifestFileName), manifest);
+
+        string temp = TempDir();
+        WritePair(temp, manifest, bin);
+
+        bool replaced = EmbeddedUpdater.Apply(embedded, temp);
+
+        Assert.True(replaced, "manifest-only remnant must go through replace");
+        Assert.False(Directory.Exists(temp), "replace consumes the temp pack dir");
+        Assert.Equal(bin, File.ReadAllBytes(Path.Combine(embedded, PayloadPacker.PayloadFileName)));
+        Assert.Equal(manifest, File.ReadAllBytes(Path.Combine(embedded, PayloadPacker.ManifestFileName)));
+    }
+
+    [Fact]
     public void Pack_ChangedManifest_ReplacesEmbedded()
     {
         string embedded = TempDir();

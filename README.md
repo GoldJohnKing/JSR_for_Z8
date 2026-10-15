@@ -65,7 +65,7 @@ Bridge 发布），最后单文件自包含发布（原生 DLL 压缩内嵌）�
 载荷有更新即自动换入（无需手动删 `payload.bin`）。
 注意：发布后请删除 `src\Jsr4Z8.Core\Payload\Embedded\payload.bin`（及同名
 `.manifest.json`），否则此后每次 Core 构建/测试都会重新内嵌 ~273 MB 载荷，
-显著拖慢开发构建（详见 `build.bat` 头注释）。
+显著拖慢开发构建（详见 `build.bat` 尾部说明）。
 
 ## 致谢与许可
 

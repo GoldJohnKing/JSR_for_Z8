@@ -1,6 +1,6 @@
 # AGENT.md — JSR for Z8 项目接手指南
 
-尼康 Z8 专用的七帧 RAW 超分辨率 GUI 客户端：C#/.NET 8 + Avalonia 前端，**原封不动内嵌** Jiangtherapee Bridge 2.3.25 的 Python 后端（WGPU/Vulkan 计算），以单文件 exe 分发。后端与前端仅通过命令行 + stdout 协议通信。
+尼康 Z8 专用的七帧 RAW 超分辨率 GUI 客户端：C#/.NET 8 + Avalonia 前端，**原封不动内嵌** Jiangtherapee Bridge 2.3.27 的 Python 后端（WGPU/Vulkan 计算），以单文件 exe 分发。后端与前端仅通过命令行 + stdout 协议通信。
 
 ## 1. 环境与工作方式（必读）
 
@@ -15,7 +15,7 @@
 
 | 动作 | 命令（Windows host） |
 |---|---|
-| 全量测试 | `dotnet test --nologo`（当前 **277/277**，含规范不变量/外来流真值/模糊/金丝雀等经验驱动套件） |
+| 全量测试 | `dotnet test --nologo`（当前 **283/283**，含规范不变量/外来流真值/模糊/金丝雀等经验驱动套件） |
 | 一键发布 | `build.bat` → `out\Jsr4Z8_v<版本>.exe`（~317MB 单文件（载荷裁剪后）；Step 4 恒跑 pack-payload：自动选 reference/ 下最高版本，manifest 哈希比对自决换入，无需手动删 payload.*） |
 | 无头自检 | `out\Jsr4Z8_v*.exe --selftest [file.nef]`（释放/校验载荷+LibRaw 冒烟） |
 | E2E（真 GPU，~6min/全幅） | cmd 脚本内 `set JSR4Z8_E2E=1` + `dotnet test --filter FullyQualifiedName~E2eTests.<名>`；门控见 `tests/Jsr4Z8.Tests/E2eTests.cs` |

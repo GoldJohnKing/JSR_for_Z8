@@ -10,9 +10,10 @@ public static class EmbeddedUpdater
 {
     /// <summary>
     /// 若 &lt;tempDir&gt;\payload.manifest.json 与 &lt;embeddedDir&gt; 里的现有 manifest
-    /// 逐字节不同（或 embeddedDir 尚无 manifest）：先拷 manifest、再拷 payload.bin 进
-    /// embeddedDir，删除 tempDir，返回 true（已换新）。字节一致：仅删除 tempDir、
-    /// 保留现有对，返回 false（未变）。
+    /// 逐字节不同（或 embeddedDir 缺 manifest/bin 的残缺对）：先拷 manifest、再拷
+    /// payload.bin 进 embeddedDir，删除 tempDir，返回 true（已换新）。字节一致且
+    /// embeddedDir 的 bin 也在：仅删除 tempDir、保留现有对，返回 false（未变）——
+    /// 只删 bin 留 manifest 的残缺对（快开发构建的常见中间态）必须走 replace 补齐。
     /// manifest 与 bin 两次拷贝之间的短暂非原子窗口可接受：该目录对 gitignored、
     /// 仅构建期存在，且确定性打包保证 manifest 一致 ⇒ bin 一致。
     /// </summary>
@@ -26,7 +27,8 @@ public static class EmbeddedUpdater
             throw new FileNotFoundException($"临时打包目录缺少 manifest: {tempManifest}");
 
         string embeddedManifest = Path.Combine(embeddedDir, PayloadPacker.ManifestFileName);
-        if (File.Exists(embeddedManifest)
+        string embeddedBin = Path.Combine(embeddedDir, PayloadPacker.PayloadFileName);
+        if (File.Exists(embeddedManifest) && File.Exists(embeddedBin)
             && File.ReadAllBytes(tempManifest).AsSpan().SequenceEqual(File.ReadAllBytes(embeddedManifest)))
         {
             Directory.Delete(tempDir, recursive: true);
