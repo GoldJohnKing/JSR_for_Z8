@@ -10,7 +10,7 @@ using Jsr4Z8.Core.Payload;
 if (args.Length != 2)
 {
     Console.Error.WriteLine("用法: pack-payload <srcDir> <outDir>");
-    Console.Error.WriteLine("  srcDir  原始后端包目录 (须含 Jiangtherapee Bridge.exe、resources/、THIRD_PARTY_NOTICES.md)");
+    Console.Error.WriteLine("  srcDir  原始后端包目录 (须含 Jiangtherapee Bridge.exe、resources/；排除清单外的内容不打包)");
     Console.Error.WriteLine("  outDir  输出目录 (payload.bin + payload.manifest.json)");
     return 2;
 }

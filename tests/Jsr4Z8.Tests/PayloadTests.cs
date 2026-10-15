@@ -6,9 +6,10 @@ namespace Jsr4Z8.Tests;
 /// <summary>
 /// Task 10: payload pack → extract → verify → self-heal pipeline, using the SAME
 /// PayloadPacker code the release packer tool (tools/pack-payload) uses. The tests
-/// build a 3-file fake payload in temp dirs — the real ~500 MB backend payload is
-/// never committed or embedded into test builds (Task 15 packs it at release time).
-/// Windows-host tests: the manager writes/renames/deletes real directories.
+/// build a minimal fake payload (2 packed files) in temp dirs — the real ~500 MB
+/// backend payload is never committed or embedded into test builds (Task 15 packs
+/// it at release time). Windows-host tests: the manager writes/renames/deletes real
+/// directories.
 /// </summary>
 public class PayloadTests : IClassFixture<TestTemp>
 {
@@ -29,14 +30,19 @@ public class PayloadTests : IClassFixture<TestTemp>
     }
 
     /// <summary>
-    /// 3-file fake backend distribution: the bridge exe, one nested resources file
-    /// (exercises recursion + subdirectory creation) and the notices — plus junk
-    /// files the packer must NOT include (README, 使用说明, FILES-SHA256.json, ThirdPartySources/).
+    /// 2-packed-file fake backend distribution: the bridge exe and one nested resources
+    /// file (exercises recursion + subdirectory creation) — plus excluded payload
+    /// artifacts (K14 engine, Tcl data, cv2 ffmpeg DLL, z8_presets preset, top-level
+    /// notices) and junk files the packer must NOT include (README, 使用说明,
+    /// FILES-SHA256.json, ThirdPartySources/).
     /// </summary>
     private string MakeFakeTree()
     {
         string root = _temp.NewDir();
         Directory.CreateDirectory(Path.Combine(root, "resources", "licenses"));
+        Directory.CreateDirectory(Path.Combine(root, "resources", "_internal", "_tcl_data"));
+        Directory.CreateDirectory(Path.Combine(root, "resources", "_internal", "cv2"));
+        Directory.CreateDirectory(Path.Combine(root, "resources", "z8_presets"));
         Directory.CreateDirectory(Path.Combine(root, "ThirdPartySources"));
 
         var rng = new Random(20261013);
@@ -45,6 +51,13 @@ public class PayloadTests : IClassFixture<TestTemp>
         File.WriteAllBytes(Path.Combine(root, "Jiangtherapee Bridge.exe"), exe);
         File.WriteAllText(Path.Combine(root, "resources", "licenses", "notice.txt"), "fake third-party license text");
         File.WriteAllText(Path.Combine(root, "THIRD_PARTY_NOTICES.md"), "# fake notices");
+
+        // Excluded from the payload by the packer's exclusion list (user ruling 2026-10-15):
+        // present in the fake tree so every Pack call exercises the filter.
+        File.WriteAllText(Path.Combine(root, "resources", "jsr_v98_k14_backend.exe"), "k14 engine");
+        File.WriteAllText(Path.Combine(root, "resources", "_internal", "_tcl_data", "x.enc"), "tcl data");
+        File.WriteAllText(Path.Combine(root, "resources", "_internal", "cv2", "opencv_videoio_ffmpeg500_64.dll"), "video ffmpeg dll");
+        File.WriteAllText(Path.Combine(root, "resources", "z8_presets", "Z8_0_ISO000064.dng"), "preset-dark dng");
 
         // Everything below must be excluded from the payload.
         File.WriteAllText(Path.Combine(root, "README.md"), "readme");
@@ -86,10 +99,14 @@ public class PayloadTests : IClassFixture<TestTemp>
         Assert.True(File.Exists(payload.PayloadBin), "payload.bin written");
         Assert.True(File.Exists(payload.ManifestJson), "payload.manifest.json written");
 
-        Assert.Equal(3, payload.Manifest.Files.Count);
+        Assert.Equal(2, payload.Manifest.Files.Count);
         Assert.Equal(
-            new[] { "Jiangtherapee Bridge.exe", "resources/licenses/notice.txt", "THIRD_PARTY_NOTICES.md" }.OrderBy(p => p),
+            new[] { "Jiangtherapee Bridge.exe", "resources/licenses/notice.txt" }.OrderBy(p => p),
             payload.Manifest.Files.Select(f => f.Path.Replace('\\', '/')).OrderBy(p => p));
+        // The notices are no longer packed (user ruling 2026-10-15): licenses ship inside resources/.
+        Assert.DoesNotContain(
+            payload.Manifest.Files,
+            f => f.Path.Replace('\\', '/') == "THIRD_PARTY_NOTICES.md");
 
         Assert.Matches("^[0-9a-f]{64}$", payload.Manifest.Hash);
         foreach (PayloadManifestEntry entry in payload.Manifest.Files)
@@ -97,6 +114,66 @@ public class PayloadTests : IClassFixture<TestTemp>
             Assert.Matches("^[0-9a-f]{64}$", entry.Sha256);
             Assert.Equal(new FileInfo(Path.Combine(payload.SrcDir, entry.Path)).Length, entry.Length);
         }
+    }
+
+    [Fact]
+    public void Pack_ExcludesUnneededBackendFiles()
+    {
+        string root = MakeFakeTree();
+        // The base tree already carries jsr_v98_k14_backend.exe, _tcl_data/, the cv2 ffmpeg
+        // DLL, z8_presets/ and THIRD_PARTY_NOTICES.md; add the remaining exclusion-list entries.
+        Directory.CreateDirectory(Path.Combine(root, "resources", "_internal", "_tk_data"));
+        Directory.CreateDirectory(Path.Combine(root, "resources", "_internal", "wgpu", "__pyinstaller"));
+        File.WriteAllText(Path.Combine(root, "resources", "jsr_fast_k14_backend.exe"), "fast k14 engine");
+        File.WriteAllText(Path.Combine(root, "resources", "_internal", "tcl86t.dll"), "tcl");
+        File.WriteAllText(Path.Combine(root, "resources", "_internal", "tk86t.dll"), "tk");
+        File.WriteAllText(Path.Combine(root, "resources", "_internal", "_tk_data", "y.enc"), "tk data");
+        File.WriteAllText(Path.Combine(root, "resources", "_internal", "wgpu", "__pyinstaller", "conftest.py"), "# test residue");
+        // Kept siblings: the exclusions are surgical, never subtree-wide.
+        File.WriteAllText(Path.Combine(root, "resources", "jsr_backend.exe"), "the engine the assistant actually spawns");
+        File.WriteAllText(Path.Combine(root, "resources", "_internal", "cv2", "__init__.py"), "cv2 stays");
+        File.WriteAllText(Path.Combine(root, "resources", "_internal", "keep.dll"), "_internal stays");
+
+        FakePayload payload = PackTree(root);
+        string[] paths = payload.Manifest.Files.Select(f => f.Path.Replace('\\', '/')).ToArray();
+
+        string[] excluded =
+        {
+            "THIRD_PARTY_NOTICES.md",
+            "resources/jsr_v98_k14_backend.exe",
+            "resources/jsr_fast_k14_backend.exe",
+            "resources/_internal/_tcl_data/x.enc",
+            "resources/_internal/_tk_data/y.enc",
+            "resources/_internal/tcl86t.dll",
+            "resources/_internal/tk86t.dll",
+            "resources/_internal/cv2/opencv_videoio_ffmpeg500_64.dll",
+            "resources/_internal/wgpu/__pyinstaller/conftest.py",
+            "resources/z8_presets/Z8_0_ISO000064.dng",
+        };
+        foreach (string path in excluded)
+            Assert.False(paths.Contains(path), $"{path} 必须被排除出载荷");
+
+        string[] kept =
+        {
+            "Jiangtherapee Bridge.exe",
+            "resources/licenses/notice.txt",
+            "resources/jsr_backend.exe",
+            "resources/_internal/cv2/__init__.py",
+            "resources/_internal/keep.dll",
+        };
+        Assert.Equal(kept.Length, paths.Length); // nothing else snuck in or out
+        foreach (string path in kept)
+            Assert.Contains(path, paths);
+
+        // payload.bin mirrors the manifest: excluded bodies have no headers either.
+        using FileStream bin = File.OpenRead(payload.PayloadBin);
+        Assert.Equal(
+            paths.OrderBy(p => p, StringComparer.Ordinal),
+            PayloadPacker.ReadArchiveIndex(bin).Select(e => e.Path.Replace('\\', '/')).ToArray());
+
+        // Seam contract: either separator style, case-insensitive match (Windows source trees).
+        Assert.True(PayloadPacker.IsExcluded("resources\\_internal\\_Tcl_Data\\x.enc"));
+        Assert.False(PayloadPacker.IsExcluded("resources/_internal/cv2/opencv_world4700.dll"));
     }
 
     [Fact]

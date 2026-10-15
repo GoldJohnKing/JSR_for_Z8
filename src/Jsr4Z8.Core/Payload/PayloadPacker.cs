@@ -29,13 +29,16 @@ public sealed record PayloadPackResult(
 /// payload.manifest.json) and provides the manifest/archive readers used by
 /// <see cref="PayloadManager"/> for extraction. Shared library code: the release packer
 /// tool (tools/pack-payload, invoked by the release script in Task 15) and the tests
-/// (fake 3-file payloads in temp dirs) both go through it — the real ~500 MB payload is
+/// (fake 2-file payloads in temp dirs) both go through it — the real ~500 MB payload is
 /// never committed or embedded into test builds.
 ///
-/// Scanned from &lt;srcDir&gt; (byte-exact constraint): "Jiangtherapee Bridge.exe", the
-/// ENTIRE resources/ tree (every file, recursive, no exclusions) and THIRD_PARTY_NOTICES.md.
-/// Everything else in the source package (README.md, DeepSeek助手使用说明.md,
-/// FILES-SHA256.json, ThirdPartySources/) is not part of the payload.
+/// Scanned from &lt;srcDir&gt; (byte-exact constraint): "Jiangtherapee Bridge.exe" and the
+/// resources/ tree minus the exclusion list (<see cref="IsExcluded"/>; 用户裁定 2026-10-15):
+/// assistant 单形态 7 帧锁定 → K14 引擎不携带；manual 标定 → z8_presets 不携带；
+/// Tcl/Tk、ffmpeg 视频 DLL、wgpu/__pyinstaller 测试残留剥离；THIRD_PARTY_NOTICES.md
+/// 不再打包（许可仍随 resources/licenses 分发）。Everything else in the source package
+/// (README.md, DeepSeek助手使用说明.md, FILES-SHA256.json, ThirdPartySources/,
+/// THIRD_PARTY_NOTICES.md) is not part of the payload.
 ///
 /// payload.bin layout (all integers little-endian):
 ///   u32  magic 0x3142504A (bytes spell "JPB1")
@@ -61,28 +64,103 @@ public static class PayloadPacker
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
+    /// <summary>How one <see cref="ExcludedPayloadEntries"/> pattern matches a normalized ('/'-separated) relative path.</summary>
+    private enum ExclusionKind
+    {
+        /// <summary>Path equals the pattern (case-insensitive).</summary>
+        ExactPath,
+
+        /// <summary>Path starts with the pattern, which always ends in '/' — the entire directory subtree.</summary>
+        DirectoryPrefix,
+
+        /// <summary>Single '*' glob: path starts with the prefix and ends with the suffix around it.</summary>
+        PrefixSuffix,
+    }
+
     /// <summary>
-    /// The payload's source file list: the bridge exe, every file under resources/
-    /// (recursive, byte-exact, no exclusions) and THIRD_PARTY_NOTICES.md, each as a path
-    /// relative to <paramref name="srcDir"/>. Throws if any of the three required sources is missing.
+    /// Payload exclusion list (paths relative to the backend source root, '/' separators,
+    /// matched case-insensitively — Windows source trees). Ruling per entry, 用户裁定 2026-10-15:
+    /// </summary>
+    private static readonly (ExclusionKind Kind, string Pattern)[] ExcludedPayloadEntries =
+    {
+        // K14 engines: the assistant path is a locked 7-frame single-form job that only ever
+        // spawns jsr_backend.exe (START envelope Compressor=jsr_backend.exe) — dead weight here.
+        (ExclusionKind.ExactPath, "resources/jsr_v98_k14_backend.exe"),
+        (ExclusionKind.ExactPath, "resources/jsr_fast_k14_backend.exe"),
+        // Tcl/Tk are GUI libraries the CLI compute path never loads.
+        (ExclusionKind.DirectoryPrefix, "resources/_internal/_tcl_data/"),
+        (ExclusionKind.DirectoryPrefix, "resources/_internal/_tk_data/"),
+        (ExclusionKind.ExactPath, "resources/_internal/tcl86t.dll"),
+        (ExclusionKind.ExactPath, "resources/_internal/tk86t.dll"),
+        // cv2's video ffmpeg DLL: a video-I/O library, unused by the CLI compute path.
+        (ExclusionKind.PrefixSuffix, "resources/_internal/cv2/opencv_videoio_ffmpeg*.dll"),
+        // wgpu/__pyinstaller holds test/conftest residue from the backend's own packaging.
+        (ExclusionKind.DirectoryPrefix, "resources/_internal/wgpu/__pyinstaller/"),
+        // Pre-provisioned for a future 2.3.27 switch: the 205 MB preset-dark DNGs are only
+        // consulted by the backend's own auto-matching, which manual-calibration requests never trigger.
+        (ExclusionKind.DirectoryPrefix, "resources/z8_presets/"),
+    };
+
+    /// <summary>
+    /// True if <paramref name="relativePath"/> (relative to the backend source root, '/' or '\\'
+    /// separators) hits the exclusion list. THIRD_PARTY_NOTICES.md is not an exclusion entry:
+    /// it is simply no longer whitelisted (only the bridge exe + resources/ minus exclusions
+    /// are scanned).
+    /// </summary>
+    internal static bool IsExcluded(string relativePath)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(relativePath);
+        string normalized = relativePath.Replace('\\', '/');
+        foreach ((ExclusionKind kind, string pattern) in ExcludedPayloadEntries)
+        {
+            switch (kind)
+            {
+                case ExclusionKind.ExactPath:
+                    if (string.Equals(normalized, pattern, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                    break;
+                case ExclusionKind.DirectoryPrefix:
+                    if (normalized.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                    break;
+                case ExclusionKind.PrefixSuffix:
+                    int star = pattern.IndexOf('*');
+                    string prefix = pattern[..star];
+                    string suffix = pattern[(star + 1)..];
+                    if (normalized.Length >= prefix.Length + suffix.Length
+                        && normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                        && normalized.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                    break;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// The payload's source file list: the bridge exe and every file under resources/
+    /// (recursive) except the exclusion list (<see cref="IsExcluded"/>), each as a path
+    /// relative to <paramref name="srcDir"/>. Throws if either required source is missing.
+    /// THIRD_PARTY_NOTICES.md is no longer packed (user ruling 2026-10-15; third-party
+    /// licenses still ship inside resources/licenses/).
     /// </summary>
     public static IReadOnlyList<string> EnumerateSourceFiles(string srcDir)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(srcDir);
         string exe = Path.Combine(srcDir, "Jiangtherapee Bridge.exe");
-        string notices = Path.Combine(srcDir, "THIRD_PARTY_NOTICES.md");
         string resources = Path.Combine(srcDir, "resources");
         if (!File.Exists(exe))
             throw new DirectoryNotFoundException($"后端源目录缺少必需文件: {exe}");
-        if (!File.Exists(notices))
-            throw new DirectoryNotFoundException($"后端源目录缺少必需文件: {notices}");
         if (!Directory.Exists(resources))
             throw new DirectoryNotFoundException($"后端源目录缺少必需目录: {resources}");
 
         var files = new List<string> { Path.GetRelativePath(srcDir, exe) };
         foreach (string file in Directory.EnumerateFiles(resources, "*", SearchOption.AllDirectories))
-            files.Add(Path.GetRelativePath(srcDir, file));
-        files.Add(Path.GetRelativePath(srcDir, notices));
+        {
+            string rel = Path.GetRelativePath(srcDir, file);
+            if (!IsExcluded(rel))
+                files.Add(rel);
+        }
         return files;
     }
 
