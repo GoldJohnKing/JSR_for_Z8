@@ -30,9 +30,10 @@ public class PayloadTests : IClassFixture<TestTemp>
     }
 
     /// <summary>
-    /// 2-packed-file fake backend distribution: the bridge exe and one nested resources
-    /// file (exercises recursion + subdirectory creation) — plus excluded payload
-    /// artifacts (K14 engine, Tcl data, cv2 ffmpeg DLL, z8_presets preset, top-level
+    /// 2-packed-file fake backend distribution: the direct-invoke engine
+    /// (resources/jsr_backend.exe) and one nested resources file (exercises recursion +
+    /// subdirectory creation) — plus excluded payload artifacts (the top-level Bridge
+    /// shell, K14 engines, Tcl data, cv2 ffmpeg DLL, z8_presets preset, top-level
     /// notices) and junk files the packer must NOT include (README, 使用说明,
     /// FILES-SHA256.json, ThirdPartySources/).
     /// </summary>
@@ -46,9 +47,9 @@ public class PayloadTests : IClassFixture<TestTemp>
         Directory.CreateDirectory(Path.Combine(root, "ThirdPartySources"));
 
         var rng = new Random(20261013);
-        byte[] exe = new byte[64 * 1024];
-        rng.NextBytes(exe);
-        File.WriteAllBytes(Path.Combine(root, "Jiangtherapee Bridge.exe"), exe);
+        byte[] engine = new byte[64 * 1024];
+        rng.NextBytes(engine);
+        File.WriteAllBytes(Path.Combine(root, "resources", "jsr_backend.exe"), engine);
         File.WriteAllText(Path.Combine(root, "resources", "licenses", "notice.txt"), "fake third-party license text");
         File.WriteAllText(Path.Combine(root, "THIRD_PARTY_NOTICES.md"), "# fake notices");
 
@@ -60,6 +61,10 @@ public class PayloadTests : IClassFixture<TestTemp>
         File.WriteAllText(Path.Combine(root, "resources", "z8_presets", "Z8_0_ISO000064.dng"), "preset-dark dng");
 
         // Everything below must be excluded from the payload.
+        // The retired top-level Bridge shell: excluded by ExactPath (直调后顶层壳不再
+        // 携带——用户裁定 2026-10-15); present in the fake tree so every Pack call
+        // exercises the anti-regression filter.
+        File.WriteAllText(Path.Combine(root, "Jiangtherapee Bridge.exe"), "the retired Bridge shell");
         File.WriteAllText(Path.Combine(root, "README.md"), "readme");
         File.WriteAllText(Path.Combine(root, "DeepSeek助手使用说明.md"), "说明");
         File.WriteAllText(Path.Combine(root, "FILES-SHA256.json"), "{}");
@@ -101,8 +106,13 @@ public class PayloadTests : IClassFixture<TestTemp>
 
         Assert.Equal(2, payload.Manifest.Files.Count);
         Assert.Equal(
-            new[] { "Jiangtherapee Bridge.exe", "resources/licenses/notice.txt" }.OrderBy(p => p),
+            new[] { "resources/jsr_backend.exe", "resources/licenses/notice.txt" }.OrderBy(p => p),
             payload.Manifest.Files.Select(f => f.Path.Replace('\\', '/')).OrderBy(p => p));
+        // The top-level Bridge shell no longer ships (user ruling 2026-10-15): the GUI
+        // invokes resources\jsr_backend.exe directly, so only the resources/ tree is packed.
+        Assert.DoesNotContain(
+            payload.Manifest.Files,
+            f => f.Path.Replace('\\', '/') == "Jiangtherapee Bridge.exe");
         // The notices are no longer packed (user ruling 2026-10-15): licenses ship inside resources/.
         Assert.DoesNotContain(
             payload.Manifest.Files,
@@ -129,8 +139,8 @@ public class PayloadTests : IClassFixture<TestTemp>
         File.WriteAllText(Path.Combine(root, "resources", "_internal", "tk86t.dll"), "tk");
         File.WriteAllText(Path.Combine(root, "resources", "_internal", "_tk_data", "y.enc"), "tk data");
         File.WriteAllText(Path.Combine(root, "resources", "_internal", "wgpu", "__pyinstaller", "conftest.py"), "# test residue");
-        // Kept siblings: the exclusions are surgical, never subtree-wide.
-        File.WriteAllText(Path.Combine(root, "resources", "jsr_backend.exe"), "the engine the assistant actually spawns");
+        // Kept siblings: the exclusions are surgical, never subtree-wide (the engine
+        // itself comes from MakeFakeTree — it is the packer's required source).
         File.WriteAllText(Path.Combine(root, "resources", "_internal", "cv2", "__init__.py"), "cv2 stays");
         File.WriteAllText(Path.Combine(root, "resources", "_internal", "keep.dll"), "_internal stays");
 
@@ -139,6 +149,7 @@ public class PayloadTests : IClassFixture<TestTemp>
 
         string[] excluded =
         {
+            "Jiangtherapee Bridge.exe",
             "THIRD_PARTY_NOTICES.md",
             "resources/jsr_v98_k14_backend.exe",
             "resources/jsr_fast_k14_backend.exe",
@@ -155,9 +166,8 @@ public class PayloadTests : IClassFixture<TestTemp>
 
         string[] kept =
         {
-            "Jiangtherapee Bridge.exe",
-            "resources/licenses/notice.txt",
             "resources/jsr_backend.exe",
+            "resources/licenses/notice.txt",
             "resources/_internal/cv2/__init__.py",
             "resources/_internal/keep.dll",
         };
@@ -203,7 +213,7 @@ public class PayloadTests : IClassFixture<TestTemp>
 
         // Target dir is the backend root: base\<manifest hash first 16 hex chars>.
         Assert.Equal(Path.Combine(baseRoot, payload.Manifest.Hash[..16]), backend);
-        Assert.True(File.Exists(Path.Combine(backend, "Jiangtherapee Bridge.exe")));
+        Assert.True(File.Exists(Path.Combine(backend, "resources", "jsr_backend.exe")));
         Assert.False(File.Exists(Path.Combine(backend, PayloadManager.IncompleteMarkerName)), "marker removed after successful extraction");
         foreach (PayloadManifestEntry entry in payload.Manifest.Files)
         {
@@ -284,7 +294,7 @@ public class PayloadTests : IClassFixture<TestTemp>
         string backend = NewManager(baseRoot, payload).EnsureExtracted();
 
         // Flip one byte, keep the length, so only the SHA-256 check can catch it.
-        string victim = Path.Combine(backend, "Jiangtherapee Bridge.exe");
+        string victim = Path.Combine(backend, "resources", "jsr_backend.exe");
         byte[] bytes = File.ReadAllBytes(victim);
         bytes[100] ^= 0xFF;
         File.WriteAllBytes(victim, bytes);
@@ -292,7 +302,7 @@ public class PayloadTests : IClassFixture<TestTemp>
         string healed = NewManager(baseRoot, payload).EnsureExtracted();
         Assert.Equal(backend, healed);
         Assert.Equal(
-            File.ReadAllBytes(Path.Combine(payload.SrcDir, "Jiangtherapee Bridge.exe")),
+            File.ReadAllBytes(Path.Combine(payload.SrcDir, "resources", "jsr_backend.exe")),
             File.ReadAllBytes(victim));
     }
 
@@ -353,7 +363,7 @@ public class PayloadTests : IClassFixture<TestTemp>
         string backend = NewManager(baseRoot, payload).EnsureExtracted();
 
         Assert.False(Directory.Exists(stale), "crashed tmp dir cleaned up");
-        Assert.True(File.Exists(Path.Combine(backend, "Jiangtherapee Bridge.exe")));
+        Assert.True(File.Exists(Path.Combine(backend, "resources", "jsr_backend.exe")));
     }
 
     [Fact]
@@ -377,7 +387,7 @@ public class PayloadTests : IClassFixture<TestTemp>
         Assert.NotEqual(dirA, dirB);
         Assert.False(Directory.Exists(dirA), "previous-version dir pruned after the new version is live");
         Assert.False(Directory.Exists(oldTmp), "old-version crashed tmp leftover pruned too");
-        Assert.True(File.Exists(Path.Combine(dirB, "Jiangtherapee Bridge.exe")), "current version intact after pruning");
+        Assert.True(File.Exists(Path.Combine(dirB, "resources", "jsr_backend.exe")), "current version intact after pruning");
     }
 
     [Fact]

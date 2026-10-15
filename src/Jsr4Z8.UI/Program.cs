@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Avalonia;
 using Jsr4Z8.Core.Native;
 using Jsr4Z8.Core.Payload;
+using Jsr4Z8.Core.Queue;
 
 namespace Jsr4Z8.UI;
 
@@ -29,8 +30,9 @@ internal static class Program
     /// <summary>
     /// Release QA self-test, no UI: ①PayloadManager.EnsureExtracted on the real
     /// embedded payload (progress to console; a pre-existing verified extraction is
-    /// the fast path) ②assert the extracted backend roots exist ③LibRaw smoke —
-    /// version probe always, NEF decode when a file argument is given.
+    /// the fast path) ②assert the extracted backend engine (resources\jsr_backend.exe)
+    /// and resources tree exist ③LibRaw smoke — version probe always, NEF decode when
+    /// a file argument is given.
     /// Prints SELFTEST OK / SELFTEST FAIL and returns 0 / 1.
     /// </summary>
     private static class Selftest
@@ -43,13 +45,13 @@ internal static class Program
                 Console.WriteLine("JSR for Z8 selftest");
                 Console.WriteLine($"  libraw: {LibRawNative.GetVersion()}");
 
-                Console.WriteLine("  载荷: 提取/校验嵌入后端（首次约 650 MB，请稍候）...");
+                Console.WriteLine("  载荷: 提取/校验嵌入后端（首次约 406 MB，请稍候）...");
                 string backend = new PayloadManager().EnsureExtracted(new ConsoleProgress());
 
-                string bridgeExe = Path.Combine(backend, "Jiangtherapee Bridge.exe");
+                string engineExe = Path.Combine(backend, "resources", TaskQueueRunner.EngineFileName);
                 string resources = Path.Combine(backend, "resources");
-                if (!File.Exists(bridgeExe))
-                    throw new InvalidOperationException($"载荷缺少 {bridgeExe}");
+                if (!File.Exists(engineExe))
+                    throw new InvalidOperationException($"载荷缺少直调引擎 {engineExe}");
                 if (!Directory.Exists(resources))
                     throw new InvalidOperationException($"载荷缺少 {resources}");
                 // EnsureExtracted already hash-verified every manifest entry: it

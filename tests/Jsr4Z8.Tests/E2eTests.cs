@@ -17,8 +17,8 @@ namespace Jsr4Z8.Tests;
 /// real extracted backend payload, a real GPU run and the real finalizer
 /// product. Opt-in via environment variable JSR4Z8_E2E=1; with it unset every
 /// test returns early and passes (normal CI stays fast and GPU-free). With it
-/// set, the four tests of this class run sequentially (single xUnit class =
-/// single collection) and cost ~17 min of GPU time: three full ~5.5 min runs
+/// set, the five tests of this class run sequentially (single xUnit class =
+/// single collection) and cost ~25-30 min of GPU time: four full ~5.5 min runs
 /// plus one 30 s cancel.
 ///
 /// Payload note: the queue's payload phase is pointed at the payload the
@@ -403,13 +403,12 @@ public class E2eTests
             $"停止后临时目录应被删除，仍残留子目录: {tempRoot}");
 
         // No backend process leftover (tree kill through the harness; the forced
-        // processes vanish from tasklist within seconds of driver teardown)
+        // processes vanish from tasklist within seconds of driver teardown). The
+        // payload carries no top-level Bridge shell (Task 3) and the direct
+        // invocation never spawns one — jsr_backend.exe is the only image to watch.
         double goneBackend = await WaitProcessGoneSeconds("jsr_backend.exe", TimeSpan.FromSeconds(15));
         Assert.True(goneBackend >= 0, "jsr_backend.exe 停止后 15s 内未退出");
-        double goneBridge = await WaitProcessGoneSeconds("Jiangtherapee Bridge.exe", TimeSpan.FromSeconds(15));
-        Assert.True(goneBridge >= 0, "Jiangtherapee Bridge.exe 停止后 15s 内未退出");
-        Ev($"tasklist: 无 jsr_backend.exe / Jiangtherapee Bridge.exe 残留" +
-           $"（{goneBackend:F1}s / {goneBridge:F1}s 内消失，≤15s 轮询）");
+        Ev($"tasklist: 无 jsr_backend.exe 残留（{goneBackend:F1}s 内消失，≤15s 轮询）");
     }
 
     // ---- Step 3a: Chinese + spaces directory path full run ----
@@ -475,11 +474,12 @@ public class E2eTests
         string stdoutPath = Path.Combine(workDir, "success.log");
         string stderrPath = Path.Combine(workDir, "success.stderr.log");
 
-        // Raw tap: spawn the engine exactly as BackendRunner does (Task 2 direct
-        // invoke: argv from BackendRequest.BuildArguments, no Bridge/request.json/cfg),
-        // but persist every stdout/stderr line VERBATIM (CRLF) instead of through the
-        // parser — this is the bare-line stream the direct_success.log fixture shape
-        // comes from. (Full re-capture/rewrite lands in Task 3.)
+        // Raw tap: spawn the engine exactly as BackendRunner does (direct invoke:
+        // argv from BackendRequest.BuildArguments, no Bridge/request.json/cfg),
+        // but persist every stdout/stderr line VERBATIM instead of through the
+        // parser — this is the bare-line stream the direct_success.log fixture
+        // shape comes from (Task 3 rewrite: the assertions below pin the bare
+        // protocol shape on a real GPU run).
         IReadOnlyList<string> arguments = BackendRequest.BuildArguments(group, ptc, dark, outputDir: outDir, prefix: "cap1");
         var psi = new ProcessStartInfo
         {
@@ -523,14 +523,18 @@ public class E2eTests
         stdoutFile.Dispose();
         stderrFile.Dispose();
 
-        // Pre-commit validation of the captured bare-line stream: zero envelopes,
-        // SRHQ progress present, the DONE tail present.
+        // The captured bare-line stream, asserted end to end: zero ASSISTANT_*
+        // envelopes (the Bridge wrapper is gone), V12 progress with exactly one
+        // SRHQ_V12_PROGRESS|100| 导出完成 line, the "DONE total <s>" tail as the
+        // last line, and (asserted above) exit code 0.
         string[] lines = File.ReadAllLines(stdoutPath);
-        int v12 = 0, eta = 0, envelopes = 0;
+        int v12 = 0, eta = 0, envelopes = 0, v12At100 = 0;
         foreach (string line in lines)
         {
-            if (line.StartsWith("ASSISTANT", StringComparison.Ordinal))
+            if (line.StartsWith("ASSISTANT_", StringComparison.Ordinal))
                 envelopes++;
+            if (line.StartsWith("SRHQ_V12_PROGRESS|100|", StringComparison.Ordinal))
+                v12At100++;
             switch (ProtocolParser.ParseLine(line))
             {
                 case Log l when l.Progress is not null:
@@ -539,16 +543,20 @@ public class E2eTests
                     break;
             }
         }
+        string? lastNonEmpty = lines.LastOrDefault(l => l.Length > 0);
         Ev($"抓取流: {lines.Length} 行, 信封 {envelopes}, " +
-           $"V12 进度 {v12}, ETA 进度 {eta}");
+           $"V12 进度 {v12}（P100 {v12At100} 次）, ETA 进度 {eta}, 尾行「{lastNonEmpty}」");
         Assert.Equal(0, envelopes);
         Assert.True(v12 > 0 && eta > 0);
+        Assert.Equal(1, v12At100);
+        Assert.NotNull(lastNonEmpty);
+        Assert.StartsWith("DONE total", lastNonEmpty, StringComparison.Ordinal);
 
         // The backend really produced its DNG (kept for reference; not finalized here).
         string? product = TaskQueueRunner.FindNewestProductDng(outDir, "cap1");
         Assert.True(product is not null, "抓取运行未产出后端 DNG");
         Ev($"抓取运行后端产物: {product} ({new FileInfo(product!).Length / 1024.0 / 1024.0:F1} MB)");
-        Ev($"success.log 待回填: {stdoutPath}");
+        Ev($"裸行流已捕获固化: {stdoutPath}");
     }
 
 }

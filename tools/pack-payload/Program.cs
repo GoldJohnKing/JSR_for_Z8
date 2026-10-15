@@ -16,7 +16,7 @@ using Jsr4Z8.Core.Payload;
 if (args.Length != 2)
 {
     Console.Error.WriteLine("用法: pack-payload <srcDir> <embeddedDir>");
-    Console.Error.WriteLine("  srcDir      原始后端包目录 (须含 Jiangtherapee Bridge.exe、resources/；排除清单外的内容不打包)");
+    Console.Error.WriteLine("  srcDir      原始后端包目录 (须含 resources\\jsr_backend.exe；仅打包 resources/ 树减排除清单，顶层 Bridge.exe 不携带)");
     Console.Error.WriteLine("  embeddedDir 嵌入目录 (payload.bin + payload.manifest.json；manifest 哈希比对自决换入)");
     return 2;
 }

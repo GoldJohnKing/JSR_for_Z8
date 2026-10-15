@@ -5,7 +5,9 @@ namespace Jsr4Z8.Core.Payload;
 /// <summary>
 /// Extracts the embedded backend payload to disk and keeps it verifiably intact.
 /// Target: %LOCALAPPDATA%\JSR4Z8\backend\&lt;manifest hash first 16 hex chars&gt;\ — a
-/// directory containing "Jiangtherapee Bridge.exe" + the full resources/ tree.
+/// directory containing the full resources/ tree with the direct-invoke engine
+/// resources\jsr_backend.exe at its root (no top-level Bridge shell — Task 3,
+/// 2026-10-15).
 /// Behavior:
 ///  - Existing target whose every manifest entry matches its SHA-256 → returned directly
 ///    (<see cref="ManifestVerifyPasses"/> counts these full passes; once verified, later

@@ -32,13 +32,16 @@ public sealed record PayloadPackResult(
 /// (fake 2-file payloads in temp dirs) both go through it — the real ~500 MB payload is
 /// never committed or embedded into test builds.
 ///
-/// Scanned from &lt;srcDir&gt; (byte-exact constraint): "Jiangtherapee Bridge.exe" and the
-/// resources/ tree minus the exclusion list (<see cref="IsExcluded"/>; 用户裁定 2026-10-15):
-/// assistant 单形态 7 帧锁定 → K14 引擎不携带；manual 标定 → z8_presets 不携带；
-/// Tcl/Tk、ffmpeg 视频 DLL、wgpu/__pyinstaller 测试残留剥离；THIRD_PARTY_NOTICES.md
-/// 不再打包（许可仍随 resources/licenses 分发）。Everything else in the source package
-/// (README.md, DeepSeek助手使用说明.md, FILES-SHA256.json, ThirdPartySources/,
-/// THIRD_PARTY_NOTICES.md) is not part of the payload.
+/// Scanned from &lt;srcDir&gt; (byte-exact constraint): the resources/ tree minus the
+/// exclusion list (<see cref="IsExcluded"/>; 用户裁定 2026-10-15) — the direct-invoke
+/// engine resources\jsr_backend.exe is the required entry point (Task 3: the top-level
+/// "Jiangtherapee Bridge.exe" shell no longer ships; kept as an ExactPath exclusion
+/// so a whitelist regression cannot smuggle it back in). assistant 单形态 7 帧锁定 →
+/// K14 引擎不携带；manual 标定 → z8_presets 不携带；Tcl/Tk、ffmpeg 视频 DLL、
+/// wgpu/__pyinstaller 测试残留剥离；THIRD_PARTY_NOTICES.md 不再打包（许可仍随
+/// resources/licenses 分发）。Everything else in the source package (README.md,
+/// DeepSeek助手使用说明.md, FILES-SHA256.json, ThirdPartySources/, THIRD_PARTY_NOTICES.md,
+/// the Bridge shell) is not part of the payload.
 ///
 /// payload.bin layout (all integers little-endian):
 ///   u32  magic 0x3142504A (bytes spell "JPB1")
@@ -83,6 +86,11 @@ public static class PayloadPacker
     /// </summary>
     private static readonly (ExclusionKind Kind, string Pattern)[] ExcludedPayloadEntries =
     {
+        // Top-level Bridge shell: the GUI invokes resources\jsr_backend.exe directly
+        // (Task 2/3, 2026-10-15), so the shell is dead weight — the whitelist no longer
+        // scans it, and this ExactPath entry keeps a future whitelist regression from
+        // smuggling it back in. 直调后顶层壳不再携带——用户裁定 2026-10-15。
+        (ExclusionKind.ExactPath, "Jiangtherapee Bridge.exe"),
         // K14 engines: the assistant path is a locked 7-frame single-form job that only ever
         // spawns jsr_backend.exe (START envelope Compressor=jsr_backend.exe) — dead weight here.
         (ExclusionKind.ExactPath, "resources/jsr_v98_k14_backend.exe"),
@@ -104,8 +112,7 @@ public static class PayloadPacker
     /// <summary>
     /// True if <paramref name="relativePath"/> (relative to the backend source root, '/' or '\\'
     /// separators) hits the exclusion list. THIRD_PARTY_NOTICES.md is not an exclusion entry:
-    /// it is simply no longer whitelisted (only the bridge exe + resources/ minus exclusions
-    /// are scanned).
+    /// it is simply not whitelisted (only the resources/ tree minus exclusions is scanned).
     /// </summary>
     internal static bool IsExcluded(string relativePath)
     {
@@ -138,23 +145,24 @@ public static class PayloadPacker
     }
 
     /// <summary>
-    /// The payload's source file list: the bridge exe and every file under resources/
-    /// (recursive) except the exclusion list (<see cref="IsExcluded"/>), each as a path
-    /// relative to <paramref name="srcDir"/>. Throws if either required source is missing.
-    /// THIRD_PARTY_NOTICES.md is no longer packed (user ruling 2026-10-15; third-party
-    /// licenses still ship inside resources/licenses/).
+    /// The payload's source file list: every file under resources/ (recursive) except the
+    /// exclusion list (<see cref="IsExcluded"/>), each as a path relative to
+    /// <paramref name="srcDir"/>. The direct-invoke engine (resources\jsr_backend.exe) is
+    /// the required entry point — throws if it or the resources/ dir is missing.
+    /// THIRD_PARTY_NOTICES.md and the top-level Bridge shell are not packed (user ruling
+    /// 2026-10-15; third-party licenses still ship inside resources/licenses/).
     /// </summary>
     public static IReadOnlyList<string> EnumerateSourceFiles(string srcDir)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(srcDir);
-        string exe = Path.Combine(srcDir, "Jiangtherapee Bridge.exe");
         string resources = Path.Combine(srcDir, "resources");
-        if (!File.Exists(exe))
-            throw new DirectoryNotFoundException($"后端源目录缺少必需文件: {exe}");
+        string engine = Path.Combine(resources, "jsr_backend.exe");
         if (!Directory.Exists(resources))
             throw new DirectoryNotFoundException($"后端源目录缺少必需目录: {resources}");
+        if (!File.Exists(engine))
+            throw new DirectoryNotFoundException($"后端源目录缺少直调引擎: {engine}");
 
-        var files = new List<string> { Path.GetRelativePath(srcDir, exe) };
+        var files = new List<string>();
         foreach (string file in Directory.EnumerateFiles(resources, "*", SearchOption.AllDirectories))
         {
             string rel = Path.GetRelativePath(srcDir, file);

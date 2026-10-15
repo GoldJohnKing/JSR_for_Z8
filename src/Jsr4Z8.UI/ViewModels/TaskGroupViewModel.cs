@@ -138,9 +138,10 @@ public partial class TaskGroupViewModel : ObservableObject
     /// add/remove recompute replace the instance (with change notification).</summary>
     public TaskGroup Group { get; private set; }
 
-    /// <summary>The PTC match of the LATEST validation — the queue's request JSON needs
-    /// its fullwell (BuildJson rounds inside). Refreshed on every file-set change so a
-    /// Blocked→Ready top-up hands the runner the new match; null while Blocked.</summary>
+    /// <summary>The PTC match of the LATEST validation — the queue's engine argv
+    /// (BuildArguments) needs its fullwell (rounded to 1 decimal inside). Refreshed on
+    /// every file-set change so a Blocked→Ready top-up hands the runner the new match;
+    /// null while Blocked.</summary>
     public PtcMatch? Ptc
     {
         get => _ptc;
@@ -149,8 +150,9 @@ public partial class TaskGroupViewModel : ObservableObject
 
     private PtcMatch? _ptc;
 
-    /// <summary>The preset dark of the LATEST validation — the queue's request JSON needs
-    /// its black/read-noise pair. Refreshed with <see cref="Ptc"/>; null while Blocked.</summary>
+    /// <summary>The preset dark of the LATEST validation — the queue's engine argv
+    /// (BuildArguments) needs its black/read-noise pair. Refreshed with
+    /// <see cref="Ptc"/>; null while Blocked.</summary>
     public DarkMatch? Dark
     {
         get => _dark;
