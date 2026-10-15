@@ -15,8 +15,8 @@
 
 | 动作 | 命令（Windows host） |
 |---|---|
-| 全量测试 | `dotnet test --nologo`（当前 **253/253**，含规范不变量/外来流真值/模糊/金丝雀等经验驱动套件） |
-| 一键发布 | `build.bat` → `out\Jsr4Z8_v<版本>.exe`（~537MB 单文件；载荷已打包时跳过打包段；改了 reference/ 后删 `src/Jsr4Z8.Core/Payload/Embedded/payload.*` 强制重打包） |
+| 全量测试 | `dotnet test --nologo`（当前 **267/267**，含规范不变量/外来流真值/模糊/金丝雀等经验驱动套件） |
+| 一键发布 | `build.bat` → `out\Jsr4Z8_v<版本>.exe`（~317MB 单文件（载荷裁剪后）；载荷已打包时跳过打包段；改了 reference/ 后删 `src/Jsr4Z8.Core/Payload/Embedded/payload.*` 强制重打包） |
 | 无头自检 | `out\Jsr4Z8_v*.exe --selftest [file.nef]`（释放/校验载荷+LibRaw 冒烟） |
 | E2E（真 GPU，~6min/全幅） | cmd 脚本内 `set JSR4Z8_E2E=1` + `dotnet test --filter FullyQualifiedName~E2eTests.<名>`；门控见 `tests/Jsr4Z8.Tests/E2eTests.cs` |
 | 诊断工具 | `tools/finalize-variant/`（离线调用融合器：crop/passthrough/featureSet 剥离矩阵，ACR 排障利器） |
@@ -26,7 +26,7 @@
 ## 3. 架构
 
 ```
-Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/设置)
+Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐/设置)
    └─ QueueMediator(单飞+IDispatcher UI 线程编组+进度节流200ms)
         └─ TaskQueueRunner(顺序队列: 释放载荷→临时目录→请求JSON→BackendRunner→JsrDngFinalizer)
              ├─ PayloadManager: exe 内嵌载荷(zlib) → %LOCALAPPDATA%\JSR4Z8\backend\<hash>\ 释放+SHA校验+自愈+旧版本目录清理
@@ -54,7 +54,7 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/设置)
 1. **不传显存预算**（用户明确要求"始终不限制"）——设置界面无此项。
 2. **最终 DNG 的 IFD0 无 Artist、Software="JSR for Z8"**——后端算法署名不进 IFD0（载荷不再携带 THIRD_PARTY_NOTICES.md——用户裁定；第三方许可仍在 resources/licenses 内随载荷分发）；NEF EXIF 区内摄影者自有标签照常迁移。
 3. **黑场标定恒为预置自动匹配（无手动黑场文件路径）**。7 帧在 **机型/ISO/位深/压缩/画幅** 五维两两一致（机型逐文件验 Z8；位深=TIFF BitsPerSample、压缩=MakerNote NEFCompression、画幅=raw 尺寸；**陷阱**：Z8 全部 NEF 的 TIFF Compression 恒 34713，HE(13)/HE*(14) 与无损(3) 只能靠 NEFCompression 判别），任一不一致禁止执行。PTC 按机型+ISO 匹配（单像素参数，读出维度不影响归一化 shot 斜率）；预置黑场 `Dark/Embedded/dark_z8.csv`（93 行 = 31 档 ISO × FX{无损,HE,HE\*} 实拍，后端精确算法测算、双解码器互证 ≤0.058 DN）按 **(压缩,ISO) 双键**精确匹配——画幅不参与（读噪与画幅无关，DX vs FX ≤1%@高ISO，任意画幅取 FX 行）。画像外（12bit）或表外 ISO → `CaptureFormatUnsupported`"拍摄格式不支持"。物理事实：HE/HE\* 读噪比无损 +3~7%（量化噪声叠加）；ISO500=DCG 切换点故不插值；Lo 扩展档=假ISO（数据≡ISO64，自动命中 64 行）；常规快门不影响标定。
-4. 输出名固定 `JSR_<基准帧名>.dng`；基准帧=等曝光时文件名自然排序第 1 张、曝光包围（仅快门不同）时按曝光升序取中间帧（第 4 张）；任务卡内点击芯片可换基准（仅就绪/无法执行态）。
+4. 输出名固定 `JSR_<基准帧名>.dng`；基准帧=等曝光时文件名自然排序第 1 张、曝光包围（仅快门不同）时按曝光升序取中间帧（第 4 张）。任务组可先少后补（卡内「添加 RAW…」按钮或再拖放到卡）；芯片★星标=手动基准（仅就绪/无法执行态可设，星标帧被移除则回退自动选取）；悬浮文件名显示关键参数（机型/快门/光圈/ISO/位深/压缩/画幅/拍摄时间）；>7 或 <7 帧均阻断为「帧数不符」。
 5. 顺序队列一次一组；失败/停止不阻断后续；失败/停止立即删除本任务临时目录（不留诊断目录），启动时清扫临时根（TempBase）下 Jsr4Z8 的全部残留（应对崩溃残留；单实例互斥；清扫跳过 2 分钟内新写的目录）。
 6. 布局默认 **Tiles**（`DngWriteOptions.RawLayout` 有 Strips 选项，为 ACR 排障而加）。根因是几何而非布局；Strips 路径同样可用。
 7. 界面纯中文；Semi.Avalonia 默认暗色、跟随系统+切换；以 `D:\GitRepos\Save_Z8` 的视觉规范为设计权威（本轮用户需求，覆盖 `docs/design/*.html` 旧 mockup）。
@@ -71,6 +71,7 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/设置)
 7. 派 subagent 审查时**禁止全局 find**——reference/(649MB)、external/、~/.nuug 会超时；限定 grep 路径。
 8. 运行期错误文案要人话化：从后端日志尾提取 `SRHQ_NET_ABORT:stage|msg` / MemoryError 行，但要**跳过 ASSISTANT_* 信封行**（信封内嵌日志整行 JSON，会盖过干净的裸行）。
 9. 进入 Running/Done 必须清 ErrorText（用户踩过"重试后旧失败提示不消失"）。
+10. **E2E 门控用例长期不跑会腐烂**：中文路径副本拍平、抓取流写句柄两缺陷即例（自引入起一直被 `JSR4Z8_E2E=1` 门控跳过所掩盖）——发布前应跑一轮 `JSR4Z8_E2E=1` E2E 全绿再交付。
 
 ## 7. 已知遗留（低风险，勿顺手重构）
 
@@ -78,6 +79,8 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/设置)
 - DngWriter 潜在 ≥2GiB 载荷的 int/uint 算术隐患 5 处（W8/W12/W13/W14/R6，见 `.superpowers/sdd-postrelease-fix6-report.md` 审计表，当前最大 1.1GB 安全）。
 - build.bat Step4 载荷跳过仅按存在性（不比对 reference/ 新旧）；cmake 路径硬编码。
 - StartAll 与用户单卡点击交错时可能跳过一张就绪卡（需重点击）；卡片 VM 订阅共享 runner 事件不退订（有界）。
+- TaskCardView 与 MainWindow 各有一份 NEF 过滤小助手（可共享）。
+- 星标/✕ 命令绑定经 ReflectionBinding（运行时解析，编译期不校验）——UI 冒烟（人工手测）覆盖。
 - ~~分支 `feat/jsr4z8` 尚未合并回 main~~ 已合并（含 ACR 几何修复，用户人工核验 DNG 输出通过）。
 
 ## 8. 文档地图
@@ -85,6 +88,7 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/设置)
 - 设计文档（已批准）：`docs/superpowers/specs/2026-10-13-jsr4z8-design.md`
 - 实施计划（含实测协议事实节）：`docs/superpowers/plans/2026-10-13-jsr4z8-implementation.md`
 - 本轮 UI 重构（内联建组/曝光包围/失败即删/载荷版本清理）计划：`docs/superpowers/plans/2026-10-15-inline-groups-ui-bracketing.md`
+- 本轮渐进补齐+载荷裁剪计划：`docs/superpowers/plans/2026-10-15-progressive-groups-payload-trim.md`
 - GUI 定稿 mockup（旧 mockup，视觉权威自本轮起为 Save_Z8 规范——见 §5 决策 7）：`docs/design/*.html`
 - 排障/修复报告（ACR 攻坚全程）：`.superpowers/sdd-postrelease-fix*.md`（fix1-10）
 - 样例：`samples/`（DSC_7575=黑场，7576-7582=七帧；`samples/dark_frames/`={FX{Lossless,HE,HE Star},DX{Lossless}} 四画像实测黑场（124 行预置表的来源），未入 git）；后端原包：`reference/Jiangtherapee-Bridge-2.3.25-Windows-x64/`（载荷来源，勿改一字节）
