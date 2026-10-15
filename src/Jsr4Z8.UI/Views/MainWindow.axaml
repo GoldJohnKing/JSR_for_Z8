@@ -154,7 +154,7 @@
                                     <Viewbox Width="15" Height="15">
                                         <Path Classes="icon-white" Data="{StaticResource Icon.FolderPlus}" />
                                     </Viewbox>
-                                    <TextBlock Text="选择 RAW 文件…" FontSize="13" />
+                                    <TextBlock Text="选择 RAW 文件" FontSize="13" />
                                 </StackPanel>
                             </Button>
 

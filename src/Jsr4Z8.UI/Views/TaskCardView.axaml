@@ -155,6 +155,13 @@
         <Style Selector="Button.chip-action:pressed /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource SemiColorFill2}" />
         </Style>
+        <!-- EV 胶囊自带底色，悬停不加外圈（chip-action 的 Fill2 悬停底会从胶囊外露出，形似浮动边框——仅 chip-ev 置透明；★/✕ 图标钮保留悬停反馈） -->
+        <Style Selector="Button.chip-ev:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.chip-ev:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
         <!-- ★：非基准=Text3 空心；基准=#F0A020 实心（Blocked 橙警告色系一致） -->
         <Style Selector="Button.chip-action Path.star-icon">
             <Setter Property="Stroke" Value="{DynamicResource SemiColorText3}" />
