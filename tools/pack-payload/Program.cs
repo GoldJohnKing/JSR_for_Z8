@@ -2,27 +2,47 @@ using Jsr4Z8.Core.Payload;
 
 // pack-payload: packs the ORIGINAL backend distribution into the embedded payload pair
 // (payload.bin + payload.manifest.json) that PayloadManager extracts at runtime.
-// The release script (Task 15) invokes:
-//   pack-payload <srcDir> <outDir>
-// with outDir = src/Jsr4Z8.Core/Payload/Embedded/ — the pair is NOT committed
+// The release script (build.bat Step 4) invokes:
+//   pack-payload <srcDir> <embeddedDir>
+// with embeddedDir = src/Jsr4Z8.Core/Payload/Embedded/ — the pair is NOT committed
 // (payload.bin is ~500 MB); the Core csproj embeds both files as resources when present.
+//
+// The pack always runs into a temp sibling (<EmbeddedDir>.tmp-pack-<pid>) first; the
+// freshly generated manifest is then byte-compared against the existing embedded one
+// (EmbeddedUpdater.Apply): unchanged → the existing pair is kept, changed/absent → the
+// new pair is swapped in. Callers therefore run this tool unconditionally — a new
+// backend version in reference/ is picked up without manually deleting payload.bin.
 
 if (args.Length != 2)
 {
-    Console.Error.WriteLine("用法: pack-payload <srcDir> <outDir>");
-    Console.Error.WriteLine("  srcDir  原始后端包目录 (须含 Jiangtherapee Bridge.exe、resources/；排除清单外的内容不打包)");
-    Console.Error.WriteLine("  outDir  输出目录 (payload.bin + payload.manifest.json)");
+    Console.Error.WriteLine("用法: pack-payload <srcDir> <embeddedDir>");
+    Console.Error.WriteLine("  srcDir      原始后端包目录 (须含 Jiangtherapee Bridge.exe、resources/；排除清单外的内容不打包)");
+    Console.Error.WriteLine("  embeddedDir 嵌入目录 (payload.bin + payload.manifest.json；manifest 哈希比对自决换入)");
     return 2;
 }
 
 try
 {
-    PayloadPackResult result = PayloadPacker.Pack(args[0], args[1]);
+    string embeddedDir = args[1].TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    string tempDir = $"{embeddedDir}.tmp-pack-{Environment.ProcessId}";
+    if (Directory.Exists(tempDir))
+        Directory.Delete(tempDir, recursive: true);
+
+    PayloadPackResult result = PayloadPacker.Pack(args[0], tempDir);
     Console.WriteLine(
         $"打包 {result.FileCount} 个文件: {result.RawBytes / 1024.0 / 1024.0:F1} MB → " +
         $"{result.PackedBytes / 1024.0 / 1024.0:F1} MB ({result.PackedBytes * 100.0 / Math.Max(1, result.RawBytes):F1}%)");
-    Console.WriteLine($"  payload:  {result.PayloadPath}");
-    Console.WriteLine($"  manifest: {result.ManifestPath} (hash {result.ManifestHash[..16]}…)");
+
+    if (EmbeddedUpdater.Apply(embeddedDir, tempDir))
+    {
+        Console.WriteLine($"[4/6] payload 已换新 (hash {result.ManifestHash[..16]}…)");
+        Console.WriteLine($"  payload:  {Path.Combine(embeddedDir, PayloadPacker.PayloadFileName)}");
+        Console.WriteLine($"  manifest: {Path.Combine(embeddedDir, PayloadPacker.ManifestFileName)}");
+    }
+    else
+    {
+        Console.WriteLine($"[4/6] payload 未变（哈希一致），保留现有嵌入 (hash {result.ManifestHash[..16]}…)");
+    }
     return 0;
 }
 catch (Exception ex)

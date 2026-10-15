@@ -394,4 +394,63 @@ public class PayloadTests : IClassFixture<TestTemp>
             Assert.True(progress.Reports[i] >= progress.Reports[i - 1] - 1e-9, $"progress went backwards at {i}");
         Assert.Equal(1.0, progress.Reports[^1], precision: 6);
     }
+
+    // ---- EmbeddedUpdater: pack-payload's swap-in decision (manifest byte-compare) ----
+
+    /// <summary>Writes a fake embedded pair — opaque bytes, because <see cref="EmbeddedUpdater"/>
+    /// only byte-compares the manifest and copies the pair; it never parses them.</summary>
+    private static void WritePair(string dir, byte[] manifest, byte[] bin)
+    {
+        Directory.CreateDirectory(dir);
+        File.WriteAllBytes(Path.Combine(dir, PayloadPacker.ManifestFileName), manifest);
+        File.WriteAllBytes(Path.Combine(dir, PayloadPacker.PayloadFileName), bin);
+    }
+
+    [Fact]
+    public void Pack_UnchangedManifest_KeepsExistingEmbedded()
+    {
+        byte[] manifest = { 0x7B, 0x22, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6F, 0x6E, 0x22 }; // {"version"
+        byte[] bin = { 1, 2, 3 };
+        string embedded = TempDir();
+        WritePair(embedded, manifest, bin);
+
+        // Fresh pack of the SAME source: identical manifest bytes (a deterministic packer
+        // then also yields an identical bin; the differing bin here documents that the
+        // keep/replace decision is manifest-driven, not bin-driven).
+        string temp = TempDir();
+        WritePair(temp, manifest, new byte[] { 9, 9, 9, 9 });
+
+        bool replaced = EmbeddedUpdater.Apply(embedded, temp);
+
+        Assert.False(replaced);
+        Assert.False(Directory.Exists(temp), "keep deletes the temp pack dir");
+        Assert.Equal(manifest, File.ReadAllBytes(Path.Combine(embedded, PayloadPacker.ManifestFileName)));
+        Assert.Equal(bin, File.ReadAllBytes(Path.Combine(embedded, PayloadPacker.PayloadFileName)));
+    }
+
+    [Fact]
+    public void Pack_ChangedManifest_ReplacesEmbedded()
+    {
+        string embedded = TempDir();
+        WritePair(embedded, new byte[] { 1, 1, 1 }, new byte[] { 1, 2, 3 });
+
+        string temp = TempDir();
+        byte[] newManifest = { 2, 2, 2, 2 };
+        byte[] newBin = { 7, 7, 7 };
+        WritePair(temp, newManifest, newBin);
+
+        bool replaced = EmbeddedUpdater.Apply(embedded, temp);
+
+        Assert.True(replaced);
+        Assert.False(Directory.Exists(temp), "replace consumes the temp pack dir");
+        Assert.Equal(newManifest, File.ReadAllBytes(Path.Combine(embedded, PayloadPacker.ManifestFileName)));
+        Assert.Equal(newBin, File.ReadAllBytes(Path.Combine(embedded, PayloadPacker.PayloadFileName)));
+
+        // Absent embedded pair (fresh clone, or deleted for fast dev builds) → replace too.
+        string fresh = TempDir();
+        string temp2 = TempDir();
+        WritePair(temp2, newManifest, newBin);
+        Assert.True(EmbeddedUpdater.Apply(fresh, temp2));
+        Assert.True(File.Exists(Path.Combine(fresh, PayloadPacker.PayloadFileName)));
+    }
 }

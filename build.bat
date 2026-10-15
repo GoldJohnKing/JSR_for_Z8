@@ -19,9 +19,8 @@ REM   build\bin\<Project>\<Config>   build outputs (dev debugging)
 REM   build\publish                  single-file publish staging
 REM   out\                           FINAL distributable
 REM Steps 0-3 are incremental: existing artifacts are skipped (delete to rebuild).
-REM Step 4 skips while BOTH payload.bin and payload.manifest.json exist
-REM (delete src\Jsr4Z8.Core\Payload\Embedded\payload.bin to force a re-pack;
-REM see the footer NOTE about restoring fast dev builds afterwards).
+REM Step 4 always runs pack-payload: it picks the HIGHEST backend version under
+REM reference\ and swaps the embedded pair in only when the manifest hash changed.
 REM Prereq: VS 2022/2026 + .NET 8 SDK + git (submodules) + CMake
 REM Steps 0-3 ported from Save_Z8 build.bat; Steps 4-6 mirror its Step 4
 REM (single-file publish, native DLLs compressed inside the bundle).
@@ -34,7 +33,8 @@ set OUT=%ROOT%out
 set PUB=%ROOT%build\publish
 set PAYLOAD_EMBED=%ROOT%src\Jsr4Z8.Core\Payload\Embedded
 set PAYLOAD_SRC=
-for /d %%d in ("%ROOT%reference\Jiangtherapee-Bridge-*") do if not defined PAYLOAD_SRC set "PAYLOAD_SRC=%%d"
+rem dir /o-n = descending name order = highest version (2.3.x same-length prefix assumed)
+for /f "delims=" %%d in ('dir /b /ad /o-n "%ROOT%reference\Jiangtherapee-Bridge-*" 2^>nul') do if not defined PAYLOAD_SRC set "PAYLOAD_SRC=%ROOT%reference\%%d"
 
 echo ============================================================
 echo  JSR for Z8 - One-Shot Build (native / payload / publish)
@@ -126,21 +126,15 @@ if errorlevel 1 (echo ERROR: dng_ljpeg build failed & exit /b 1)
 del /q %LIBS%\dng_ljpeg.exp %LIBS%\dng_ljpeg.lib 2>nul
 echo      dng_ljpeg.dll built OK
 
-REM --- Step 4: pack backend payload into Core embedded resources (skip if both present) ---
+REM --- Step 4: pack backend payload into Core embedded resources (pack-payload self-decides by manifest hash) ---
 cd /d %ROOT%
-if exist "%PAYLOAD_EMBED%\payload.bin" if exist "%PAYLOAD_EMBED%\payload.manifest.json" (
-    echo [4/6] payload.bin + payload.manifest.json exist, skipping. Delete src\Jsr4Z8.Core\Payload\Embedded\payload.bin to re-pack.
-    goto :publish
-)
 if not defined PAYLOAD_SRC (
     echo ERROR: reference\Jiangtherapee-Bridge-* not found - extract the backend distribution there first.
     exit /b 1
 )
-echo [4/6] Packing backend payload ~30-60 s...
+echo [4/6] Packing backend payload ~30-60 s (swaps in only if the manifest hash changed)...
 dotnet run --project tools\pack-payload -- "%PAYLOAD_SRC%" "%PAYLOAD_EMBED%"
 if errorlevel 1 (echo ERROR: payload packing failed & exit /b 1)
-
-:publish
 REM --- Step 5: single-file publish (Release, self-contained, payload embedded) ---
 cd /d %ROOT%
 echo [5/6] Publishing single-file exe (embeds + compresses ~493 MB payload, takes a few minutes)...
@@ -180,5 +174,6 @@ echo  Selftest:      out\Jsr4Z8_v%VER%.exe --selftest [file.nef]
 echo  NOTE: the packed payload remains in src\Jsr4Z8.Core\Payload\Embedded\
 echo        and slows every Core build. Restore fast dev builds with
 echo        del src\Jsr4Z8.Core\Payload\Embedded\payload.bin src\Jsr4Z8.Core\Payload\Embedded\payload.manifest.json
-echo        (out\ is unaffected - the exe carries the payload.)
+echo        (out\ is unaffected - the exe carries the payload; the next build.bat
+echo        re-packs the pair automatically, no manual delete needed to refresh.)
 echo ============================================================

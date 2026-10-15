@@ -1,6 +1,6 @@
 # jsr_backend.exe 运行期 argv 探测与直调可行性初析（2026-10-15）
 
-> **版本标注**：本文捕获基于 **2.3.25** 载荷（`%LOCALAPPDATA%\JSR4Z8\backend\3e1f6aa175be089e\`）。Task 3（载荷升级 2.3.27）将以同一监视器复抓比对；若 argv 契约不一致，须更新本文结论段并显著标注。
+> **版本标注**：本文捕获基于 **2.3.25** 载荷（`%LOCALAPPDATA%\JSR4Z8\backend\3e1f6aa175be089e\`）。Task 3 已以同一监视器对 **2.3.27** 载荷（backend\fa541adff100e78e\）复抓比对：**argv 契约一致**（见 §5，2026-10-15）。
 
 回答的问题：JSR for Z8 能否绕过 `Jiangtherapee Bridge.exe` 直调 `resources\jsr_backend.exe`？——Bridge 交给引擎的 argv 模板藏在 PyInstaller 字节码里无法静态读出，运行期抓取是最短事实路径。
 
@@ -87,4 +87,14 @@ headless 单队列场景的最小集合——多数已有对应物：
 
 ## 4. 结论
 
-**有条件可行（倾向可行）**：主算入口的 argv 完全由「我们已持有的请求语义 + 可按观测值硬编码的 Bridge 默认开关」构成，不存在不透明句柄/管道等不可自建依赖；harness 功能面在本项目里几乎全部已有对应物（裸行解析、树杀、产物核验、排他串行）。剩余未知集中在两处：① 预览阶段（`--bridge-preview` 两个 JSON 的内容与必要性）；② 未文档化 CLI 的版本稳定性——**Task 3 在 2.3.27 复抓比对后定论**。建议：生产路径维持 Bridge 不动；直调作为独立 spike（复放本文捕获的主算 argv，比对 stdout 与产物）验证后再议替换。
+**有条件可行（倾向可行）**：主算入口的 argv 完全由「我们已持有的请求语义 + 可按观测值硬编码的 Bridge 默认开关」构成，不存在不透明句柄/管道等不可自建依赖；harness 功能面在本项目里几乎全部已有对应物（裸行解析、树杀、产物核验、排他串行）。剩余未知集中在两处：① 预览阶段（`--bridge-preview` 两个 JSON 的内容与必要性）；② 未文档化 CLI 的版本稳定性——**2.3.27 复验已通过（§5）**。建议：生产路径维持 Bridge 不动；直调作为独立 spike（复放本文捕获的主算 argv，比对 stdout 与产物）验证后再议替换。
+
+## 5. 2.3.27 复验：argv 契约一致（2026-10-15，Task 3）
+
+载荷升级 2.3.27（裁剪后 manifest hash `fa541adf…`）后，以同一监视器（argv-monitor.ps1，本次日志 `argv-capture-233.log`，工作区）在 E2E 真机运行中复抓：
+
+- **进程树与双实例自重复模式不变**：testhost → Bridge → 预览链（父→子同 argv，间隔 2.1s）与主算链（父→子同 argv，间隔 2.1s）；预览先于主算 ~4s，与 §2 时序一致。
+- **Bridge.exe / 预览 argv 逐字同构**：`--assistant-jsr-job <request.json> <resources> <cfg>`、`--bridge-preview <cfg>\jsr\preview-input.json <cfg>\jsr\preview.json`（仅路径/哈希目录不同）。
+- **主算 argv 开关序列完全一致**（`--output-dir … --camera-profile-source libraw` 逐一比对）。值差异仅两处，均为预期：`--black-level-dn 1005.89→1008`、`--read-noise-dn 14.54→14.07`（预置黑场表换成后端 2.3.27 z8_presets manifest 导出的 102 行表，(无损, ISO3200) 行值）；`--full-well-electrons 1102.2` 不变（两版 ptc_index.csv 字节一致）。
+
+结论：§3/§4 的直调可行性分析对 2.3.27 继续成立，无需修正。

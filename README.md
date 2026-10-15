@@ -58,10 +58,11 @@ build.bat
 
 前置：VS 2022/2026（VC/NMake 工具链）+ .NET 8 SDK + git 子模块 + CMake。
 脚本依次构建 LibRaw（JO nikon-he-production fork）与 libjpeg-turbo 原生库、
-打包后端载荷（`tools\pack-payload`，取自 `reference\` 下的 Jiangtherapee
+打包后端载荷（`tools\pack-payload`，自动选 `reference\` 下版本号最高的 Jiangtherapee
 Bridge 发布），最后单文件自包含发布（原生 DLL 压缩内嵌）。打包器会自动
 裁剪不需要的后端文件（K14 引擎、Tcl/Tk、ffmpeg 视频 DLL 等）——裁剪后的
-载荷已通过真 GPU E2E 全流程验证。
+载荷已通过真 GPU E2E 全流程验证；每次构建都重新比对 manifest 哈希，
+载荷有更新即自动换入（无需手动删 `payload.bin`）。
 注意：发布后请删除 `src\Jsr4Z8.Core\Payload\Embedded\payload.bin`（及同名
 `.manifest.json`），否则此后每次 Core 构建/测试都会重新内嵌 ~273 MB 载荷，
 显著拖慢开发构建（详见 `build.bat` 头注释）。
