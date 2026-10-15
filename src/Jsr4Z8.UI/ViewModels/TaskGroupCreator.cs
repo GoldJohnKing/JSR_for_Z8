@@ -4,9 +4,14 @@ using Jsr4Z8.Core.Model;
 
 namespace Jsr4Z8.UI.ViewModels;
 
-/// <summary>Creation result: the group (基准帧 first) plus the validation that came with
-/// it, so MainViewModel.AddValidated creates a card without re-reading the files.</summary>
-public sealed record CreatedTaskGroup(TaskGroup Group, ValidationResult Validation);
+/// <summary>Creation result: the group (基准帧 first), the validation that came with
+/// it, and the per-path metadata the creation pass already read (readable frames only
+/// — an unreadable path is simply absent; case-insensitive keys) — so the card VM can
+/// seed its caches and build hover texts without re-reading the files.</summary>
+public sealed record CreatedTaskGroup(
+    TaskGroup Group,
+    ValidationResult Validation,
+    IReadOnlyDictionary<string, RawMetadata> Metadata);
 
 /// <summary>
 /// Inline group creation (Task 4, replacing the deleted 新建任务组 dialog): dropping
@@ -71,34 +76,63 @@ public static class TaskGroupCreator
             }
         }
 
-        TaskGroup group = new(OrderForReference(frames, meta));
-        return new CreatedTaskGroup(group, TaskGroupValidator.Validate(group, memoized));
+        string reference = PickReference(frames, memoized);
+        TaskGroup group = new(frames
+            .Where(p => !string.Equals(p, reference, StringComparison.OrdinalIgnoreCase))
+            .Prepend(reference)
+            .ToList());
+        return new CreatedTaskGroup(group, TaskGroupValidator.Validate(group, memoized), meta);
     }
 
-    /// <summary>Reference-frame rule (曝光包围): with every shutter equal to the
-    /// natural-first frame's (tolerance above; ExposureTime 0 = EXIF absent carries no
-    /// bracketing signal and counts as equal), the natural order stands and the first
-    /// file is the 基准帧. Otherwise the frames order by (ExposureTime, natural file
-    /// name) ascending and index Count/2 (7 → 3, the middle exposure) becomes the
-    /// reference at FramePaths[0]; the remaining frames keep natural order behind it.
-    /// An unreadable natural-first frame (no readable base) leaves the order alone.</summary>
-    private static IReadOnlyList<string> OrderForReference(List<string> frames,
-        IReadOnlyDictionary<string, RawMetadata> meta)
+    /// <summary>Reference-frame rule (曝光包围), extracted so the card VM re-runs it on
+    /// every add/remove: with every shutter equal to the natural-first frame's
+    /// (tolerance below; ExposureTime 0 = EXIF absent carries no bracketing signal and
+    /// counts as equal), the natural order stands and the first file is the 基准帧.
+    /// Otherwise the frames order by (ExposureTime, natural file name) ascending and
+    /// index Count/2 (7 → 3, the middle exposure) becomes the reference. An unreadable
+    /// natural-first frame (no readable base) leaves the order alone. <paramref
+    /// name="paths"/> must be non-empty and in natural display order — both callers
+    /// (CreateAsync, the card VM's recompute) guarantee it, since no group exists
+    /// without frames and the display order is maintained natural.</summary>
+    public static string PickReference(IReadOnlyList<string> paths, Func<string, RawMetadata> read)
     {
-        if (!meta.TryGetValue(frames[0], out RawMetadata? first) || first.ExposureTime == 0)
-            return frames;
-        double baseExposure = first.ExposureTime;
-        if (frames.All(p => !meta.TryGetValue(p, out RawMetadata? m) ||
-                            ExposureEqual(m.ExposureTime, baseExposure)))
-            return frames;
+        RawMetadata? first = TryRead(paths[0], read);
+        if (first is null || first.ExposureTime == 0)
+            return paths[0];
 
-        string reference = frames
-            .OrderBy(p => meta.TryGetValue(p, out RawMetadata? m) ? m.ExposureTime : 0)
-            .ThenBy(Path.GetFileName, NaturalFileNameComparer.Instance)
-            .ElementAt(frames.Count / 2);
-        return frames.Where(p => !string.Equals(p, reference, StringComparison.OrdinalIgnoreCase))
-            .Prepend(reference)
-            .ToList();
+        double baseExposure = first.ExposureTime;
+        var exposures = new double[paths.Count];
+        bool bracketed = false;
+        for (int i = 0; i < paths.Count; i++)
+        {
+            exposures[i] = TryRead(paths[i], read)?.ExposureTime ?? 0;
+            if (!ExposureEqual(exposures[i], baseExposure))
+                bracketed = true;
+        }
+        if (!bracketed)
+            return paths[0];
+
+        return paths
+            .Select((path, i) => (Path: path, Exposure: exposures[i]))
+            .OrderBy(t => t.Exposure)
+            .ThenBy(t => Path.GetFileName(t.Path), NaturalFileNameComparer.Instance)
+            .ElementAt(paths.Count / 2)
+            .Path;
+    }
+
+    /// <summary>A read that fails (unreadable file) reads back as no bracketing signal:
+    /// equal to the base, exposure 0 in the ascending order — the same handling the
+    /// pre-Task-3 OrderForReference gave cache misses.</summary>
+    private static RawMetadata? TryRead(string path, Func<string, RawMetadata> read)
+    {
+        try
+        {
+            return read(path);
+        }
+        catch (RawReadException)
+        {
+            return null;
+        }
     }
 
     private static bool ExposureEqual(double a, double b) =>

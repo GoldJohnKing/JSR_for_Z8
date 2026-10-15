@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Jsr4Z8.Core;
 using Jsr4Z8.Core.Model;
 using Jsr4Z8.UI.Services;
 
@@ -83,10 +84,13 @@ public partial class MainViewModel : ObservableObject
 
     /// <summary>The posted-back result of TaskGroupCreator: the validated group becomes a
     /// card — Ready when CanRun, Blocked with the issues shown in the card's block
-    /// otherwise (an 8-file drop or an unreadable frame still creates its card). Cards
-    /// share this VM's runner (the queue mediator; NullTaskRunner headless).</summary>
-    public void AddValidated(TaskGroup group, ValidationResult validation) =>
-        Add(new TaskGroupViewModel(group, validation, _runner));
+    /// otherwise (an 8-file drop or an unreadable frame still creates its card) — seeded
+    /// with the creator's per-path metadata so hover texts and cache-backed edits need
+    /// no re-read. Cards share this VM's runner (the queue mediator; NullTaskRunner
+    /// headless).</summary>
+    public void AddValidated(TaskGroup group, ValidationResult validation,
+        IReadOnlyDictionary<string, RawMetadata>? metadata = null) =>
+        Add(new TaskGroupViewModel(group, validation, _runner, metadata));
 
     /// <summary>Inline group creation: NEF files dropped/picked anywhere on the main
     /// window. A payload without any .NEF is a no-op (no card, no status flicker);
@@ -112,7 +116,7 @@ public partial class MainViewModel : ObservableObject
         _post(() =>
         {
             if (created is { } c)
-                AddValidated(c.Group, c.Validation);
+                AddValidated(c.Group, c.Validation, c.Metadata);
             ValidatedFlightEnded();
         });
     }

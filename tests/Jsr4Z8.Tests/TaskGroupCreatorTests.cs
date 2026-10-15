@@ -135,6 +135,42 @@ public class TaskGroupCreatorTests
         Assert.Null(await TaskGroupCreator.CreateAsync(["a.jpg", "B.NRW", "c.nef.txt"]));
     }
 
+    /// <summary>Task 3: the creation result carries the per-path metadata (the memoized
+    /// read pass the reference pick and validation already used) so the card VM can
+    /// seed its caches and build hover texts without re-reading — keys are the frame
+    /// paths, case-insensitive (Windows), readable frames only.</summary>
+    [Fact]
+    public async Task CreateAsync_ReturnsMetadata()
+    {
+        CreatedTaskGroup created = await Create(Frames);
+
+        Assert.Equal(7, created.Metadata.Count);
+        Assert.Equal(Frames, created.Metadata.Keys.OrderBy(p => p, StringComparer.Ordinal));
+        Assert.All(created.Metadata.Values, m => Assert.Equal("NIKON Z 8", m.Model));
+        RawMetadata first = created.Metadata[Frames[0].ToLowerInvariant()];  // 大小写不敏感键
+        Assert.Equal("NIKON Z 8", first.Model);
+    }
+
+    /// <summary>Public contract of the extracted exposure-middle pick (the card VM
+    /// re-runs it on every add/remove): equal exposures → the natural-first frame;
+    /// a bracket → the (ExposureTime, natural name)-ascending middle (index Count/2);
+    /// ties resolve deterministically down that order.</summary>
+    [Fact]
+    public void PickReference_PublicContract()
+    {
+        // 等曝光 → 自然序第 1 张
+        Assert.Equal(Frames[0], TaskGroupCreator.PickReference(Frames, Reader()));
+
+        // 曝光包围 → 升序中间位（index 7/2 = 3 → 1/1000）
+        Dictionary<string, RawMetadata> perFile = Exposures(
+            1.0 / 8000, 1.0 / 4000, 1.0 / 2000, 1.0 / 1000, 1.0 / 500, 1.0 / 250, 1.0 / 125);
+        Assert.Equal(Frames[3], TaskGroupCreator.PickReference(Frames, Reader(perFile)));
+
+        // 并列曝光 {1,1,2,2,4,4,8} → 确定性取并列 2 的第 2 张（升序第 4 位）
+        Dictionary<string, RawMetadata> tied = Exposures(1, 1, 2, 2, 4, 4, 8);
+        Assert.Equal(Frames[3], TaskGroupCreator.PickReference(Frames, Reader(tied)));
+    }
+
     [Fact]
     public async Task Create_EightFrames_BlockedWithFrameCount()
     {
