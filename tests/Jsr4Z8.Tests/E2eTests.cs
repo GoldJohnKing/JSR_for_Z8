@@ -57,7 +57,7 @@ public class E2eTests
     }
 
     private static string[] FramesFor(string samplesDir) =>
-        Enumerable.Range(7576, 7).Select(i => Path.Combine(samplesDir, "test_frames", "FX", "Lossless", $"DSC_{i}.NEF")).ToArray();
+        Enumerable.Range(7576, 7).Select(i => Path.Combine(samplesDir, "test_frames", "lossless", $"DSC_{i}.NEF")).ToArray();
 
     /// <summary>The payload the release selftest extracted; asserts the operator ran it first.
     /// Returns the direct-invoke engine executable (resources\jsr_backend.exe).</summary>
@@ -181,7 +181,7 @@ public class E2eTests
         ReportOutcome(outcome, capture, "全流程·预置黑场");
 
         Assert.True(outcome.Success, outcome.Message);
-        string expected = Path.Combine(SamplesDir(), "test_frames", "FX", "Lossless", "JSR_DSC_7576.dng");
+        string expected = Path.Combine(SamplesDir(), "test_frames", "lossless", "JSR_DSC_7576.dng");
         Assert.True(File.Exists(expected), $"最终 DNG 缺失: {expected}");
         AssertFinalDng(expected);
     }
@@ -200,7 +200,7 @@ public class E2eTests
         // The 7 HE ISO-3200 frames: the group must auto-match the HE preset row
         // (13, 3200) — not the lossless row, whose read noise is ~6% lower — and
         // run the manual-DN path end to end.
-        string heDir = Path.Combine(SamplesDir(), "test_frames", "FX", "he_frames");
+        string heDir = Path.Combine(SamplesDir(), "test_frames", "he_compressed");
         var group = new TaskGroup(Directory.GetFiles(heDir, "*.NEF").OrderBy(p => p).ToArray());
         var validation = TaskGroupValidator.Validate(group);
         Assert.True(validation.CanRun, string.Join("；", validation.Issues.Select(i => i.MessageZh)));
@@ -433,7 +433,7 @@ public class E2eTests
         Directory.CreateDirectory(samplesCopy);
         foreach (string name in FramesFor(SamplesDir()))
         {
-            // 副本须保留 FramesFor 的子目录布局（samples 重组引入 test_frames\FX\Lossless）
+            // 副本须保留 FramesFor 的子目录布局（samples 重组引入 test_frames\lossless）
             // ——拍平复制会让 PrepareRun(samplesCopy) 找不到 NEF。
             string dest = Path.Combine(samplesCopy, Path.GetRelativePath(SamplesDir(), name));
             Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
@@ -447,7 +447,7 @@ public class E2eTests
         ReportOutcome(outcome, capture, "中文路径全流程");
 
         Assert.True(outcome.Success, outcome.Message);
-        string expected = Path.Combine(samplesCopy, "test_frames", "FX", "Lossless", "JSR_DSC_7576.dng"); // 输出目录=基准帧所在目录
+        string expected = Path.Combine(samplesCopy, "test_frames", "lossless", "JSR_DSC_7576.dng"); // 输出目录=基准帧所在目录
         Assert.Equal(Path.GetFullPath(expected), Path.GetFullPath(outcome.OutputPath!));
         Assert.True(File.Exists(expected), $"中文路径产物缺失: {expected}");
         Ev($"中文路径产物: {new FileInfo(expected).Length / 1024.0 / 1024.0:F1} MB");

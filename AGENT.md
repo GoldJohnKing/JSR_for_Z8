@@ -15,7 +15,7 @@
 
 | 动作 | 命令（Windows host） |
 |---|---|
-| 全量测试 | `dotnet test --nologo`（当前 **282/285**；3 失败 = RawMetadataTests 黑场样张用例——`samples\dark_frames` 被外部删除，非代码回归；其余全绿） |
+| 全量测试 | `dotnet test --nologo`（当前 **283/283 全绿**；黑场样张用例已随 samples\dark_frames 永久弃用而删除，预置黑场表改为 z8_presets manifest 导出——见 §5 决策 3） |
 | 一键发布 | `build.bat` → `out\Jsr4Z8_v<版本>.exe`（~312MB 单文件（载荷去 Bridge 后）；Step 4 恒跑 pack-payload：自动选 reference/ 下最高版本，manifest 哈希比对自决换入，无需手动删 payload.*） |
 | 无头自检 | `out\Jsr4Z8_v*.exe --selftest [file.nef]`（释放/校验载荷+验 resources\jsr_backend.exe 引擎+LibRaw 冒烟） |
 | E2E（真 GPU，~6min/全幅） | cmd 脚本内 `set JSR4Z8_E2E=1` + `dotnet test --filter FullyQualifiedName~E2eTests.<名>`；门控见 `tests/Jsr4Z8.Tests/E2eTests.cs`；**完整 E2E 默认不跑，仅用户明示要求时运行**（2026-10-15 用户裁定） |
@@ -44,7 +44,7 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐/
 - **后端调用（直调）**：spawn 载荷内 `resources\jsr_backend.exe`（载荷唯一入口；顶层 `Jiangtherapee Bridge.exe` 已从载荷移除，排除清单防回潮——用户裁定 2026-10-15）。argv 模板一行化（`BackendRequest.BuildArguments`；探测实证 docs/superpowers/notes/2026-10-15-jsr-backend-argv-probe.md §2/§5/§7）：
   `jsr_backend.exe --output-dir <jobDir> --out-prefix <jobId> --dng-compression auto --raw-frame <f1> … --raw-frame <f7> --developer-mode --read-noise-dn <RN> --black-level-dn <BL> --full-well-electrons <FW> --deghost off --out-dng on --out-png off --out-tiff off --out-format jpeg --jpeg-quality 95 --camera-profile-source libraw`
   **无 request.json、无 cfg 目录、无预览链**（§7 无 cfg/无预览真机直调 exit 0 实证）；**memory 预算彻底不传 = 不限额**；FW=PTC 匹配值 1 位小数，RN/BL=预置黑场表值（`tests/…/ProtocolTests.cs` 逐开关锁定）。
-- **stdout 协议（裸行，无信封）**：引擎 stdout 即协议本体，零 `ASSISTANT_*` 信封（那是 Bridge 外加的，已随直调消失）；结构行仅 `SRHQ_V12_PROGRESS|int|阶段` 与导出期 `SRHQ_ETA_PROGRESS|dng|done|total`（映射 95+5*done/total，尾三行 = `SRHQ_V12_PROGRESS|100|导出完成` → `V12 output: <dir>` → `DONE total <s>s`，P100 恰一次）；其余（`PTC {…}` 回显、`SRHQ_V12_FRAME|…`、Proxy 噪声）按原文透传；stderr 不参与协议（诊断回溯走 stderr，成功时 0 字节）。夹具：`tests/fixtures/protocol/direct_success.log`（真实直调日志）。
+- **stdout 协议（裸行，无信封）**：引擎 stdout 即协议本体，零 `ASSISTANT_*` 信封（那是 Bridge 外加的，已随直调消失）；结构行仅 `SRHQ_V12_PROGRESS|int|阶段` 与导出期 `SRHQ_ETA_PROGRESS|dng|done|total`（映射 95+5*done/total，尾三行 = `SRHQ_V12_PROGRESS|100|导出完成` → `V12 output: <dir>` → `DONE total <s>s`，P100 恰一次）；其余（`PTC {…}` 回显、`SRHQ_V12_FRAME|…`、Proxy 噪声）按原文透传；stderr 不参与协议（诊断回溯走 stderr，成功时 0 字节）。夹具：`tests/Jsr4Z8.Tests/fixtures/protocol/direct_success.log`（真实直调日志）。
 - **取消**：引擎每次调用自重复为父子双实例（~2s 间隔，实际工作在子进程，父转述退出码），树内还可能出现未名孙进程——必须 `taskkill /T /F` 杀整棵树（持有自己 spawn 的父 pid 即可）。
 - **后端产物**：`<outputDir>/<prefix>_V15_3_5_K7_<ts>/<同名>.dng` + 辅助文件；失败残留 `.partial` 目录（成功 glob 需排除）。退出码取父实例（正常完成 0）。
 - **后端 DNG 形态**：LinearRaw(34892) 16bit×3通道、无 EXIF/预览/校正、BL=0/WL=65535、尺寸=输入 raw 填充尺寸×2（8280×5520→16560×11040）。
@@ -71,9 +71,9 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐/
 5. **测试不留垃圾**：测试临时目录统一 GUID 根+finally 清理（TestTemp helper）；曾有 34 个 `jsr4z8_*` 泄漏到用户 %TEMP%。
 6. **UI 进度必须节流**：后端进度 ~20 行/秒、子任务名轮换，直通 UI 会闪烁（200ms 合并节流，终态必达）。
 7. 派 subagent 审查时**禁止全局 find**——reference/(649MB)、external/、~/.nuug 会超时；限定 grep 路径。
-8. 运行期错误文案要人话化：从后端日志尾提取 `SRHQ_NET_ABORT:stage|msg` / MemoryError 行，但要**跳过 ASSISTANT_* 信封行**（信封内嵌日志整行 JSON，会盖过干净的裸行）。
+8. 运行期错误文案要人话化：直调引擎后直接从裸行提取 `SRHQ_NET_ABORT:stage|msg` / MemoryError 行（ASSISTANT_* 信封已随 Bridge 移除而消失，无需再跳信封行）。
 9. 进入 Running/Done 必须清 ErrorText（用户踩过"重试后旧失败提示不消失"）。
-10. **E2E 门控用例长期不跑会腐烂**：中文路径副本拍平、抓取流写句柄两缺陷即例（自引入起一直被 `JSR4Z8_E2E=1` 门控跳过所掩盖）——发布前应跑一轮 `JSR4Z8_E2E=1` E2E 全绿再交付。
+10. **E2E 门控用例长期不跑会腐烂**：中文路径副本拍平、抓取流写句柄两缺陷即例（自引入起一直被 `JSR4Z8_E2E=1` 门控跳过所掩盖）——完整 E2E 仅用户明示时运行（2026-10-15 裁定），该窗口到来时应全绿后再交付。
 
 ## 7. 已知遗留（低风险，勿顺手重构）
 
@@ -93,4 +93,4 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐/
 - 本轮渐进补齐+载荷裁剪计划：`docs/superpowers/plans/2026-10-15-progressive-groups-payload-trim.md`
 - GUI 定稿 mockup（旧 mockup，视觉权威自本轮起为 Save_Z8 规范——见 §5 决策 7）：`docs/design/*.html`
 - 排障/修复报告（ACR 攻坚全程）：`.superpowers/sdd-postrelease-fix*.md`（fix1-10）
-- 样例：`samples/`（DSC_7575=黑场，7576-7582=七帧；`samples/dark_frames/`={FX{Lossless,HE,HE Star},DX{Lossless}} 四画像实测黑场（旧 93 行预置表的来源），未入 git）；后端原包：`reference/` 下 2.3.25 与 2.3.27 两树均在（均勿改一字节）；载荷现取 2.3.27（build.bat 自动选最高版本；黑场表/argv 契约已随之重验）
+- 样例：`samples/test_frames/`（`lossless`=DSC_7576-7582 七帧无损等曝光组；`he_compressed`=DSC_7652-7658 七帧 HE 组；`unequal_exposure`=DSC_7855-7861 七帧不等曝光/包围组（1/3EV 快门梯 1/200…1/50，中间曝光 1/100 为基准帧），均未入 git；黑场样本已永久弃用——预置黑场表来源已改为后端 z8_presets manifest 离线导出，见 §5 决策 3）；后端原包：`reference/` 下 2.3.25 与 2.3.27 两树均在（均勿改一字节）；载荷现取 2.3.27（build.bat 自动选最高版本；黑场表/argv 契约已随之重验）

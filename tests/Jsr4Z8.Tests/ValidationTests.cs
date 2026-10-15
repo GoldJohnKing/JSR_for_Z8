@@ -79,7 +79,7 @@ public class ValidationTests
     [Fact]
     public void RealSamples_CanRunWithExactPtc()
     {
-        string[] frames = Enumerable.Range(7576, 7).Select(i => SampleFiles.FindSample(Path.Combine("test_frames", "FX", "Lossless", $"DSC_{i}.NEF"))).ToArray();
+        string[] frames = Enumerable.Range(7576, 7).Select(i => SampleFiles.FindSample(Path.Combine("test_frames", "lossless", $"DSC_{i}.NEF"))).ToArray();
         var g = new TaskGroup(frames);
 
         ValidationResult r = TaskGroupValidator.Validate(g);
@@ -266,8 +266,9 @@ public class ValidationTests
     [Fact]
     public void HeStarUniformGroup_AutoMatchesHeStarPresetRow()
     {
-        // HE* (14) darks were measured into their own preset rows (2026-10-14,
-        // samples/dark_frames/HE-): close to HE but not interchangeable at low ISO
+        // HE* (14) darks were measured into their own preset rows (2026-10-14
+        // measurement; the dark sample files were since retired — rows live in the
+        // preset table): close to HE but not interchangeable at low ISO
         // — a uniform HE* group auto-matches by (14, ISO) without a dark file.
         var heStar = new Dictionary<string, RawMetadata>();
         foreach (string name in FrameNames)

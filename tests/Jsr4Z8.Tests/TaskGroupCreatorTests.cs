@@ -14,8 +14,9 @@ namespace Jsr4Z8.Tests;
 /// reference pick (equal exposures → natural first; 7 differing shutters → the middle
 /// exposure), and TaskGroupValidator through a per-call memoized reader. The
 /// MainViewModel section covers AddFilesAsync (counter + inline post + derived counts)
-/// and 清除全部. Negative cases inject mock readers; the two integration tests read the
-/// real samples through the production LibRaw reader (~1-2 s each).
+/// and 清除全部. Negative cases inject mock readers; the integration tests read the
+/// real samples (equal-exposure and bracketing sets) through the production LibRaw
+/// reader (~1-2 s each).
 /// </summary>
 public class TaskGroupCreatorTests
 {
@@ -211,9 +212,9 @@ public class TaskGroupCreatorTests
     public async Task Create_RealSamples_CanRun()
     {
         string[] expected = Enumerable.Range(7576, 7).Select(i => SampleFiles.FindSample(
-            Path.Combine("test_frames", "FX", "Lossless", $"DSC_{i}.NEF"))).ToArray();
+            Path.Combine("test_frames", "lossless", $"DSC_{i}.NEF"))).ToArray();
         CreatedTaskGroup? created = await TaskGroupCreator.CreateAsync(Shuffled()
-            .Select(p => SampleFiles.FindSample(Path.Combine("test_frames", "FX", "Lossless",
+            .Select(p => SampleFiles.FindSample(Path.Combine("test_frames", "lossless",
                 Path.GetFileName(p))))
             .ToArray());
 
@@ -221,6 +222,31 @@ public class TaskGroupCreatorTests
         Assert.True(created!.Validation.CanRun);
         Assert.Equal(expected, created.Group.FramePaths);
         Assert.Equal("DSC_7576.NEF", Path.GetFileName(created.Group.ReferencePath));
+    }
+
+    /// <summary>Integration-style: the real bracketing set test_frames\unequal_exposure
+    /// (2026-10-15, ISO 3200 / f4 constant): a 7-frame 1/3-EV shutter ladder 1/200…1/50
+    /// around 1/100, shot with the center frame first (DSC_7855=1/100, then 1/200, 1/160,
+    /// 1/125, 1/80, 1/60, 1/50) — non-monotonic on purpose. The PickReference ascending
+    /// sort still takes index 7/2 = 3 → the 1/100 frame as 基准帧, and a shutter-only
+    /// bracket stays CanRun (ISO 恒定 → lossless 预置行).</summary>
+    [Fact]
+    public async Task Create_RealSamples_UnequalExposure_MiddleExposureReference()
+    {
+        string[] frames = Enumerable.Range(7855, 7).Select(i => SampleFiles.FindSample(
+            Path.Combine("test_frames", "unequal_exposure", $"DSC_{i}.NEF"))).ToArray();
+        string[] shuffled = new[] { 7861, 7856, 7859, 7855, 7858, 7860, 7857 }.Select(i => SampleFiles.FindSample(
+            Path.Combine("test_frames", "unequal_exposure", $"DSC_{i}.NEF"))).ToArray();
+
+        CreatedTaskGroup? created = await TaskGroupCreator.CreateAsync(shuffled);  // 输入顺序无关：乱序喂入
+
+        Assert.NotNull(created);
+        Assert.True(created!.Validation.CanRun, string.Join("\n", created.Validation.Issues.Select(i => i.MessageZh)));
+        // 真实 EXIF：快门不全等（7856 的快门 = 7855 的一半）——确系曝光包围，非同曝光回退
+        Assert.Equal(created.Metadata[frames[0]].ExposureTime / 2,
+            created.Metadata[frames[1]].ExposureTime, 6);
+        Assert.EndsWith("DSC_7855.NEF", created.Group.ReferencePath); // 1/100 = 升序第 4 位 = 中间曝光
+        Assert.Equal(frames, created.Group.FramePaths);                // 基准在前，其余自然序
     }
 
     // ---- MainViewModel: inline card creation + counts -----------------------------
@@ -242,7 +268,7 @@ public class TaskGroupCreatorTests
     {
         MainViewModel main = MainVm();
         await main.AddFilesAsync(Frames.Select(p => SampleFiles.FindSample(Path.Combine(
-            "test_frames", "FX", "Lossless", Path.GetFileName(p)))).ToArray());
+            "test_frames", "lossless", Path.GetFileName(p)))).ToArray());
 
         TaskGroupViewModel card = Assert.Single(main.Tasks);
         Assert.Equal(TaskState.Ready, card.State);

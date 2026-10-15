@@ -28,7 +28,7 @@ public class FinalizerCrossCheckWarnTests
         PatchAsShotNeutralDrift(fixture, drifted, drift: 0.05);
 
         var warnings = new List<string>();
-        string final = JsrDngFinalizer.Finalize(drifted, SampleFiles.FindSample(Path.Combine("test_frames","FX","Lossless","DSC_7576.NEF")),
+        string final = JsrDngFinalizer.Finalize(drifted, SampleFiles.FindSample(Path.Combine("test_frames","lossless","DSC_7576.NEF")),
             dir, log: warnings.Add);
 
         // Fusion succeeded despite the drift (never fatal)…
@@ -65,7 +65,7 @@ public class FinalizerCrossCheckWarnTests
         string dir = temp.NewDir();
         var warnings = new List<string>();
         string final = JsrDngFinalizer.Finalize(FinalizerTests.FindFixture("roi_sample.dng"),
-            SampleFiles.FindSample(Path.Combine("test_frames","FX","Lossless","DSC_7576.NEF")), dir, log: warnings.Add);
+            SampleFiles.FindSample(Path.Combine("test_frames","lossless","DSC_7576.NEF")), dir, log: warnings.Add);
         Assert.True(File.Exists(final));
         Assert.Empty(warnings);
     }
