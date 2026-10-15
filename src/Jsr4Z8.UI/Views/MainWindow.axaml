@@ -1,78 +1,305 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:views="clr-namespace:Jsr4Z8.UI.Views"
+        xmlns:c="using:Avalonia.Data.Converters"
         xmlns:vm="clr-namespace:Jsr4Z8.UI.ViewModels"
-        mc:Ignorable="d" d:DesignWidth="880" d:DesignHeight="620"
+        xmlns:views="clr-namespace:Jsr4Z8.UI.Views"
         x:Class="Jsr4Z8.UI.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         x:CompileBindings="True"
-        Title="JSR for Z8"
-        MinWidth="720" MinHeight="560" Width="880" Height="620"
-        DragDrop.AllowDrop="True"
-        WindowStartupLocation="CenterScreen">
+        Title="JSR for Z8 — 尼康 Z8 七帧 RAW 超分辨率"
+        Width="960" Height="640"
+        MinWidth="760" MinHeight="520"
+        WindowStartupLocation="CenterScreen"
+        Icon="avares://Jsr4Z8.UI/Assets/app.ico"
+        Background="{DynamicResource SemiColorBackground0}">
+
+    <Window.Resources>
+        <!-- Feather-style line icons (MIT), stroke rendered at usage site -->
+        <StreamGeometry x:Key="Icon.Layers">M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5</StreamGeometry>
+        <StreamGeometry x:Key="Icon.FolderPlus">M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2zM12 11v6M9 14h6</StreamGeometry>
+        <StreamGeometry x:Key="Icon.Trash">M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6</StreamGeometry>
+        <StreamGeometry x:Key="Icon.Zap">M13 2 3 14h9l-1 8 10-12h-9l1-8z</StreamGeometry>
+        <StreamGeometry x:Key="Icon.Moon">M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z</StreamGeometry>
+        <StreamGeometry x:Key="Icon.Sun">M7 12a5 5 0 1 0 10 0a5 5 0 1 0-10 0M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42</StreamGeometry>
+        <StreamGeometry x:Key="Icon.Sliders">M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6</StreamGeometry>
+    </Window.Resources>
+
     <Window.Styles>
-        <!-- 「Nikon Z8 专用」pill next to the logo (layout.html top bar) -->
-        <Style Selector="Border.tag">
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Padding" Value="7,2" />
-            <Setter Property="Margin" Value="10,0,0,0" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Background" Value="{DynamicResource SemiColorFill}" />
+        <!-- ============ 基础 ============ -->
+        <Style Selector="Path.icon">
+            <Setter Property="Stroke" Value="{DynamicResource SemiColorText2}" />
+            <Setter Property="StrokeThickness" Value="1.7" />
         </Style>
-        <Style Selector="Border.tag TextBlock">
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="Opacity" Value="0.65" />
+        <Style Selector="Path.icon-white">
+            <Setter Property="Stroke" Value="White" />
+            <Setter Property="StrokeThickness" Value="1.8" />
+        </Style>
+
+        <!-- ============ 顶栏图标按钮（主题/设置）============ -->
+        <Style Selector="Button.icon-btn">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="8" />
+            <Setter Property="MinWidth" Value="32" />
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.icon-btn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SemiColorFill1}" />
+        </Style>
+        <Style Selector="Button.icon-btn:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SemiColorFill2}" />
+        </Style>
+
+        <!-- ============ 计数条圆点 ============ -->
+        <Style Selector="Ellipse.dot">
+            <Setter Property="Width" Value="6" />
+            <Setter Property="Height" Value="6" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <!-- ============ 空态拖放区 ============ -->
+        <Style Selector="Border.empty-zone">
+            <Setter Property="Background" Value="{DynamicResource SemiColorBackground1}" />
+            <Setter Property="CornerRadius" Value="16" />
+        </Style>
+        <Style Selector="Border.empty-zone.ov">
+            <Setter Property="Background" Value="{DynamicResource SemiColorPrimaryLight}" />
+        </Style>
+        <Style Selector="Rectangle.empty-stroke">
+            <Setter Property="Stroke" Value="{DynamicResource SemiColorText3}" />
+            <Setter Property="StrokeThickness" Value="1.5" />
+            <Setter Property="StrokeDashArray" Value="5,4" />
+            <Setter Property="Fill" Value="Transparent" />
+        </Style>
+        <Style Selector="Rectangle.empty-stroke.ov">
+            <Setter Property="Stroke" Value="{DynamicResource SemiColorPrimary}" />
+            <Setter Property="StrokeThickness" Value="2" />
         </Style>
     </Window.Styles>
 
-    <DockPanel>
-        <!-- Top bar: logo + Nikon Z8 专用 tag + 添加/全部开始/⚙/主题切换 (layout.html) -->
-        <Border DockPanel.Dock="Top" Padding="16,10" BorderBrush="{DynamicResource SemiColorBorder}" BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto">
-                <TextBlock Grid.Column="0" Text="JSR for Z8" FontSize="16" FontWeight="Bold"
-                           VerticalAlignment="Center" />
-                <Border Grid.Column="1" Classes="tag">
-                    <TextBlock Text="Nikon Z8 专用" />
-                </Border>
-                <Button Grid.Column="3" Classes="Primary" Content="＋ 添加任务组"
-                        Command="{Binding AddTaskCommand}" />
-                <Button Grid.Column="4" Margin="8,0,0,0" Content="▶ 全部开始"
-                        Command="{Binding StartAllCommand}" />
-                <Button Grid.Column="5" Margin="8,0,0,0" Content="⚙"
-                        Command="{Binding OpenSettingsCommand}" ToolTip.Tip="高级设置" />
-                <Button Grid.Column="6" Margin="8,0,0,0" MinWidth="72"
-                        Content="{Binding Theme.ModeText}"
-                        Command="{Binding ToggleThemeCommand}" ToolTip.Tip="切换主题（暗色 → 亮色 → 跟随系统）" />
-            </Grid>
-        </Border>
+    <Panel>
+        <Grid RowDefinitions="Auto,*,Auto" Margin="20,14,20,14">
 
-        <Grid>
-            <!-- 卡片纵列（一组一卡，layout.html option C） -->
-            <ScrollViewer>
-                <ItemsControl ItemsSource="{Binding Tasks}" Margin="16">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <views:TaskCardView Margin="0,0,0,14" />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
-
-            <!-- 空状态提示（终审 finding 2 → fix 2 更新）：主窗口现在接拖放 —— 拖入 RAW
-                 直接打开预填好的新建任务组对话框；文案同时保留右上角入口 -->
-            <Grid IsVisible="{Binding HasNoTasks}" IsHitTestVisible="False" Margin="32,72,32,32">
-                <Rectangle Stroke="{DynamicResource SemiColorBorder}" StrokeThickness="2"
-                           StrokeDashArray="7,7" RadiusX="12" RadiusY="12" />
-                <StackPanel Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <TextBlock Text="将 7 张 RAW 拖入窗口即可新建任务组；黑场在面板中选择；或点击右上角 ＋添加任务组"
-                               FontSize="15"
-                               HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="560"
-                               TextWrapping="Wrap"
-                               Foreground="{DynamicResource SemiColorText}" />
+            <!-- ================= 顶栏 ================= -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
+                    <Border Width="38" Height="38" CornerRadius="10" VerticalAlignment="Center">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Color="#2990FF" Offset="0.0" />
+                                <GradientStop Color="#135CB8" Offset="1.0" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Viewbox Width="21" Height="21">
+                            <Path Data="{StaticResource Icon.Layers}"
+                                  Stroke="White" StrokeThickness="1.6" />
+                        </Viewbox>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center" Spacing="1">
+                        <TextBlock Text="JSR for Z8" FontSize="19" FontWeight="Bold"
+                                   Foreground="{DynamicResource SemiColorText0}" />
+                        <TextBlock Text="尼康 Z8 七帧 RAW 超分重建 · 内嵌 Jiangtherapee Bridge 后端 · 输出 Adobe DNG"
+                                   FontSize="12" Foreground="{DynamicResource SemiColorText2}" />
+                    </StackPanel>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding AppVersion, StringFormat='JSR for Z8 {0}'}"
+                               IsVisible="{Binding AppVersion, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}"
+                               FontSize="11" Foreground="{DynamicResource SemiColorText2}"
+                               TextAlignment="Right" VerticalAlignment="Center" />
+                    <Button x:Name="ThemeButton" Classes="icon-btn" Click="OnThemeToggle">
+                        <Panel Width="16" Height="16">
+                            <Path x:Name="ThemeMoonIcon" Data="{StaticResource Icon.Moon}"
+                                  Fill="{DynamicResource SemiColorText1}" Stretch="Uniform" />
+                            <Path x:Name="ThemeSunIcon" Data="{StaticResource Icon.Sun}"
+                                  Stroke="{DynamicResource SemiColorText1}" StrokeThickness="2"
+                                  Stretch="Uniform" IsVisible="False" />
+                        </Panel>
+                    </Button>
+                    <Button Classes="icon-btn" Command="{Binding OpenSettingsCommand}"
+                            ToolTip.Tip="高级设置（输出路径 / 临时路径）">
+                        <Viewbox Width="16" Height="16">
+                            <Path Classes="icon" Data="{StaticResource Icon.Sliders}" />
+                        </Viewbox>
+                    </Button>
                 </StackPanel>
             </Grid>
+
+            <!-- ================= 主区域 ================= -->
+            <Grid Grid.Row="1">
+
+                <!-- A) 空态：整窗拖放引导区 -->
+                <Border Classes="empty-zone" Classes.ov="{Binding IsDragOver}"
+                        IsVisible="{Binding HasNoTasks}">
+                    <Panel>
+                        <Rectangle Classes="empty-stroke" Classes.ov="{Binding IsDragOver}"
+                                   RadiusX="16" RadiusY="16" Margin="10" />
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520" Margin="32">
+                            <Viewbox Width="44" Height="44" HorizontalAlignment="Center" Margin="0,0,0,16">
+                                <Path Data="{StaticResource Icon.Layers}"
+                                      Stroke="{DynamicResource SemiColorText3}" StrokeThickness="1.4" />
+                            </Viewbox>
+                            <TextBlock Text="将 7 张 RAW 拖到此处" FontSize="16" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource SemiColorText0}" HorizontalAlignment="Center" />
+                            <TextBlock Text="支持曝光包围（7 帧仅快门速度不同，默认以中间曝光为基准）· 输出 DNG 写入基准帧所在目录"
+                                       FontSize="12" Foreground="{DynamicResource SemiColorText2}"
+                                       TextAlignment="Center" TextWrapping="Wrap"
+                                       HorizontalAlignment="Center" Margin="0,6,0,18" />
+                            <Button Classes="Primary" HorizontalAlignment="Center" Click="OnBrowseFiles">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Viewbox Width="15" Height="15">
+                                        <Path Classes="icon-white" Data="{StaticResource Icon.FolderPlus}" />
+                                    </Viewbox>
+                                    <TextBlock Text="选择 RAW 文件…" FontSize="13" />
+                                </StackPanel>
+                            </Button>
+
+                            <!-- 三步引导 -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="26" Margin="0,28,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Border Width="20" Height="20" CornerRadius="999"
+                                            Background="{DynamicResource SemiColorFill1}" VerticalAlignment="Center">
+                                        <TextBlock Text="1" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource SemiColorText1}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <TextBlock Text="拖入或选择 7 张 RAW" FontSize="11.5"
+                                               Foreground="{DynamicResource SemiColorText3}" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Border Width="20" Height="20" CornerRadius="999"
+                                            Background="{DynamicResource SemiColorFill1}" VerticalAlignment="Center">
+                                        <TextBlock Text="2" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource SemiColorText1}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <TextBlock Text="自动校验 · 一键开始" FontSize="11.5"
+                                               Foreground="{DynamicResource SemiColorText3}" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Border Width="20" Height="20" CornerRadius="999"
+                                            Background="{DynamicResource SemiColorFill1}" VerticalAlignment="Center">
+                                        <TextBlock Text="3" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource SemiColorText1}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <TextBlock Text="在基准帧旁得到 JSR DNG" FontSize="11.5"
+                                               Foreground="{DynamicResource SemiColorText3}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Panel>
+                </Border>
+
+                <!-- B) 工作区：总览计数 + 任务卡列表 -->
+                <Grid IsVisible="{Binding !HasNoTasks}">
+                    <Border Background="{DynamicResource SemiColorBackground1}"
+                            BorderBrush="{DynamicResource SemiColorBorder}" BorderThickness="1"
+                            CornerRadius="12" ClipToBounds="True">
+                        <Grid RowDefinitions="Auto,*">
+
+                            <!-- 总览计数 + 列表操作 -->
+                            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="14,10,10,10">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Tasks.Count, StringFormat='共 {0} 组'}"
+                                               FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource SemiColorText1}" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Ellipse Classes="dot" Fill="{DynamicResource SemiGrey5}" />
+                                        <TextBlock Text="{Binding ReadyCount, StringFormat='就绪 {0}'}"
+                                                   FontSize="12" Foreground="{DynamicResource SemiColorText2}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Ellipse Classes="dot" Fill="{DynamicResource SemiColorSuccess}" />
+                                        <TextBlock Text="{Binding DoneCount, StringFormat='已完成 {0}'}"
+                                                   FontSize="12" Foreground="{DynamicResource SemiColorText2}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Ellipse Classes="dot" Fill="{DynamicResource SemiColorDanger}" />
+                                        <TextBlock Text="{Binding FailedCount, StringFormat='失败 {0}'}"
+                                                   FontSize="12" Foreground="{DynamicResource SemiColorText2}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Ellipse Classes="dot" Fill="{DynamicResource SemiColorWarning}" />
+                                        <TextBlock Text="{Binding BlockedCount, StringFormat='无法执行 {0}'}"
+                                                   FontSize="12" Foreground="{DynamicResource SemiColorText2}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                    <Button Classes="Small" Click="OnBrowseFiles">
+                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                            <Viewbox Width="13" Height="13">
+                                                <Path Classes="icon" Data="{StaticResource Icon.FolderPlus}" />
+                                            </Viewbox>
+                                            <TextBlock Text="添加 RAW…" FontSize="12" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Classes="Small" Command="{Binding ClearAllCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                            <Viewbox Width="13" Height="13">
+                                                <Path Classes="icon" Data="{StaticResource Icon.Trash}" />
+                                            </Viewbox>
+                                            <TextBlock Text="清除全部" FontSize="12" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- 任务卡列表（一组一卡） -->
+                            <ScrollViewer Grid.Row="1">
+                                <ItemsControl ItemsSource="{Binding Tasks}" Margin="0,0,0,6">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <views:TaskCardView Margin="14,0,14,12" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+
+            <!-- ================= 底栏 ================= -->
+            <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,14,0,0">
+                <TextBlock Grid.Column="0" Text="{Binding StatusText}"
+                           FontSize="12" Foreground="{DynamicResource SemiColorText2}"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,12,0" />
+                <Button Grid.Column="1" Classes="Primary" Command="{Binding StartAllCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Viewbox Width="15" Height="15">
+                            <Path Classes="icon-white" Data="{StaticResource Icon.Zap}" />
+                        </Viewbox>
+                        <TextBlock Text="全部开始" FontSize="13.5" />
+                    </StackPanel>
+                </Button>
+            </Grid>
         </Grid>
-    </DockPanel>
+
+        <!-- 拖放悬停遮罩（覆盖全窗） -->
+        <Border IsVisible="{Binding IsDragOver}"
+                Background="{DynamicResource SemiColorOverlayBackground}">
+            <Panel Margin="10">
+                <Rectangle Stroke="{DynamicResource SemiColorPrimary}" StrokeThickness="2"
+                           StrokeDashArray="6,4" RadiusX="12" RadiusY="12" Fill="Transparent" />
+                <Border HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Background="{DynamicResource SemiColorBackground2}"
+                        CornerRadius="999" Padding="18,10"
+                        BoxShadow="{DynamicResource SemiShadowElevated}">
+                    <StackPanel Orientation="Horizontal" Spacing="9">
+                        <Viewbox Width="16" Height="16">
+                            <Path Data="{StaticResource Icon.FolderPlus}"
+                                  Stroke="{DynamicResource SemiColorText0}" StrokeThickness="1.7" />
+                        </Viewbox>
+                        <TextBlock Text="松开鼠标，添加 RAW 文件" FontSize="13" FontWeight="Medium"
+                                   Foreground="{DynamicResource SemiColorText0}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </Panel>
+        </Border>
+    </Panel>
 </Window>

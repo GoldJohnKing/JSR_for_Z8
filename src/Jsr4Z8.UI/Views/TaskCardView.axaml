@@ -1,90 +1,124 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:c="using:Avalonia.Data.Converters"
              xmlns:vm="clr-namespace:Jsr4Z8.UI.ViewModels"
-             xmlns:views="clr-namespace:Jsr4Z8.UI.Views"
-             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="240"
              x:Class="Jsr4Z8.UI.Views.TaskCardView"
              x:DataType="vm:TaskGroupViewModel"
              x:CompileBindings="True">
-    <!-- One task card, all six states of docs/design/card-states.html. The root border
-         carries the st-ready/st-running/st-done/st-failed/st-blocked class (set from
-         code-behind on State changes) that colors the accent stripe and status badge. -->
+    <!-- One task-group card (docs/design/card-states.html 六态). The root border carries
+         the st-ready/st-running/st-done/st-failed/st-blocked class (maintained from
+         code-behind on State changes) that colors the status pill; action buttons stay
+         pure CanExecute and chips forward clicks to SetReferenceCommand. -->
+    <UserControl.Resources>
+        <!-- Feather-style line icons (MIT), stroke rendered at usage site -->
+        <StreamGeometry x:Key="Icon.Play">M5 3l14 9-14 9V3z</StreamGeometry>
+        <StreamGeometry x:Key="Icon.Stop">M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z</StreamGeometry>
+        <StreamGeometry x:Key="Icon.RotateCw">M23 4v6h-6M20.49 15a9 9 0 1 1-2.12-9.36L23 10</StreamGeometry>
+        <StreamGeometry x:Key="Icon.External">M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3</StreamGeometry>
+        <StreamGeometry x:Key="Icon.Trash">M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6</StreamGeometry>
+    </UserControl.Resources>
+
     <UserControl.Styles>
+        <!-- 卡片根：Save_Z8 列表卡同款（Background1 + 描边 + 圆角 12 + 裁切） -->
         <Style Selector="Border.card">
-            <Setter Property="Background" Value="{DynamicResource SemiColorBackground}" />
+            <Setter Property="Background" Value="{DynamicResource SemiColorBackground1}" />
             <Setter Property="BorderBrush" Value="{DynamicResource SemiColorBorder}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="CornerRadius" Value="12" />
         </Style>
-        <!-- 状态色：就绪灰 / 运行蓝 / 完成绿 / 失败红 / 阻断橙（card-states.html 左侧色条） -->
-        <Style Selector="Border.card.st-ready Rectangle.accent">
-            <Setter Property="Fill" Value="{DynamicResource SemiColorBorder}" />
+        <Style Selector="Path.icon">
+            <Setter Property="Stroke" Value="{DynamicResource SemiColorText2}" />
+            <Setter Property="StrokeThickness" Value="1.7" />
         </Style>
-        <Style Selector="Border.card.st-running Rectangle.accent">
-            <Setter Property="Fill" Value="{DynamicResource SemiColorPrimary}" />
+
+        <!-- 状态胶囊（五态纯展示，颜色由根 st-* 类驱动） -->
+        <Style Selector="Border.pill">
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="10,2" />
+            <Setter Property="MinHeight" Value="24" />
         </Style>
-        <Style Selector="Border.card.st-done Rectangle.accent">
-            <Setter Property="Fill" Value="{DynamicResource SemiColorSuccess}" />
-        </Style>
-        <Style Selector="Border.card.st-failed Rectangle.accent">
-            <Setter Property="Fill" Value="{DynamicResource SemiColorDanger}" />
-        </Style>
-        <Style Selector="Border.card.st-blocked Rectangle.accent">
-            <Setter Property="Fill" Value="{DynamicResource SemiColorWarning}" />
-        </Style>
-        <!-- 状态徽标 -->
-        <Style Selector="Border.badge">
-            <Setter Property="CornerRadius" Value="9" />
-            <Setter Property="Padding" Value="9,1" />
-            <Setter Property="Margin" Value="8,0,0,0" />
+        <Style Selector="Ellipse.dot">
+            <Setter Property="Width" Value="6" />
+            <Setter Property="Height" Value="6" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
-        <Style Selector="Border.badge TextBlock">
-            <Setter Property="FontSize" Value="11" />
+        <!-- 就绪：灰 -->
+        <Style Selector="Border.card.st-ready Border.pill">
+            <Setter Property="Background" Value="{DynamicResource SemiColorFill0}" />
         </Style>
-        <Style Selector="Border.card.st-ready Border.badge">
-            <Setter Property="Background" Value="#33808080" />
+        <Style Selector="Border.card.st-ready Ellipse.dot">
+            <Setter Property="Fill" Value="{DynamicResource SemiGrey5}" />
         </Style>
-        <Style Selector="Border.card.st-ready Border.badge TextBlock">
-            <Setter Property="Foreground" Value="{DynamicResource SemiColorText}" />
+        <Style Selector="Border.card.st-ready TextBlock.pill-text">
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorText2}" />
         </Style>
-        <Style Selector="Border.card.st-running Border.badge">
-            <Setter Property="Background" Value="#334F7CFF" />
+        <!-- 运行中：主色 + 呼吸点 -->
+        <Style Selector="Border.card.st-running Border.pill">
+            <Setter Property="Background" Value="{DynamicResource SemiColorPrimaryLight}" />
         </Style>
-        <Style Selector="Border.card.st-running Border.badge TextBlock">
-            <Setter Property="Foreground" Value="#7D9BFF" />
+        <Style Selector="Border.card.st-running Ellipse.dot">
+            <Setter Property="Fill" Value="{DynamicResource SemiColorPrimary}" />
+            <Style.Animations>
+                <Animation Duration="0:0:1.1" IterationCount="Infinite">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="1" /></KeyFrame>
+                    <KeyFrame Cue="50%"><Setter Property="Opacity" Value="0.3" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
         </Style>
-        <Style Selector="Border.card.st-done Border.badge">
-            <Setter Property="Background" Value="#332E9E5B" />
+        <Style Selector="Border.card.st-running TextBlock.pill-text">
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorPrimary}" />
+            <Setter Property="FontWeight" Value="Medium" />
         </Style>
-        <Style Selector="Border.card.st-done Border.badge TextBlock">
-            <Setter Property="Foreground" Value="#4CC38A" />
+        <!-- 已完成：成功绿 -->
+        <Style Selector="Border.card.st-done Border.pill">
+            <Setter Property="Background" Value="{DynamicResource SemiColorSuccessLight}" />
         </Style>
-        <Style Selector="Border.card.st-failed Border.badge">
-            <Setter Property="Background" Value="#33E5484D" />
+        <Style Selector="Border.card.st-done Ellipse.dot">
+            <Setter Property="Fill" Value="{DynamicResource SemiColorSuccess}" />
         </Style>
-        <Style Selector="Border.card.st-failed Border.badge TextBlock">
-            <Setter Property="Foreground" Value="#FF6369" />
+        <Style Selector="Border.card.st-done TextBlock.pill-text">
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorSuccess}" />
+            <Setter Property="FontWeight" Value="Medium" />
         </Style>
-        <Style Selector="Border.card.st-blocked Border.badge">
-            <Setter Property="Background" Value="#33F0A020" />
+        <!-- 失败：危险红 -->
+        <Style Selector="Border.card.st-failed Border.pill">
+            <Setter Property="Background" Value="{DynamicResource SemiColorDangerLight}" />
         </Style>
-        <Style Selector="Border.card.st-blocked Border.badge TextBlock">
-            <Setter Property="Foreground" Value="#FFB020" />
+        <Style Selector="Border.card.st-failed Ellipse.dot">
+            <Setter Property="Fill" Value="{DynamicResource SemiColorDanger}" />
         </Style>
-        <!-- 文件芯片：基准蓝底白字，黑场暖橙，其余灰 -->
+        <Style Selector="Border.card.st-failed TextBlock.pill-text">
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorDanger}" />
+            <Setter Property="FontWeight" Value="Medium" />
+        </Style>
+        <!-- 无法执行：警示橙 -->
+        <Style Selector="Border.card.st-blocked Border.pill">
+            <Setter Property="Background" Value="{DynamicResource SemiColorWarningLight}" />
+        </Style>
+        <Style Selector="Border.card.st-blocked Ellipse.dot">
+            <Setter Property="Fill" Value="{DynamicResource SemiColorWarning}" />
+        </Style>
+        <Style Selector="Border.card.st-blocked TextBlock.pill-text">
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorWarning}" />
+            <Setter Property="FontWeight" Value="Medium" />
+        </Style>
+
+        <!-- 文件芯片：基准=主色底白字带 ★，其余 Fill0；点击换基准 -->
         <Style Selector="Border.chip">
-            <Setter Property="CornerRadius" Value="9" />
-            <Setter Property="Padding" Value="8,2" />
-            <Setter Property="Margin" Value="0,2,6,2" />
-            <Setter Property="Background" Value="#26808080" />
+            <Setter Property="Background" Value="{DynamicResource SemiColorFill0}" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="9,2" />
+            <Setter Property="Margin" Value="0,0,6,6" />
+            <Setter Property="MinHeight" Value="22" />
+            <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Border.chip TextBlock">
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="Foreground" Value="{DynamicResource SemiColorText}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorText2}" />
+        </Style>
+        <Style Selector="Border.chip:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SemiColorFill1}" />
         </Style>
         <Style Selector="Border.chip.reference">
             <Setter Property="Background" Value="{DynamicResource SemiColorPrimary}" />
@@ -93,120 +127,119 @@
             <Setter Property="Foreground" Value="White" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
-        <Style Selector="Border.chip.dark">
-            <Setter Property="Background" Value="#26F0A020" />
-            <Setter Property="BorderBrush" Value="#4DF0A020" />
-            <Setter Property="BorderThickness" Value="1" />
-        </Style>
-        <Style Selector="Border.chip.dark TextBlock">
-            <Setter Property="Foreground" Value="#FFB020" />
-        </Style>
-        <!-- 标题行小按钮 -->
-        <Style Selector="Button.mini">
-            <Setter Property="Padding" Value="9,2" />
-            <Setter Property="FontSize" Value="11" />
-        </Style>
-        <!-- 校验/错误消息条（card-states.html ④⑤⑥） -->
+
+        <!-- 校验/运行错误条 -->
         <Style Selector="Border.msg">
+            <Setter Property="Background" Value="{DynamicResource SemiColorDangerLight}" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="9,5" />
-            <Setter Property="Margin" Value="0,6,0,0" />
-            <Setter Property="Background" Value="#26E5484D" />
         </Style>
         <Style Selector="Border.msg TextBlock">
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="Foreground" Value="#FF6369" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorDanger}" />
             <Setter Property="TextWrapping" Value="Wrap" />
-        </Style>
-        <!-- 卡内日志（手动展开，card-states.html 用户选择 B） -->
-        <Style Selector="Border.logbox">
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="9,7" />
-            <Setter Property="Margin" Value="0,6,0,0" />
-            <Setter Property="Background" Value="#EE1E1E22" />
-        </Style>
-        <Style Selector="Border.logbox TextBlock">
-            <Setter Property="FontSize" Value="10.5" />
-            <Setter Property="FontFamily" Value="Consolas,Courier New" />
-            <Setter Property="Foreground" Value="#7EE2A8" />
-        </Style>
-        <Style Selector="ToggleButton.logtoggle">
-            <Setter Property="Padding" Value="6,1" />
-            <Setter Property="Margin" Value="0,7,0,0" />
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Foreground" Value="{DynamicResource SemiColorPrimary}" />
         </Style>
     </UserControl.Styles>
 
-    <Border x:Name="Root" Classes="card">
-        <Grid ColumnDefinitions="3,*">
-            <Rectangle Grid.Column="0" Classes="accent" Width="3" RadiusX="1.5" RadiusY="1.5" />
-            <Grid Grid.Column="1" Margin="10,0,0,0"
-                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
-                <!-- 标题行：基准帧名 + 状态徽标 + 动作（按状态由 CanExecute 自动启停） -->
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto">
-                    <TextBlock Grid.Column="0" Text="{Binding ReferenceName}" FontSize="14"
-                               FontWeight="Bold" VerticalAlignment="Center" />
-                    <Border Grid.Column="1" Classes="badge">
-                        <TextBlock Text="{Binding StateText}" />
-                    </Border>
-                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6"
-                                VerticalAlignment="Center">
-                        <Button Classes="mini Primary" Content="▶ 开始此组"
-                                Command="{Binding StartCommand}" />
-                        <Button Classes="mini Danger" Content="■ 停止"
-                                Command="{Binding StopCommand}" />
-                        <Button Classes="mini" Content="↻ 重试"
-                                Command="{Binding RetryCommand}" />
-                        <Button Classes="mini" Content="📂 打开所在文件夹"
-                                Command="{Binding OpenFolderCommand}" />
-                        <Button Classes="mini" Content="✕ 移除"
-                                Command="{Binding RemoveCommand}" />
+    <Border x:Name="Root" Classes="card" ClipToBounds="True">
+        <StackPanel>
+            <!-- 贴卡顶的 4px 进度条（仅运行中，同 Save_Z8 总进度样式） -->
+            <ProgressBar IsVisible="{Binding IsRunning}"
+                         Minimum="0" Maximum="100" Value="{Binding Progress}"
+                         Height="4" MinHeight="4" CornerRadius="0" Padding="0" />
+
+            <!-- 头行：基准帧名 + 状态胶囊 + 动作（按状态由 CanExecute 自动启停） -->
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="14,12,14,10">
+                <TextBlock Text="{Binding ReferenceName, StringFormat='基准 {0}'}"
+                           FontSize="13.5" FontWeight="SemiBold" MaxWidth="240"
+                           Foreground="{DynamicResource SemiColorText0}" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ReferenceName}" />
+                <Border Grid.Column="1" Classes="pill" Margin="10,0,0,0" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Ellipse Classes="dot" />
+                        <TextBlock Classes="pill-text" Text="{Binding StateText}" FontSize="12"
+                                   VerticalAlignment="Center" />
                     </StackPanel>
-                </Grid>
-
-                <!-- 文件芯片行：★基准 + 其余帧 -->
-                <WrapPanel Grid.Row="1" Margin="0,6,0,0">
-                    <ItemsControl ItemsSource="{Binding FrameChips}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:FrameChipViewModel">
-                                <Border Classes="chip" Classes.reference="{Binding IsReference}">
-                                    <StackPanel Orientation="Horizontal" Spacing="3">
-                                        <TextBlock Text="★基准" FontSize="11" FontWeight="SemiBold"
-                                                   IsVisible="{Binding IsReference}" />
-                                        <TextBlock Text="{Binding FileName}" />
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </WrapPanel>
-
-                <!-- 元信息行：待输出/已输出文件名 -->
-                <TextBlock Grid.Row="2" Text="{Binding MetaText}" FontSize="11" Opacity="0.65"
-                           Margin="0,4,0,0" TextWrapping="Wrap" />
-
-                <!-- 进度条：仅运行中显示 -->
-                <ProgressBar Grid.Row="3" Margin="0,8,0,0" Height="6" Minimum="0" Maximum="100"
-                             Value="{Binding Progress}" IsVisible="{Binding IsRunning}" />
-
-                <!-- 校验失败/ 运行失败消息条 -->
-                <Border Grid.Row="4" Classes="msg"
-                        IsVisible="{Binding IssuesText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                    <TextBlock Text="{Binding IssuesText}" />
                 </Border>
-                <Border Grid.Row="5" Classes="msg"
-                        IsVisible="{Binding ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                    <TextBlock Text="{Binding ErrorText}" />
-                </Border>
+                <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button Classes="Small" Command="{Binding StartCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Viewbox Width="13" Height="13">
+                                <Path Classes="icon" Data="{StaticResource Icon.Play}" />
+                            </Viewbox>
+                            <TextBlock Text="开始" FontSize="12" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="Small" Command="{Binding StopCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Viewbox Width="13" Height="13">
+                                <Path Classes="icon" Data="{StaticResource Icon.Stop}" />
+                            </Viewbox>
+                            <TextBlock Text="停止" FontSize="12" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="Small" Command="{Binding RetryCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Viewbox Width="13" Height="13">
+                                <Path Classes="icon" Data="{StaticResource Icon.RotateCw}" />
+                            </Viewbox>
+                            <TextBlock Text="重试" FontSize="12" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="Small" Command="{Binding OpenFolderCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Viewbox Width="13" Height="13">
+                                <Path Classes="icon" Data="{StaticResource Icon.External}" />
+                            </Viewbox>
+                            <TextBlock Text="打开" FontSize="12" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="Small" Command="{Binding RemoveCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Viewbox Width="13" Height="13">
+                                <Path Classes="icon" Data="{StaticResource Icon.Trash}" />
+                            </Viewbox>
+                            <TextBlock Text="移除" FontSize="12" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
             </Grid>
-        </Grid>
+
+            <!-- 芯片行：★基准 + 其余帧，点击换基准 -->
+            <ItemsControl x:Name="ChipsHost" ItemsSource="{Binding FrameChips}" Margin="14,2,8,0">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:FrameChipViewModel">
+                        <Border Classes="chip" Classes.reference="{Binding IsReference}"
+                                PointerPressed="OnChipPointerPressed" ToolTip.Tip="点击设为基准帧">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="★" FontSize="11" IsVisible="{Binding IsReference}" />
+                                <TextBlock Text="{Binding FileName}" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- 元信息行：待输出/已输出文件名 -->
+            <TextBlock Text="{Binding MetaText}" FontSize="11.5"
+                       Foreground="{DynamicResource SemiColorText2}"
+                       Margin="14,6,14,8" TextWrapping="Wrap"
+                       IsVisible="{Binding MetaText, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
+
+            <!-- 校验失败/ 运行失败错误条 -->
+            <Border Classes="msg" Margin="14,0,14,0"
+                    IsVisible="{Binding IssuesText, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock Text="{Binding IssuesText}" />
+            </Border>
+            <Border Classes="msg" Margin="14,6,14,10"
+                    IsVisible="{Binding ErrorText, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock Text="{Binding ErrorText}" />
+            </Border>
+        </StackPanel>
     </Border>
 </UserControl>

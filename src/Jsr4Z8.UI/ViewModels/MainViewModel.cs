@@ -28,11 +28,6 @@ public partial class MainViewModel : ObservableObject
 
     public ObservableCollection<TaskGroupViewModel> Tasks { get; } = new();
 
-    /// <summary>Inert since Task 4 removed the dialog: the pre-Task-6 MainWindow top bar
-    /// still binds ＋添加任务组 (<see cref="AddTaskCommand"/>), but nothing subscribes
-    /// anymore. Task 6's window rewrite removes button and event together.</summary>
-    public event EventHandler? AddTaskRequested;
-
     public event EventHandler? OpenSettingsRequested;
 
     public MainViewModel(ThemeService? theme = null, ITaskRunner? runner = null, Action<Action>? post = null)
@@ -63,6 +58,10 @@ public partial class MainViewModel : ObservableObject
 
     /// <summary>Bottom-bar status line: 正在校验 → 正在处理 → 拖放引导 → 共 N 组.</summary>
     [ObservableProperty] private string _statusText = "";
+
+    /// <summary>Assembly version for the top-right corner ("v0.1.0"); assigned by the
+    /// window's OnOpened, empty before that. Pure view-supporting surface.</summary>
+    [ObservableProperty] private string _appVersion = "";
 
     /// <summary>Derived card counts for the overview bar — refresh with every card State
     /// change and every Tasks collection change.</summary>
@@ -118,11 +117,6 @@ public partial class MainViewModel : ObservableObject
         });
     }
 
-    /// <summary>Pre-Task-6 MainWindow shim: the old code-behind calls this void-style
-    /// from its drop handler. Fire-and-forget into <see cref="AddFilesAsync"/> — Task 6's
-    /// rewrite awaits the async path directly.</summary>
-    public void DropFiles(IReadOnlyList<string> paths) => _ = AddFilesAsync(paths);
-
     /// <summary>Test seam: the queue-level token source of an in-flight 全部开始 run
     /// (null while none is running). Cancelling it stops the CURRENT card within the
     /// stop budget AND prevents later cards from starting; a per-card ■停止 cancels only
@@ -168,9 +162,6 @@ public partial class MainViewModel : ObservableObject
         foreach (TaskGroupViewModel vm in Tasks.Where(t => t.State != TaskState.Running).ToList())
             Tasks.Remove(vm);
     }
-
-    [RelayCommand]
-    private void AddTask() => AddTaskRequested?.Invoke(this, EventArgs.Empty);
 
     [RelayCommand]
     private void OpenSettings() => OpenSettingsRequested?.Invoke(this, EventArgs.Empty);
