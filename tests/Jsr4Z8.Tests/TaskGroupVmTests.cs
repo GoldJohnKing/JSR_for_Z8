@@ -633,6 +633,91 @@ public class TaskGroupVmTests
         Assert.Equal(TaskState.Ready, vm.State);
         Assert.True(vm.FrameChips[3].IsReference);
     }
+
+    // ---- Task 2 (F3): ±EV 偏差胶囊 -----------------------------------------------
+
+    /// <summary>Bracketed card: every chip's EvText is the EV deviation relative to the
+    /// CURRENT reference (the creator's middle-exposure pick 1/1000) — "+"/"-" with one
+    /// decimal, the reference itself 0.0 — and <see cref="TaskGroupViewModel.IsBracketed"/>
+    /// is true, so the view swaps the ★ button for the ±EV tag.</summary>
+    [Fact]
+    public async Task Bracketed_EvTexts_RelativeToReference()
+    {
+        var vm = await BracketedVmAsync();
+
+        Assert.True(vm.IsBracketed);
+        Assert.Equal(Frames[3], vm.Group.ReferencePath);           // 中间曝光 1/1000 = 基准
+        Assert.Equal(
+            new[] { "-3.0", "-2.0", "-1.0", "0.0", "+1.0", "+2.0", "+3.0" },
+            vm.FrameChips.Select(c => c.EvText).ToArray());
+    }
+
+    /// <summary>Equal exposures keep the star path: IsBracketed false and every EvText
+    /// reads 0.0 (equal cards show ★, not the ±EV tag).</summary>
+    [Fact]
+    public void EqualExposure_NotBracketed_StarPath()
+    {
+        var vm = ReadyVm(read: Reader(),
+            metadata: Frames.ToDictionary(f => f, _ => Meta(), StringComparer.OrdinalIgnoreCase));
+
+        Assert.False(vm.IsBracketed);
+        Assert.All(vm.FrameChips, c => Assert.Equal("0.0", c.EvText));
+    }
+
+    /// <summary>Review Focus 2: a reference swap recomputes the whole row's EV — starring
+    /// the 1/500 frame makes it 0.0 and re-anchors every other chip (the old reference
+    /// drops to -1.0) without reordering chips or revalidating.</summary>
+    [Fact]
+    public async Task SetReference_RecomputesAllEv()
+    {
+        var vm = await BracketedVmAsync();
+
+        vm.SetReferenceCommand.Execute(vm.FrameChips[4]);          // 1/500 帧设为基准
+
+        Assert.True(vm.FrameChips[4].IsReference);
+        Assert.Equal(
+            new[] { "-4.0", "-3.0", "-2.0", "-1.0", "0.0", "+1.0", "+2.0" },
+            vm.FrameChips.Select(c => c.EvText).ToArray());
+        Assert.Equal(Frames, vm.FrameChips.Select(c => c.Path).ToArray());   // 星标不重排
+    }
+
+    /// <summary>An unreadable frame carries no exposure signal: its tag reads — while
+    /// the readable frames keep numeric EVs, and IsBracketed is computed from the
+    /// readable frames only (same missing-metadata condition as 无法读取).</summary>
+    [Fact]
+    public void UnreadableFrame_EvDash()
+    {
+        double[] exposures = { 1.0 / 8000, 1.0 / 4000, 1.0 / 2000, 1.0 / 1000, 1.0 / 500, 1.0 / 250 };
+        Dictionary<string, RawMetadata> metadata = Frames.Take(6).Zip(exposures).ToDictionary(
+            p => p.First, p => Meta(exposure: p.Second),
+            StringComparer.OrdinalIgnoreCase);                     // Frames[6] 不入缓存 = 不可读
+        var vm = ReadyVm(read: Reader(), metadata: metadata);
+
+        Assert.True(vm.IsBracketed);                              // 只看可读帧
+        Assert.Equal(
+            new[] { "0.0", "+1.0", "+2.0", "+3.0", "+4.0", "+5.0", "—" },
+            vm.FrameChips.Select(c => c.EvText).ToArray());
+        Assert.Equal("无法读取", vm.FrameChips[6].InfoText);
+    }
+
+    /// <summary>Seven bracketed frames 1/8000→1/125 through the creator (reference =
+    /// middle exposure 1/1000), seeded into a card the way the production flow does.</summary>
+    private static async Task<TaskGroupViewModel> BracketedVmAsync()
+    {
+        double[] exposures =
+        {
+            1.0 / 8000, 1.0 / 4000, 1.0 / 2000, 1.0 / 1000, 1.0 / 500, 1.0 / 250, 1.0 / 125,
+        };
+        Dictionary<string, RawMetadata> perFile = Frames.Zip(exposures).ToDictionary(
+            p => p.First, p => Meta(exposure: p.Second), StringComparer.OrdinalIgnoreCase);
+        Func<string, RawMetadata> read = path =>
+            perFile.TryGetValue(path, out RawMetadata? m) ? m : Meta();
+
+        CreatedTaskGroup? created = await TaskGroupCreator.CreateAsync(Frames, read);
+        Assert.NotNull(created);
+        return new TaskGroupViewModel(created!.Group, created.Validation,
+            metadata: created.Metadata, read: read);
+    }
 }
 
 /// <summary>ThemeService: default Dark (user choice C), cycle Dark→Light→Default→Dark.

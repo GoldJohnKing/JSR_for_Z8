@@ -11,8 +11,8 @@
          code-behind on State changes) that colors the status pill and bottom state
          bar, plus st-droptarget
          while a NEF drag hovers an editable card (卡内拖放补齐). Chips are display+hover
-         only; the per-chip ★/✕ mini buttons and the commands' own CanExecute carry the
-         Ready/Blocked-only edit gating. -->
+         only; the per-chip ±EV/★/✕ mini buttons and the commands' own CanExecute carry
+         the Ready/Blocked-only edit gating (非等曝光组用 ±EV 偏差胶囊替代★，点击设基准). -->
     <UserControl.Resources>
         <!-- Feather-style line icons (MIT), stroke rendered at usage site -->
         <StreamGeometry x:Key="Icon.Play">M5 3l14 9-14 9V3z</StreamGeometry>
@@ -181,6 +181,33 @@
             <Setter Property="Stroke" Value="{DynamicResource SemiColorDanger}" />
         </Style>
 
+        <!-- ±EV 偏差胶囊（F3，非等曝光组替代★）：左侧 [±EV 小胶囊| 1px 竖线] 分体段，
+             点击整段设该帧为基准；胶囊独立底色 Fill1/Text1，基准芯片上换白 20% 叠加底
+             +白字保持主色底上的对比（基准胶囊白字体系同 x-icon） -->
+        <Style Selector="Border.ev-pill">
+            <Setter Property="Background" Value="{DynamicResource SemiColorFill1}" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="5,2" />
+        </Style>
+        <Style Selector="Border.ev-pill TextBlock">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorText1}" />
+        </Style>
+        <Style Selector="Rectangle.ev-divider">
+            <Setter Property="Width" Value="1" />
+            <Setter Property="Height" Value="14" />
+            <Setter Property="Fill" Value="{DynamicResource SemiColorBorder}" />
+        </Style>
+        <Style Selector="Border.chip.reference Border.ev-pill">
+            <Setter Property="Background" Value="#33FFFFFF" />
+        </Style>
+        <Style Selector="Border.chip.reference Border.ev-pill TextBlock">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Border.chip.reference Rectangle.ev-divider">
+            <Setter Property="Fill" Value="#66FFFFFF" />
+        </Style>
+
         <!-- 拖放悬停高亮（卡内补齐）：主色描边 + 主色浅底 -->
         <Style Selector="Border.card.st-droptarget">
             <Setter Property="Background" Value="{DynamicResource SemiColorPrimaryLight}" />
@@ -287,7 +314,8 @@
                 </StackPanel>
             </Grid>
 
-            <!-- 芯片行：★设基准 + 文件名悬浮参数 + ✕移除（仅 Ready/Blocked 可编辑） -->
+            <!-- 芯片行：非等曝光组 ±EV 偏差胶囊（点击设基准）/等曝光组★设基准 + 文件名悬浮参数
+                 + ✕移除（仅 Ready/Blocked 可编辑）；胶囊与★互斥由卡级 IsBracketed 驱动 -->
             <ItemsControl x:Name="ChipsHost" ItemsSource="{Binding FrameChips}" Margin="14,2,8,0">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -298,9 +326,24 @@
                     <DataTemplate x:DataType="vm:FrameChipViewModel">
                         <Border Classes="chip" Classes.reference="{Binding IsReference}">
                             <StackPanel Orientation="Horizontal" Spacing="3">
+                                <!-- 非等曝光组：±EV 偏差胶囊（点击整段设基准） -->
+                                <Button Classes="chip-action chip-ev"
+                                        Command="{ReflectionBinding $parent[views:TaskCardView].DataContext.SetReferenceCommand}"
+                                        CommandParameter="{Binding}"
+                                        IsVisible="{ReflectionBinding $parent[views:TaskCardView].DataContext.IsBracketed}"
+                                        ToolTip.Tip="设为基准帧（点击此标签）">
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                        <Border Classes="ev-pill">
+                                            <TextBlock Text="{Binding EvText}" />
+                                        </Border>
+                                        <Rectangle Classes="ev-divider" />
+                                    </StackPanel>
+                                </Button>
+                                <!-- 等曝光组：★设基准（原行为不变） -->
                                 <Button Classes="chip-action chip-star" Classes.reference="{Binding IsReference}"
                                         Command="{ReflectionBinding $parent[views:TaskCardView].DataContext.SetReferenceCommand}"
-                                        CommandParameter="{Binding}">
+                                        CommandParameter="{Binding}"
+                                        IsVisible="{ReflectionBinding !$parent[views:TaskCardView].DataContext.IsBracketed}">
                                     <Viewbox Width="12" Height="12">
                                         <Path Classes="star-icon" Data="{StaticResource Icon.Star}" />
                                     </Viewbox>

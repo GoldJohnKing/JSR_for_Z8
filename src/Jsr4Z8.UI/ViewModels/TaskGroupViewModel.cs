@@ -29,7 +29,9 @@ public enum TaskState
 /// never the slots; <see cref="TaskGroupViewModel.Group"/> carries the
 /// reference-first contract instead. <see cref="InfoText"/> is the multi-line hover
 /// text (one capture parameter per line, — for missing values; 无法读取 when the
-/// frame's metadata could not be read).</summary>
+/// frame's metadata could not be read); <see cref="EvText"/> is the ±EV deviation
+/// tag the view renders instead of the ★ on bracketed (非等曝光) cards — "0.0" on
+/// the reference, "—" without a usable exposure.</summary>
 public sealed partial class FrameChipViewModel : ObservableObject
 {
     /// <summary>Display name (file name only) of the frame.</summary>
@@ -40,6 +42,11 @@ public sealed partial class FrameChipViewModel : ObservableObject
 
     [ObservableProperty] private bool _isReference;
     [ObservableProperty] private string _infoText;
+
+    /// <summary>±EV deviation vs the card's current reference (F3): recomputed by the
+    /// card VM wherever chips are rebuilt and on a reference swap (clicking the tag
+    /// sets that frame as reference). Empty only before the first refresh.</summary>
+    [ObservableProperty] private string _evText = "";
 
     public FrameChipViewModel(string path, bool isReference, RawMetadata? meta)
     {
@@ -155,6 +162,20 @@ public partial class TaskGroupViewModel : ObservableObject
     [ObservableProperty] private string _outputName = "";
 
     public ObservableCollection<FrameChipViewModel> FrameChips { get; } = new();
+
+    /// <summary>±EV 偏差胶囊开关 (F3): true iff any two readable frames with
+    /// ExposureTime&gt;0 differ beyond <see cref="TaskGroupCreator"/>'s reference-pick
+    /// tolerance (the same 1e-6 rule that defines 曝光包围) — the chip row then swaps
+    /// the ★ button for the ±EV deviation tag, equal-exposure cards keep the ★.
+    /// Recomputed wherever chips are rebuilt (ctor/add/remove): the frame set, not
+    /// the reference, decides it.</summary>
+    public bool IsBracketed
+    {
+        get => _isBracketed;
+        private set => SetProperty(ref _isBracketed, value);
+    }
+
+    private bool _isBracketed;
 
     /// <summary>Raised by the Remove command; the owning MainViewModel removes this card.</summary>
     public event EventHandler? RemoveRequested;
@@ -375,7 +396,8 @@ public partial class TaskGroupViewModel : ObservableObject
     /// frames keep display order) and ReferenceName/OutputName follow. No
     /// revalidation here: PTC/dark depend on ISO+compression, which are group-uniform
     /// when runnable (Blocked groups hold null either way), and the existing issues
-    /// text stays. Removing the starred frame later falls back to the automatic rule.</summary>
+    /// text stays. The ±EV tags all re-anchor to the new reference (F3). Removing the
+    /// starred frame later falls back to the automatic rule.</summary>
     [RelayCommand(CanExecute = nameof(CanSetReference))]
     private void SetReference(FrameChipViewModel chip)
     {
@@ -516,7 +538,8 @@ public partial class TaskGroupViewModel : ObservableObject
     }
 
     /// <summary>Star-only apply (no revalidation): rebuild Group reference-first, follow
-    /// ReferenceName/OutputName, move the ★ flags — chips never change order.</summary>
+    /// ReferenceName/OutputName, move the ★ flags — chips never change order — and
+    /// re-anchor every chip's ±EV tag to the new reference (F3, no re-read).</summary>
     private void ApplyReference(string reference)
     {
         Group = BuildGroup(_framePaths, reference);
@@ -525,6 +548,7 @@ public partial class TaskGroupViewModel : ObservableObject
         OutputName = $"JSR_{Path.GetFileNameWithoutExtension(ReferenceName)}.dng";
         foreach (FrameChipViewModel chip in FrameChips)
             chip.IsReference = string.Equals(chip.Path, reference, StringComparison.OrdinalIgnoreCase);
+        RefreshEvTags(reference);
     }
 
     /// <summary>Full apply after revalidation: Group, chips (natural order, ★ flags,
@@ -556,7 +580,8 @@ public partial class TaskGroupViewModel : ObservableObject
 
     /// <summary>Rebuilds the chip row in natural display order with the ★ on the
     /// reference and per-chip hover texts from the metadata cache (a cache miss —
-    /// unreadable at read time — renders 无法读取).</summary>
+    /// unreadable at read time — renders 无法读取), then refreshes the bracket flag
+    /// and every ±EV tag.</summary>
     private void RebuildChips()
     {
         FrameChips.Clear();
@@ -566,6 +591,47 @@ public partial class TaskGroupViewModel : ObservableObject
                 path,
                 string.Equals(path, reference, StringComparison.OrdinalIgnoreCase),
                 _meta.TryGetValue(path, out RawMetadata? m) ? m : null));
+        RefreshEvTags(reference);
+    }
+
+    /// <summary>±EV 重算 (F3): sets <see cref="IsBracketed"/> (any two readable positive
+    /// exposures beyond <see cref="TaskGroupCreator.ExposureEqual"/> — an unreadable
+    /// frame carries no signal and never counts) and every chip's EvText against
+    /// <paramref name="reference"/>. Called wherever chips are (re)built and on a
+    /// reference swap — both read only the metadata caches, never the files.</summary>
+    private void RefreshEvTags(string reference)
+    {
+        double[] exposures = _framePaths
+            .Select(p => _meta.TryGetValue(p, out RawMetadata? m) ? m.ExposureTime : 0)
+            .Where(t => t > 0)
+            .ToArray();
+        bool bracketed = false;
+        for (int i = 0; i < exposures.Length && !bracketed; i++)
+            for (int j = i + 1; j < exposures.Length && !bracketed; j++)
+                if (!TaskGroupCreator.ExposureEqual(exposures[i], exposures[j]))
+                    bracketed = true;
+        IsBracketed = bracketed;
+
+        double tRef = _meta.TryGetValue(reference, out RawMetadata? refMeta) ? refMeta.ExposureTime : 0;
+        foreach (FrameChipViewModel chip in FrameChips)
+            chip.EvText = ComputeEvText(
+                _meta.TryGetValue(chip.Path, out RawMetadata? m) ? m.ExposureTime : 0,
+                tRef);
+    }
+
+    /// <summary>±EV text for one chip (F3): ev = log2(t/t基准), displayed with a sign
+    /// on positive values and one decimal ("+1.0"/"-3.0"); |ev|&lt;0.05 — and the
+    /// reference itself (t/t基准 = 1 → ev = 0) — reads "0.0"; an unusable exposure on
+    /// either side (unreadable frame, ExposureTime&lt;=0, missing reference) reads "—"
+    /// for that frame.</summary>
+    public static string ComputeEvText(double exposure, double referenceExposure)
+    {
+        if (exposure <= 0 || referenceExposure <= 0)
+            return "—";
+        double ev = Math.Log2(exposure / referenceExposure);
+        if (Math.Abs(ev) < 0.05)
+            return "0.0";
+        return (ev > 0 ? "+" : "") + ev.ToString("0.0", CultureInfo.InvariantCulture);
     }
 
     /// <summary>Memoized reader for revalidation/reference recomputes: cache hit → the

@@ -135,7 +135,11 @@ public static class TaskGroupCreator
         }
     }
 
-    private static bool ExposureEqual(double a, double b) =>
+    /// <summary>Exposure equality at the reference-pick tolerance (relative, either
+    /// side 0 = EXIF absent carries no bracketing signal and counts as equal) —
+    /// public because the card VM's <see cref="TaskGroupViewModel.IsBracketed"/>
+    /// re-runs the same rule to decide ★ vs ±EV tag.</summary>
+    public static bool ExposureEqual(double a, double b) =>
         a == 0 || b == 0 ||
         Math.Abs(a - b) <= ExposureRelativeTolerance * Math.Max(1.0, Math.Abs(b));
 }
