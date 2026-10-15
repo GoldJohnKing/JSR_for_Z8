@@ -113,31 +113,18 @@ public static class TaskGroupValidator
             catch (RawReadException ex)
             {
                 issues.Add(new ValidationIssue(path, IssueKind.Unreadable,
-                    $"{Path.GetFileName(path)} 无法读取：{ex.Message}"));
+                    $"{Path.GetFileName(path)}：无法读取（{ex.Message}）"));
             }
         }
 
-        foreach ((string path, RawMetadata m) in files)
-        {
-            string name = Path.GetFileName(path);
-            if (!Collapse(m.Make).StartsWith(NikonPrefix, StringComparison.Ordinal))
-                issues.Add(new ValidationIssue(path, IssueKind.CameraMismatch,
-                    $"{name} 的相机为 {m.Make} {m.Model}，仅支持 Nikon Z8"));
-            else if (NormalizeModel(m.Make, m.Model) != Z8Canonical)
-                issues.Add(new ValidationIssue(path, IssueKind.NotZ8,
-                    $"{name} 的机型为 {m.Model}，仅支持 Nikon Z8"));
-
-            if (!double.IsFinite(m.Iso))
-                issues.Add(new ValidationIssue(path, IssueKind.NotFiniteIso,
-                    $"{name} 的 ISO 值无效（非有限数值）"));
-        }
-
         PtcMatch? ptc = null;
-        // The reference frame is the comparison base for ISO and PTC. If it was never
-        // read (unreadable), those reference-relative checks are simply skipped — the
-        // Unreadable issue already blocks the group. Found via explicit loop because
-        // FirstOrDefault on a value tuple returns a (null-bearing) default tuple that
-        // nullability patterns cannot distinguish from a real match.
+        // The reference frame is the comparison base for the NotZ8 split, the pairwise
+        // dimensions and PTC. If it was never read (unreadable), those reference-relative
+        // checks are simply skipped — the Unreadable issue already blocks the group (and
+        // every non-Z8 file falls back to the 不受支持的机型 wording: no reference model
+        // to compare against). Found via explicit loop because FirstOrDefault on a value
+        // tuple returns a (null-bearing) default tuple that nullability patterns cannot
+        // distinguish from a real match.
         RawMetadata? referenceMeta = null;
         string? referencePath = g.FramePaths.Count > 0 ? g.FramePaths[0] : null;
         if (referencePath != null)
@@ -150,6 +137,40 @@ public static class TaskGroupValidator
                     break;
                 }
             }
+        }
+
+        // Reference model for the NotZ8 split: 非同一机型拍摄 vs 不受支持的机型.
+        string? referenceModelNorm = null;
+        string? referenceModelRaw = null;
+        if (referenceMeta != null)
+        {
+            referenceModelNorm = NormalizeModel(referenceMeta.Make, referenceMeta.Model);
+            referenceModelRaw = referenceMeta.Model;
+        }
+
+        foreach ((string path, RawMetadata m) in files)
+        {
+            string name = Path.GetFileName(path);
+            if (!Collapse(m.Make).StartsWith(NikonPrefix, StringComparison.Ordinal))
+                issues.Add(new ValidationIssue(path, IssueKind.CameraMismatch,
+                    $"{name}：不受支持的机型：{m.Make} {m.Model}"));
+            else if (NormalizeModel(m.Make, m.Model) != Z8Canonical)
+            {
+                // NotZ8 split: a model differing from the (readable) reference frame is
+                // a 机型不一致 finding; a model equal to the reference — including the
+                // non-Z8 reference frame itself — or an unreadable reference is an
+                // unsupported-model finding.
+                if (referenceModelNorm != null && NormalizeModel(m.Make, m.Model) != referenceModelNorm)
+                    issues.Add(new ValidationIssue(path, IssueKind.NotZ8,
+                        $"{name}：非同一机型拍摄：{m.Model}（基准帧 {referenceModelRaw}）"));
+                else
+                    issues.Add(new ValidationIssue(path, IssueKind.NotZ8,
+                        $"{name}：不受支持的机型：{m.Model}（仅支持 Nikon Z8）"));
+            }
+
+            if (!double.IsFinite(m.Iso))
+                issues.Add(new ValidationIssue(path, IssueKind.NotFiniteIso,
+                    $"{name}：ISO 值无效"));
         }
 
         if (referenceMeta != null)
@@ -167,16 +188,16 @@ public static class TaskGroupValidator
                         continue; // already flagged NotFiniteIso above
                     if (Math.Abs(m.Iso - baseIso) > IsoRelativeTolerance * Math.Max(1.0, Math.Abs(baseIso)))
                         issues.Add(new ValidationIssue(path, IssueKind.IsoMismatch,
-                            $"{Path.GetFileName(path)} 的 ISO({Fmt(m.Iso)}) 与基准帧({Fmt(baseIso)}) 不一致"));
+                            $"{Path.GetFileName(path)}：非同一 ISO 拍摄：ISO {Fmt(m.Iso)}（基准帧 {Fmt(baseIso)}）"));
                     if (m.BitsPerSample != referenceMeta.BitsPerSample)
                         issues.Add(new ValidationIssue(path, IssueKind.BitDepthMismatch,
-                            $"{Path.GetFileName(path)} 的位深({m.BitsPerSample}bit) 与基准帧({referenceMeta.BitsPerSample}bit) 不一致"));
+                            $"{Path.GetFileName(path)}：非同一位深拍摄：{m.BitsPerSample}bit（基准帧 {referenceMeta.BitsPerSample}bit）"));
                     if (m.NefCompression != referenceMeta.NefCompression)
                         issues.Add(new ValidationIssue(path, IssueKind.CompressionMismatch,
-                            $"{Path.GetFileName(path)} 的 RAW 压缩类型({NefCompressionName(m.NefCompression)}) 与基准帧({NefCompressionName(referenceMeta.NefCompression)}) 不一致"));
+                            $"{Path.GetFileName(path)}：非同一 RAW 压缩拍摄：{NefCompressionName(m.NefCompression)}（基准帧 {NefCompressionName(referenceMeta.NefCompression)}）"));
                     if (m.Width != referenceMeta.Width || m.Height != referenceMeta.Height)
                         issues.Add(new ValidationIssue(path, IssueKind.CropMismatch,
-                            $"{Path.GetFileName(path)} 的画幅({m.Width}×{m.Height}) 与基准帧({referenceMeta.Width}×{referenceMeta.Height}) 不一致"));
+                            $"{Path.GetFileName(path)}：图像尺寸不同：{m.Width}×{m.Height}（基准帧 {referenceMeta.Width}×{referenceMeta.Height}）"));
                 }
 
                 // PTC is a per-pixel parameter: it varies with model and ISO only —
@@ -184,7 +205,7 @@ public static class TaskGroupValidator
                 ptc = PtcTable.LoadDefault().Lookup(baseIso);
                 if (ptc == null)
                     issues.Add(new ValidationIssue(referencePath!, IssueKind.PtcUnavailable,
-                        $"基准帧 {Path.GetFileName(referencePath)} 的 ISO {Fmt(baseIso)} 超出 PTC 表范围 {PtcRange()}，无法估算满阱"));
+                        $"基准帧 {Path.GetFileName(referencePath)}：不受支持的 ISO：{Fmt(baseIso)}"));
 
                 // The preset dark is a readout measurement: it only exists for the
                 // profiles the table was derived on — anything outside is an
@@ -195,16 +216,15 @@ public static class TaskGroupValidator
                 if (!profileOk)
                 {
                     issues.Add(new ValidationIssue(referencePath!, IssueKind.CaptureFormatUnsupported,
-                        $"基准帧 {Path.GetFileName(referencePath)} 的拍摄格式不支持（{referenceMeta.BitsPerSample}bit · " +
-                        $"{NefCompressionName(referenceMeta.NefCompression)}）；" +
-                        $"本软件仅支持 14bit · 无损/HE/HE* 压缩的 NEF，请改用受支持的拍摄格式"));
+                        $"基准帧 {Path.GetFileName(referencePath)}：不受支持的拍摄格式：{referenceMeta.BitsPerSample}bit · " +
+                        $"{NefCompressionName(referenceMeta.NefCompression)}（仅支持 14bit 无损/HE/HE*）"));
                 }
                 else
                 {
                     dark = DarkTable.LoadDefault().Lookup(baseIso, referenceMeta.NefCompression);
                     if (dark is null)
                         issues.Add(new ValidationIssue(referencePath!, IssueKind.CaptureFormatUnsupported,
-                            $"基准帧 ISO {Fmt(baseIso)} 不在预置黑场参数表覆盖范围（无损/HE/HE* 各覆盖 64–102400 的 31 档），此类格式不支持"));
+                            $"基准帧 {Path.GetFileName(referencePath)}：不受支持的 ISO：{Fmt(baseIso)}"));
                 }
             }
         }
@@ -263,12 +283,4 @@ public static class TaskGroupValidator
         14 => "高效率 HE*(14)",
         _ => $"压缩类型 {code}",
     };
-
-    /// <summary>PTC table ISO bounds ("[50, 102400]"), derived from the embedded rows
-    /// so the message can never drift from the actual table.</summary>
-    private static string PtcRange()
-    {
-        IReadOnlyList<PtcRow> rows = PtcTable.LoadDefault().Rows;
-        return $"[{Fmt(rows[0].Iso)}, {Fmt(rows[^1].Iso)}]";
-    }
 }

@@ -102,7 +102,7 @@ public class ValidationTests
         ValidationIssue issue = Assert.Single(r.Issues);
         Assert.Equal(IssueKind.IsoMismatch, issue.Kind);
         Assert.Equal(FrameNames[4], issue.File);
-        Assert.Equal("DSC_7580.NEF 的 ISO(800) 与基准帧(400) 不一致", issue.MessageZh);
+        Assert.Equal("DSC_7580.NEF：非同一 ISO 拍摄：ISO 800（基准帧 400）", issue.MessageZh);
         Assert.Null(r.Ptc);
     }
 
@@ -115,8 +115,26 @@ public class ValidationTests
         Assert.False(r.CanRun);
         Assert.All(r.Issues, i => Assert.Equal(IssueKind.NotZ8, i.Kind));
         Assert.Equal(7, r.Issues.Count); // 7 frames + dark
+        Assert.All(r.Issues, i => Assert.Contains("不受支持的机型：NIKON Z 6_3", i.MessageZh));
         Assert.All(r.Issues, i => Assert.Contains("仅支持 Nikon Z8", i.MessageZh));
         Assert.Contains(r.Issues, i => i.File == FrameNames[0] && i.MessageZh.Contains(FrameNames[0]));
+    }
+
+    [Fact]
+    public void MixedModels_FrameDiffersFromReference_NonSameModelMessage()
+    {
+        // 机型一致性维度：与基准帧机型不同的非 Z8 帧 → 非同一机型拍摄（区别于
+        // 全组同机型的 不受支持的机型）。基准帧仍为 Z8，无其他 issue。
+        var mixed = new Dictionary<string, RawMetadata> { [FrameNames[3]] = Meta(model: "NIKON Z 6_3") };
+        ValidationResult r = TaskGroupValidator.Validate(Group(), Reader(perFile: mixed));
+
+        Assert.False(r.CanRun);
+        ValidationIssue issue = Assert.Single(r.Issues);
+        Assert.Equal(IssueKind.NotZ8, issue.Kind);
+        Assert.Equal(FrameNames[3], issue.File);
+        Assert.Contains("非同一机型拍摄", issue.MessageZh);
+        Assert.Contains("Z 6_3", issue.MessageZh);   // 该帧机型
+        Assert.Contains("Z 8", issue.MessageZh);     // 基准帧机型
     }
 
     [Fact]
@@ -127,7 +145,7 @@ public class ValidationTests
         Assert.False(r.CanRun);
         Assert.All(r.Issues, i => Assert.Equal(IssueKind.CameraMismatch, i.Kind));
         Assert.Equal(7, r.Issues.Count);
-        Assert.All(r.Issues, i => Assert.Contains("仅支持 Nikon Z8", i.MessageZh));
+        Assert.All(r.Issues, i => Assert.Contains("不受支持的机型：Canon Inc. Canon EOS R5", i.MessageZh));
         Assert.DoesNotContain(r.Issues, i => i.Kind == IssueKind.NotZ8);
     }
 
@@ -157,6 +175,7 @@ public class ValidationTests
         Assert.Equal(IssueKind.Unreadable, issue.Kind);
         Assert.Equal(FrameNames[3], issue.File);
         Assert.Contains("DSC_7579.NEF", issue.MessageZh);
+        Assert.Contains("无法读取", issue.MessageZh);
     }
 
     [Fact]
@@ -201,7 +220,7 @@ public class ValidationTests
         ValidationIssue issue = Assert.Single(r.Issues);
         Assert.Equal(IssueKind.CaptureFormatUnsupported, issue.Kind);
         Assert.Equal(FrameNames[0], issue.File);
-        Assert.Contains("黑场", issue.MessageZh);
+        Assert.Contains("不受支持的 ISO：51.5", issue.MessageZh);
         Assert.Null(r.Ptc); // Ptc is non-null iff CanRun (validator contract), even though the ISO itself fits
         Assert.Null(r.Dark);
     }
@@ -219,8 +238,8 @@ public class ValidationTests
         Assert.False(r.CanRun);
         ValidationIssue issue = Assert.Single(r.Issues);
         Assert.Equal(IssueKind.CaptureFormatUnsupported, issue.Kind);
-        Assert.Contains("14bit", issue.MessageZh);
-        Assert.Contains("不支持", issue.MessageZh);
+        Assert.Contains("不受支持的拍摄格式", issue.MessageZh);
+        Assert.Contains("12bit", issue.MessageZh);
     }
 
 
@@ -329,6 +348,7 @@ public class ValidationTests
         ValidationIssue issue = Assert.Single(r.Issues);
         Assert.Equal(IssueKind.BitDepthMismatch, issue.Kind);
         Assert.Equal(FrameNames[3], issue.File);
+        Assert.Contains("非同一位深拍摄", issue.MessageZh);
         Assert.Contains("12bit", issue.MessageZh);
     }
 
@@ -342,6 +362,7 @@ public class ValidationTests
         ValidationIssue issue = Assert.Single(r.Issues);
         Assert.Equal(IssueKind.CropMismatch, issue.Kind);
         Assert.Equal(FrameNames[2], issue.File);
+        Assert.Contains("图像尺寸不同", issue.MessageZh);
         Assert.Contains("5488×3712", issue.MessageZh);
     }
 
@@ -357,6 +378,7 @@ public class ValidationTests
         ValidationIssue issue = Assert.Single(r.Issues);
         Assert.Equal(IssueKind.CompressionMismatch, issue.Kind);
         Assert.Equal(FrameNames[5], issue.File);
+        Assert.Contains("非同一 RAW 压缩拍摄", issue.MessageZh);
         Assert.Contains("HE", issue.MessageZh);
     }
 
@@ -371,7 +393,7 @@ public class ValidationTests
         // preset dark table (no manual-dark fallback exists anymore).
         ValidationIssue issue = Assert.Single(r.Issues, i => i.Kind == IssueKind.PtcUnavailable);
         Assert.Equal(FrameNames[0], issue.File); // the reference frame defines the base ISO
-        Assert.Contains("50", issue.MessageZh);
+        Assert.Contains("不受支持的 ISO：49", issue.MessageZh);
         Assert.Null(r.Ptc);
     }
 
@@ -410,5 +432,26 @@ public class ValidationTests
         // "NIKON Z 6_3" normalizes to its own form and fails the Z8 comparison.
         Assert.Equal("z6_3", TaskGroupValidator.NormalizeModel("NIKON CORPORATION", "NIKON Z 6_3"));
         Assert.NotEqual(z8Full, TaskGroupValidator.NormalizeModel("NIKON CORPORATION", "NIKON Z 6_3"));
+    }
+
+    [Fact]
+    public void BracketedShutterSevenFrames_CanRun()
+    {
+        // 需求 1（校验侧）：快门不在一致性维度内 — 七帧包围曝光（1/1000..1/8000
+        // 半档递进）只要机型/ISO/位深/压缩/画幅 五维一致即可全部运行，无任何 issue。
+        double[] shutters =
+        {
+            0.001, 0.001 / Math.Sqrt(2), 0.0005, 0.0005 / Math.Sqrt(2),
+            0.00025, 0.00025 / Math.Sqrt(2), 0.000125,
+        };
+        var bracketed = new Dictionary<string, RawMetadata>();
+        for (int i = 0; i < FrameNames.Length; i++)
+            bracketed[FrameNames[i]] = Meta() with { ExposureTime = shutters[i] };
+
+        ValidationResult r = TaskGroupValidator.Validate(Group(), Reader(perFile: bracketed));
+
+        Assert.True(r.CanRun, string.Join("\n", r.Issues.Select(i => i.MessageZh)));
+        Assert.Empty(r.Issues);
+        Assert.NotNull(r.Ptc);
     }
 }

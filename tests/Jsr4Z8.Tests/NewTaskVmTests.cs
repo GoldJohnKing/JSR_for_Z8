@@ -157,7 +157,7 @@ public class NewTaskVmTests
         Assert.False(vm.State.CanRun);
         Assert.False(vm.CreateCommand.CanExecute(null));
         Assert.Contains("Z 6_3", vm.State.IssuesText);                 // 文案含机型名
-        Assert.Contains("仅支持 Nikon Z8", vm.State.IssuesText);
+        Assert.Contains("非同一机型拍摄", vm.State.IssuesText);           // 与基准帧机型不同（Task 1 文案拆分）
     }
 
     [Fact]
