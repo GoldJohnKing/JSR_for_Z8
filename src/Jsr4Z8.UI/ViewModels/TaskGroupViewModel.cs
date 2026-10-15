@@ -213,6 +213,11 @@ public partial class TaskGroupViewModel : ObservableObject
     /// <summary>Drives the progress bar row visibility (mockup ② shows it only while running).</summary>
     public bool IsRunning => State == TaskState.Running;
 
+    /// <summary>Bottom state-bar value: the live percent while Running, a full bar
+    /// otherwise — Ready/Done/Failed/Blocked paint a solid state color at 100% width
+    /// (F2). Notified from both Progress and State changes.</summary>
+    public double BarValue => IsRunning ? Progress : 100;
+
     /// <summary>Meta line under the chips: the pending output name on Ready/Blocked,
     /// the written path once Done; empty while Running/Failed (the stage badge and
     /// error bar carry those states).</summary>
@@ -618,10 +623,13 @@ public partial class TaskGroupViewModel : ObservableObject
 
     private bool CanOpenFolder() => State == TaskState.Done;
 
+    partial void OnProgressChanged(int value) => OnPropertyChanged(nameof(BarValue));
+
     partial void OnStateChanged(TaskState value)
     {
         OnPropertyChanged(nameof(StateText));
         OnPropertyChanged(nameof(IsRunning));
+        OnPropertyChanged(nameof(BarValue));
         OnPropertyChanged(nameof(MetaText));
         OnPropertyChanged(nameof(IsEditable));
         StartCommand.NotifyCanExecuteChanged();

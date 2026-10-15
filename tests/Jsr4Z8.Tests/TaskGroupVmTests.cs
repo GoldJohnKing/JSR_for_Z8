@@ -260,6 +260,26 @@ public class TaskGroupVmTests
         Assert.Contains("对齐", vm.StateText);
     }
 
+    /// <summary>Bottom state bar (F2): the bar is always visible — it tracks Progress
+    /// only while Running and reads a full bar (the state color fills 100% width) in
+    /// every other state. The XAML state→color mapping is compile-verified only.</summary>
+    [Fact]
+    public void BarValue_RunningTracksProgress_OtherStatesFull()
+    {
+        var vm = ReadyVm();
+        Assert.Equal(100, vm.BarValue);                 // Ready → 满宽灰
+
+        Assert.True(vm.GoRunning());
+        Assert.Equal(0, vm.BarValue);                   // Running 从 0 起跟踪
+        vm.ReportProgress(42, null);
+        Assert.Equal(42, vm.BarValue);
+
+        Assert.True(vm.GoDone(null));
+        Assert.Equal(100, vm.BarValue);                 // Done → 满宽绿
+
+        Assert.Equal(100, BlockedVm().BarValue);        // Blocked → 满宽警示色
+    }
+
     [Fact]
     public void RemoveCommand_RaisesRemoveRequested_AndMainViewModelRemoves()
     {

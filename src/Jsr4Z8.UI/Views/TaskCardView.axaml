@@ -8,7 +8,8 @@
              x:CompileBindings="True">
     <!-- One task-group card (docs/design/card-states.html 六态). The root border carries
          the st-ready/st-running/st-done/st-failed/st-blocked class (maintained from
-         code-behind on State changes) that colors the status pill, plus st-droptarget
+         code-behind on State changes) that colors the status pill and bottom state
+         bar, plus st-droptarget
          while a NEF drag hovers an editable card (卡内拖放补齐). Chips are display+hover
          only; the per-chip ★/✕ mini buttons and the commands' own CanExecute carry the
          Ready/Blocked-only edit gating. -->
@@ -187,6 +188,22 @@
             <Setter Property="BorderThickness" Value="2" />
         </Style>
 
+        <!-- 贴卡底 4px 状态条：填充色随卡状态（色键同 MainWindow 统计条圆点）；
+             Semi 模板的 PART_Indicator Background 即 TemplateBinding Foreground，
+             st-running 不覆盖（Semi 默认主色表运行中进度） -->
+        <Style Selector="Border.card.st-ready ProgressBar.state-bar">
+            <Setter Property="Foreground" Value="{DynamicResource SemiGrey5}" />
+        </Style>
+        <Style Selector="Border.card.st-done ProgressBar.state-bar">
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorSuccess}" />
+        </Style>
+        <Style Selector="Border.card.st-failed ProgressBar.state-bar">
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorDanger}" />
+        </Style>
+        <Style Selector="Border.card.st-blocked ProgressBar.state-bar">
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorWarning}" />
+        </Style>
+
         <!-- 校验/运行错误条 -->
         <Style Selector="Border.msg">
             <Setter Property="Background" Value="{DynamicResource SemiColorDangerLight}" />
@@ -204,11 +221,6 @@
          避免冒泡到窗口级新建组（路由事件在 code-behind AddHandler 接线） -->
     <Border x:Name="Root" Classes="card" ClipToBounds="True" DragDrop.AllowDrop="True">
         <StackPanel>
-            <!-- 贴卡顶的 4px 进度条（仅运行中，同 Save_Z8 总进度样式） -->
-            <ProgressBar IsVisible="{Binding IsRunning}"
-                         Minimum="0" Maximum="100" Value="{Binding Progress}"
-                         Height="4" MinHeight="4" CornerRadius="0" Padding="0" />
-
             <!-- 头行：基准帧名 + 状态胶囊 + 动作（按状态由 CanExecute 自动启停） -->
             <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="14,12,14,10">
                 <TextBlock Text="{Binding ReferenceName, StringFormat='基准 {0}'}"
@@ -324,6 +336,11 @@
                     IsVisible="{Binding ErrorText, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}">
                 <TextBlock Text="{Binding ErrorText}" />
             </Border>
+
+            <!-- 贴卡底的 4px 状态条（恒可见）：运行中=进度，其余态满宽状态色（上方样式） -->
+            <ProgressBar Classes="state-bar"
+                         Minimum="0" Maximum="100" Value="{Binding BarValue}"
+                         Height="4" MinHeight="4" CornerRadius="0" Padding="0" />
         </StackPanel>
     </Border>
 </UserControl>

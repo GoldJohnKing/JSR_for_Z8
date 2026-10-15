@@ -14,17 +14,20 @@ namespace Jsr4Z8.UI.Views;
 
 /// <summary>
 /// Save_Z8-style main window shell. All state lives in MainViewModel; this code-behind
-/// only bridges windowing-only concerns: full-window drag-and-drop (hover overlay with
-/// the DragOver-renewed 600ms DispatcherTimer fade pattern), the shared RAW file
-/// picker, the theme button's icon/tooltip sync and the assembly-version read.
+/// only bridges windowing-only concerns: full-window drag-and-drop (hover overlay that
+/// hides instantly when a card takes over the drag, plus on DragLeave), the shared RAW
+/// file picker, the theme button's icon/tooltip sync and the assembly-version read.
 /// </summary>
 public partial class MainWindow : Window
 {
     private MainViewModel? ViewModel => DataContext as MainViewModel;
 
-    // DragLeave/DragOver ordering is unstable while hovering child elements — renew the
-    // timer on every DragOver and collapse the overlay when it expires, so the
-    // full-window drop overlay reliably disappears (Save_Z8 pattern).
+    // FALLBACK ONLY: while an OLE drag's modal loop runs with a still mouse, nothing
+    // pumps the dispatcher (no DragOver callbacks), so a Background-priority
+    // DispatcherTimer cannot tick — the overlay hide must NOT depend on it. The
+    // primary hide paths are the handledEventsToo DragOver branch (a card took over)
+    // and DragLeave; this timer only catches a drag that stalled over empty space
+    // once the dispatcher is being pumped again (Save_Z8 pattern, 600ms).
     private readonly DispatcherTimer _dragHideTimer = new()
     {
         Interval = TimeSpan.FromMilliseconds(600)
@@ -35,8 +38,11 @@ public partial class MainWindow : Window
         InitializeComponent();
         // Drop target opt-in (Avalonia defaults to false → OLE reports no effects).
         DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, OnDragOver);
+        // handledEventsToo: cards consume DragOver (e.Handled) for 卡内补齐 — the window
+        // still needs to see those events to hide its overlay instantly (F1).
+        AddHandler(DragDrop.DragOverEvent, OnDragOver, RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(DragDrop.DropEvent, OnDrop);
+        AddHandler(DragDrop.DragLeaveEvent, OnDragLeave);
         _dragHideTimer.Tick += (_, _) =>
         {
             _dragHideTimer.Stop();
@@ -71,6 +77,16 @@ public partial class MainWindow : Window
 
     private void OnDragOver(object? sender, DragEventArgs e)
     {
+        // A descendant (task card) already consumed the drag — kill the window-level
+        // hint instantly and leave e.Handled/effects to the card (F1).
+        if (e.Handled)
+        {
+            if (ViewModel is { } vmHide)
+                vmHide.IsDragOver = false;
+            _dragHideTimer.Stop();
+            return;
+        }
+
         e.Handled = true;
         bool nef = HasNefPayload(e);
         e.DragEffects = nef ? DragDropEffects.Copy : DragDropEffects.None;
@@ -78,6 +94,15 @@ public partial class MainWindow : Window
             vm.IsDragOver = nef;
         _dragHideTimer.Stop();
         _dragHideTimer.Start();
+    }
+
+    /// <summary>The drag left the window entirely — hide the overlay immediately
+    /// (primary hide path; the timer is only a fallback, see _dragHideTimer).</summary>
+    private void OnDragLeave(object? sender, DragEventArgs e)
+    {
+        _dragHideTimer.Stop();
+        if (ViewModel is { } vm)
+            vm.IsDragOver = false;
     }
 
     private async void OnDrop(object? sender, DragEventArgs e)
