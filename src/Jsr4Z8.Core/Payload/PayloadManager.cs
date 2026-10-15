@@ -20,6 +20,9 @@ namespace Jsr4Z8.Core.Payload;
 ///    scanners and the search indexer briefly lock freshly-written directories.
 ///    A crash can therefore never leave a
 ///    half-written target; crashed ".tmp-*" siblings are cleaned up on the next run.
+///    After the current target is verified or extracted, stale-version pruning deletes every
+///    sibling directory under the backend root (previous payload versions and crashed tmp
+///    leftovers) best-effort — a prune failure never breaks EnsureExtracted.
 /// </summary>
 public sealed class PayloadManager
 {
@@ -104,6 +107,7 @@ public sealed class PayloadManager
             if (!markedIncomplete && VerifyExisting(target, manifest))
             {
                 _verifiedDir = target;
+                PruneStaleVersions(hashDir);
                 return target;
             }
 
@@ -122,8 +126,31 @@ public sealed class PayloadManager
         Extract(tmp, manifest, progress);
         RetryOnTransientFsLock(() => MoveDirectory(tmp, target));
 
+        PruneStaleVersions(hashDir);
+
         _verifiedDir = target;
         return target;
+    }
+
+    /// <summary>
+    /// Stale-version cleanup, run only after the current target is verified or extracted:
+    /// delete every directory under <see cref="_backendRoot"/> whose name differs from the
+    /// current <paramref name="hashDir"/> — previous payload versions and crashed tmp
+    /// leftovers alike. Best-effort: the whole loop is swallowed so a prune failure can
+    /// never break EnsureExtracted; leftovers are retried on a later run.
+    /// </summary>
+    private void PruneStaleVersions(string hashDir)
+    {
+        try
+        {
+            foreach (string stale in Directory.EnumerateDirectories(_backendRoot))
+                if (!string.Equals(Path.GetFileName(stale), hashDir, StringComparison.Ordinal))
+                    DeleteDirectory(stale);
+        }
+        catch (Exception)
+        {
+            // Best-effort by design (see doc comment).
+        }
     }
 
     /// <summary>Full re-hash of every manifest entry under <paramref name="target"/>; false on any missing/length-mismatch/hash-mismatch.</summary>

@@ -57,13 +57,15 @@ public class PayloadTests : IClassFixture<TestTemp>
 
     private string TempDir() => _temp.NewDir();
 
-    private FakePayload PackFake()
+    private FakePayload PackFake() => PackTree(MakeFakeTree());
+
+    /// <summary>Packs an already-built source tree (e.g. a mutated variant of the <see cref="MakeFakeTree"/> output) into a fresh out dir.</summary>
+    private FakePayload PackTree(string srcDir)
     {
-        string src = MakeFakeTree();
         string outDir = TempDir();
-        PayloadPackResult result = PayloadPacker.Pack(src, outDir);
+        PayloadPackResult result = PayloadPacker.Pack(srcDir, outDir);
         using FileStream manifestStream = File.OpenRead(result.ManifestPath);
-        return new FakePayload(src, outDir, PayloadPacker.ReadManifestJson(manifestStream));
+        return new FakePayload(srcDir, outDir, PayloadPacker.ReadManifestJson(manifestStream));
     }
 
     /// <summary>Fresh PayloadManager over the fake payload pair (simulates a new process launch — no session cache).</summary>
@@ -275,6 +277,30 @@ public class PayloadTests : IClassFixture<TestTemp>
 
         Assert.False(Directory.Exists(stale), "crashed tmp dir cleaned up");
         Assert.True(File.Exists(Path.Combine(backend, "Jiangtherapee Bridge.exe")));
+    }
+
+    [Fact]
+    public void EnsureExtracted_PrunesStaleSiblingVersions()
+    {
+        FakePayload payloadA = PackFake();
+        string baseRoot = TempDir();
+        string dirA = NewManager(baseRoot, payloadA).EnsureExtracted();
+
+        // Payload B: same fake tree with one file changed → different manifest hash → different extraction dir.
+        File.WriteAllText(Path.Combine(payloadA.SrcDir, "resources", "licenses", "notice.txt"), "fake third-party license text, version 2");
+        FakePayload payloadB = PackTree(payloadA.SrcDir);
+
+        // Crashed tmp leftover of the OLD version — any sibling != current hashDir must go too.
+        string oldTmp = Path.Combine(baseRoot, payloadA.Manifest.Hash[..16] + ".tmp-424242");
+        Directory.CreateDirectory(oldTmp);
+
+        string dirB = NewManager(baseRoot, payloadB).EnsureExtracted();
+
+        Assert.Equal(Path.Combine(baseRoot, payloadB.Manifest.Hash[..16]), dirB);
+        Assert.NotEqual(dirA, dirB);
+        Assert.False(Directory.Exists(dirA), "previous-version dir pruned after the new version is live");
+        Assert.False(Directory.Exists(oldTmp), "old-version crashed tmp leftover pruned too");
+        Assert.True(File.Exists(Path.Combine(dirB, "Jiangtherapee Bridge.exe")), "current version intact after pruning");
     }
 
     [Fact]
