@@ -87,7 +87,9 @@ headless 单队列场景的最小集合——多数已有对应物：
 
 ## 4. 结论
 
-**有条件可行（倾向可行）**：主算入口的 argv 完全由「我们已持有的请求语义 + 可按观测值硬编码的 Bridge 默认开关」构成，不存在不透明句柄/管道等不可自建依赖；harness 功能面在本项目里几乎全部已有对应物（裸行解析、树杀、产物核验、排他串行）。剩余未知集中在两处：① 预览阶段（`--bridge-preview` 两个 JSON 的内容与必要性）；② 未文档化 CLI 的版本稳定性——**2.3.27 复验已通过（§5）**。建议：生产路径维持 Bridge 不动；直调作为独立 spike（复放本文捕获的主算 argv，比对 stdout 与产物）验证后再议替换。
+**有条件可行（倾向可行）**：主算入口的 argv 完全由「我们已持有的请求语义 + 可按观测值硬编码的 Bridge 默认开关」构成，不存在不透明句柄/管道等不可自建依赖；harness 功能面在本项目里几乎全部已有对应物（裸行解析、树杀、产物核验、排他串行）。剩余未知集中在两处：① 预览阶段（`--bridge-preview` 两个 JSON 的内容与必要性）；② 未文档化 CLI 的版本稳定性——**2.3.27 复验已通过（§5）**。
+
+**更新（2026-10-15 晚，§6/§7 实证后）**：两个剩余未知均已实跑关闭——预览产物仅为 Bridge 自身 UI 生成缩略图/元数据（§6 采样），主算链对 cfg/预览零依赖（§7 无 cfg 无预览真机直调全绿）。**用户已裁定：绕过 Bridge、直调立项实施；预览链按用户裁定永久跳过（本 GUI 无预览面）**——即本文 §4 的“spike 后再议”已升级为“已立项实施”，预览非必需由 §6/§7 实证背书。
 
 ## 5. 2.3.27 复验：argv 契约一致（2026-10-15，Task 3）
 
@@ -98,3 +100,84 @@ headless 单队列场景的最小集合——多数已有对应物：
 - **主算 argv 开关序列完全一致**（`--output-dir … --camera-profile-source libraw` 逐一比对）。值差异仅两处，均为预期：`--black-level-dn 1005.89→1008`、`--read-noise-dn 14.54→14.07`（预置黑场表换成后端 2.3.27 z8_presets manifest 导出的 102 行表，(无损, ISO3200) 行值）；`--full-well-electrons 1102.2` 不变（两版 ptc_index.csv 字节一致）。
 
 结论：§3/§4 的直调可行性分析对 2.3.27 继续成立，无需修正。
+
+## 6. 预览链采样：两个 JSON 的实际内容（2026-10-15 23:08–23:14，Task 1）
+
+**方法**：E2E `FullRun_NoDarkFile_PresetAutoMatch_ProducesValidJsrDng`（通过，1/1，6m02s）真机运行期间，PowerShell 监视器以 200ms 轮询 `%TEMP%\Jsr4Z8\*\cfg\jsr\*`，文件集一变即整目录快照到工作区——`preview-input.json` 落盘后 215ms（23:08:33.375 写入 → 23:08:33.590 快照）即被捕获，早于预览链进程创建（23:08:33.376）之后的主算阶段；`preview.json` 于预览完成时（23:08:36.947）由第二次快照补齐。共捕获 5 文件：`preview-input.json`(570B)、`preview.json`(426,215B)、`preview.log`(0B)、`EXECUTION.lock`(0B)、`job-1792076917463.log`(15,891B，引擎自写的主算 stdout 副本，尾行 `DONE total 335.9s`)。全文存工作区 `preview-sample/cefbbf9d27934527be62908fa9055254/`（不提交）。
+
+**preview-input.json（570B，逐字）**：
+
+```json
+{"engine":"stormer7","paths":["D:\\GitRepos\\JSR_for_Z8\\samples\\test_frames\\FX\\Lossless\\DSC_7576.NEF","D:\\GitRepos\\JSR_for_Z8\\samples\\test_frames\\FX\\Lossless\\DSC_7577.NEF","D:\\GitRepos\\JSR_for_Z8\\samples\\test_frames\\FX\\Lossless\\DSC_7578.NEF","D:\\GitRepos\\JSR_for_Z8\\samples\\test_frames\\FX\\Lossless\\DSC_7579.NEF","D:\\GitRepos\\JSR_for_Z8\\samples\\test_frames\\FX\\Lossless\\DSC_7580.NEF","D:\\GitRepos\\JSR_for_Z8\\samples\\test_frames\\FX\\Lossless\\DSC_7581.NEF","D:\\GitRepos\\JSR_for_Z8\\samples\\test_frames\\FX\\Lossless\\DSC_7582.NEF"]}
+```
+
+**preview.json（426,215B；除 `preview` 缩略图字段外逐字，缩略图为 data-URI，全文见工作区）**：
+
+```json
+{
+  "paths": ["D:\\…\\DSC_7576.NEF", "…", "DSC_7582.NEF"],   /* 7×与 preview-input 相同的绝对路径 */
+  "frames": [                                            /* 7 帧，每帧结构同下（此处展开第 0/3 帧） */
+    {"path": "D:\\…\\DSC_7576.NEF", "name": "DSC_7576.NEF", "iso": "3200", "shutter": 0.01,
+     "camera": "NIKON CORPORATION NIKON Z 8", "ev": 0.0, "reference": false},
+    …
+    {"path": "D:\\…\\DSC_7579.NEF", "name": "DSC_7579.NEF", "iso": "3200", "shutter": 0.01,
+     "camera": "NIKON CORPORATION NIKON Z 8", "ev": 0.0, "reference": true},
+    …
+  ],
+  "reference": 3,
+  "width": 8280,
+  "height": 5520,
+  "reference_name": "DSC_7579.NEF",
+  "exposure_confirmation_required": false,
+  "ptc_auto_available": false,
+  "ptc_issue": "没有匹配的 PTC：NIKON CORPORATION NIKON Z 8 ISO 3200.0。请在 PTC 下拉框选择单像素满阱容量相近的机型/ISO作为替代；不要只按画幅或总像素数选。读出噪声仍来自你的黑场。",
+  "warnings": [],
+  "preview": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCA…<423,659 字符，全文见工作区>",
+  "preview_error": null,
+  "orientation": "sensor-unrotated"
+}
+```
+
+**一段话分析**：预览链是 Bridge 自身 UI 的“取景/确认”服务——`preview-input.json` 只有引擎名（`stormer7`）与 7 帧路径（请求方早已持有的信息原样回显）；`preview.json` 则是 Bridge 面向用户的帧清单（逐帧 EXIF：ISO/快门/机身/EV）、参考帧选定（`reference`=3 → DSC_7579）、8280×5520 传感器尺寸、曝光确认/PTC 自动匹配提示文案，外加一张约 415KB 的 base64 JPEG 缩略图（占该文件 99% 体积）。主算 argv 从不引用这两个文件（§2/§5 契约），其“消费方”只可能是 Bridge 的图形界面（曝光确认对话框、预览图）；本 GUI 无预览面，故按用户裁定永久跳过合理且无损——§7 的无 cfg、无预览直调双组全绿进一步实证主算链对预览零依赖。附带收益：跳过预览每任务省 ~4.2s（23:08:33.376→23:08:37.551）与一整对引擎双实例（省 2 进程）。
+
+## 7. 无预览直调实证：裸行协议、退出码归属与杀树完整性（2026-10-15 23:15–23:30，Task 1）
+
+**方法**：以 §2/§5 捕获的 argv 契约逐字手工拼装（cmd/ps1 脚本，工作区 `scripts/`），直接 spawn `…backend\\fa541adff100e78e\\resources\\jsr_backend.exe`——**不建 cfg、不跑预览、不经 Bridge**；job 目录在独立工作区临时目录，stdout/stderr 重定向到文件，argv-monitor（§1 同款）全程伴跑；RN=14.07 / BL=1008 / FW=1102.2（ISO3200 无损行，z8_presets 102 行表）。
+
+### 7.1 运行结果总表
+
+| 运行 | 帧组（samples/test_frames/FX/） | 退出码 | 墙钟（实测） | 引擎自报 | DNG 产物 | 字节数 |
+|---|---|---|---|---|---|---|
+| run1 无损 | `Lossless\DSC_7576..7582.NEF` | **0** | 342.3s（23:17:33.85→23:23:16.13） | `DONE total 339.2s` | `jobs/run1-lossless/run1lossless_V15_3_5_K7_20261015_231736_534682/run1lossless_V15_3_5_K7_20261015_231736_534682.dng` | 358,130,979 |
+| run2 HE | `he_frames\DSC_7652..7658.NEF` | **0** | 339.9s（23:23:44.88→23:29:24.80） | `DONE total 336.8s` | `jobs/run2-he/run2he_V15_3_5_K7_20261015_232347_569923/run2he_V15_3_5_K7_20261015_232347_569923.dng` | 360,236,480 |
+| run3 杀树 | 无损 argv，+30.2s 处 `taskkill /T /F` | 1（强杀） | 杀于 23:30:12.022 | 杀时 `SRHQ_V12_PROGRESS\|32\|估计跨帧运动` | （预期无产物，实测无） | — |
+
+注：run2 沿用无损 ISO3200 行的 RN/BL——该组仅验证 HE 解码路径与管线形状，不标定精度。run0（未入表）：首版 harness 把 7 帧误拼成单个逗号串参数，引擎预检即拒：stdout 裸行 `SRHQ_NET_ABORT:preflight|此 Transformer 权重需要七张互不重复的 RAW` + stderr Python `ValueError` 回溯，无 DNG——同时给出失败形态证据：**裸 abort 行走 stdout、诊断回溯走 stderr**，主算对 cfg/预览仍未索取任何前置。
+
+### 7.2 裸 stdout 协议（run1 全量 324 行，run2 同构；存档 `direct_success.log` 供 Task 2 夹具）
+
+- **零信封**：两跑 `ASSISTANT_JSR` 计数均为 0——裸行即引擎本体输出，与 §3.2 判断一致。
+- 行型清单（run1 计数）：`PTC {…}` 1、`SRHQ_V12_FRAME\|i\|ev\|shutter\|path` 7、ColorMatrix/camera profile 各 1、`SRHQ_EFFECTIVE_ENGINE\|v12\|v12-wgpu\|…` 1、`SENSOR_LEVELS [{…}]` 1、Proxy n/7 若干、`SRHQ_V12_PROGRESS\|pct\|desc` 110、`SRHQ_ETA_PROGRESS\|stage\|done\|total` 87、`V12 output: <dir>` 1、`DONE total <sec>s` 1。
+- 首行为 `PTC {…}`（手动 RN/满阱回显），尾三行 `SRHQ_V12_PROGRESS\|100\|导出完成` → `V12 output: <绝对路径>` → `DONE total 339.2s`；`SRHQ_V12_PROGRESS\|100\|` 恰一次。前 30 行+尾 10 行全文见工作区 `direct_success.log`（15,882B，Task 2 将提交为 `tests/fixtures/protocol/direct_success.log`）。
+- stderr：run2 为 0 字节；run1 仅尾部若干常规行；run0 为 Python 回溯——即 stderr 仅承载诊断，不参与协议。
+
+### 7.3 双实例自重复：时序与退出码归属（Phase A + run0–3 共 6 对观测）
+
+| 观测 | 父实例（pid@创建） | 子实例（pid@创建） | 间隔 | 退出顺序 |
+|---|---|---|---|---|
+| PhaseA 预览对 | 34516@23:08:33.376 | 35956@23:08:35.419 | 2.043s | 子 37.268 → 父 37.551（Δ0.28s） |
+| PhaseA 主算对 | 29200@23:08:37.464 | 12452@23:08:39.501 | 2.037s | 子 23:14:16.206 → 父 ≤16.724 |
+| run0 失败对 | 19916@23:15:45.256 | 29732@23:15:47.540 | 2.284s | 子 48.252 → 父 48.529（Δ0.28s） |
+| run1 | 8516@23:17:33.852 | 13088@23:17:35.866 | 2.014s | 子 23:23:15.802 → 父 ≤16.13（转述 0） |
+| run2 | 26284@23:23:45.229 | 11092@23:23:47.075 | 1.846s | 子 23:29:24.502 → 父 ≤24.80（转述 0） |
+| run3 | 24736@23:29:41.849 | 35008@23:29:43.950 | 2.101s | 同被 taskkill 终结 |
+
+结论：每次引擎调用恒为「父 spawn → ~1.8–2.3s 后同 argv 子（run3 父/子 argv md5 一致）」，实际工作在**子**进程；正常完成时**子先退、父随后 0.3–0.5s 内退出并转述退出码**（run1/run2 cmd 侧 `%ERRORLEVEL%`=0，即等父进程即得任务结果）——Bridge 当年等的就是父实例；直调 harness 同样只需持有父 pid。argv 中不含任何 cfg/预览路径引用，主算对 cfg 目录零依赖实证成立。
+
+### 7.4 杀树完整性（run3）
+
+父 pid 24736 于 +30.2s（stdout 已至 `SRHQ_V12_PROGRESS\|32\|估计跨帧运动`，解码/运动估计进行中）被 `taskkill /PID 24736 /T /F`：返回码 0；**终止清单 3 个进程**——24736（父）、35008（同 argv 子）、25896（**另一未名后代**：按名过滤的监视器从未观测到它，或为临终前 <200ms 内新起、或为非监视名进程；`/T` 全树枚举照样覆盖——直调取消必须保持 `/T`，不可按名杀）。杀后 631ms 内 `jsr_backend.exe` 全清（≤5s 要求达标）；被强杀父进程退出码 1（TerminateProcess 语义）。无孤儿。
+
+### 7.5 小结
+
+argv 契约（§2/§5）在真机直调下成立：无损+HE 双组 exit 0、`<prefix>_V15_3_5_K7_*` 目录与 DNG 如期产出、裸行协议完整（P100+DONE、零信封）、退出码取父实例、杀树靠 `/T` 全清。§3.4 风险清单中“预览必要性/退出码归属/裸行与经 Bridge 转述一致性”三项全部实测关闭；未文档化 CLI 的版本间稳定性仍属上游固有风险，以载荷哈希锁定 + 契约夹具（direct_success.log）监控。
