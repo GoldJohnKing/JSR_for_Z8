@@ -17,9 +17,9 @@ namespace Jsr4Z8.Tests;
 /// MainViewModel.StartAll — against the cmd.exe stub harnesses in fixtures\stub_backend\
 /// (BackendRunnerTests already prove the process runner itself; these tests prove the
 /// queue semantics): sequential one-at-a-time execution, failure/stop continuation,
-/// per-run temp-dir lifecycle (success deletes, failure keeps for diagnosis), the
-/// missing-product-DNG guard, and the mediator's RunnerEvent → card-state mapping
-/// (payload 0-5%, backend 5-100%, 诊断目录 failure hint). The payload and finalizer
+/// per-run temp-dir lifecycle (EVERY terminal outcome deletes the job dir — 失败/停止即删),
+/// the missing-product-DNG guard, and the mediator's RunnerEvent → card-state mapping
+/// (payload 0-5%, backend 5-100%). The payload and finalizer
 /// are injected through TaskQueueRunner's internal seams; the backend itself stays
 /// REAL (stub .bat through the same Process path as "Jiangtherapee Bridge.exe").
 /// Windows-host tests.
@@ -142,7 +142,7 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
     }
 
     [Fact]
-    public async Task BackendCompleteWithoutDng_Fails_KeepsTemp_FinalizerNotCalled()
+    public async Task BackendCompleteWithoutDng_Fails_DeletesTemp_FinalizerNotCalled()
     {
         var h = new Harness(_temp, "stub_backend.bat"); // RESULT complete but no product file
         TaskGroupViewModel vm = Card(h.Mediator);
@@ -152,14 +152,10 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
 
             Assert.Equal(TaskState.Failed, vm.State);
             Assert.Contains("后端未产出 DNG", vm.ErrorText);
-            Assert.Contains("诊断目录：", vm.ErrorText);   // temp kept → hint names it
+            Assert.DoesNotContain("诊断目录：", vm.ErrorText);   // temp is deleted → no hint
             lock (h.FinalizeCalls) Assert.Empty(h.FinalizeCalls);
 
-            string[] kept = Directory.GetDirectories(h.JsrTempRoot);
-            string jobDir = Assert.Single(kept);
-            Assert.True(File.Exists(Path.Combine(jobDir, "job.log")), "runner log must be in the kept temp dir");
-            Assert.True(File.Exists(Path.Combine(jobDir, "request.json")));
-            Assert.True(Directory.Exists(Path.Combine(jobDir, "cfg")));   // per-run config dir
+            Assert.Empty(Directory.GetDirectories(h.JsrTempRoot));   // temp root holds no leftover dir
         }
         finally
         {
@@ -168,7 +164,7 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
     }
 
     [Fact]
-    public async Task BackendFailure_KeepsTempDir_HumanizedMessageWithDiagnosticHint()
+    public async Task BackendFailure_DeletesTempDir_HumanizedMessage()
     {
         var h = new Harness(_temp, "stub_fail.bat");
         TaskGroupViewModel vm = Card(h.Mediator);
@@ -179,9 +175,9 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
             Assert.Equal(TaskState.Failed, vm.State);
             Assert.Contains("模拟失败原因", vm.ErrorText);   // SRHQ_NET_ABORT extract, not the raw tail
             Assert.DoesNotContain("MemoryError", vm.ErrorText);
-            Assert.Contains("诊断目录：", vm.ErrorText);
+            Assert.DoesNotContain("诊断目录：", vm.ErrorText);
             lock (h.FinalizeCalls) Assert.Empty(h.FinalizeCalls);
-            Assert.Single(Directory.GetDirectories(h.JsrTempRoot));
+            Assert.Empty(Directory.GetDirectories(h.JsrTempRoot));   // failure now deletes the job dir
         }
         finally
         {
@@ -189,14 +185,48 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
         }
     }
 
-    // ---------------------------------------------------------------- engine: stale diagnostic-dir sweep
-
-    /// <summary>Final-review finding 4: failed/stopped runs keep ~3 GB diagnostic dirs
-    /// that would accumulate forever — the sweep deletes job dirs older than 7 days
-    /// (mtime-fabricated: -8 days deleted, -1 day kept) and never touches the current
-    /// job's dir even when it is old.</summary>
+    /// <summary>A queue-level stop mid-run must ALSO delete the job temp dir (the
+    /// stopped run's diagnostics die with it).</summary>
     [Fact]
-    public void SweepStaleDiagnosticDirs_DeletesOld_KeepsFreshAndExcluded()
+    public async Task CancelledRun_DeletesTempDir()
+    {
+        string tick = _temp.NewFilePath(".tick");
+        var h = new Harness(_temp, "stub_kill.bat");
+        var main = new MainViewModel(null, h.Mediator);
+        TaskGroupViewModel vm = Card(h.Mediator);
+        main.Add(vm);
+        try
+        {
+            Environment.SetEnvironmentVariable("JSR4Z8_TEST_TICK", tick);
+            main.StartAllCommand.Execute(null);
+            Assert.True(await WaitAsync(() => main.ActiveQueueCts != null && vm.State == TaskState.Running, TimeSpan.FromSeconds(8)),
+                "task never started");
+
+            main.ActiveQueueCts!.Cancel();
+            Assert.True(await WaitAsync(() => vm.State == TaskState.Failed, TimeSpan.FromSeconds(3)),
+                "cancelled task must reach Failed within 3s");
+            Assert.Contains("已停止", vm.ErrorText);
+            Assert.DoesNotContain("诊断目录：", vm.ErrorText);
+            Assert.True(await WaitAsync(() => main.ActiveQueueCts == null, TimeSpan.FromSeconds(5)), "queue loop never exited");
+
+            Assert.Empty(Directory.GetDirectories(h.JsrTempRoot));   // stopped run leaves nothing behind
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("JSR4Z8_TEST_TICK", null);
+            try { File.Delete(tick); } catch (IOException) { }
+            try { Directory.Delete(h.TempBase, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+    }
+
+    // ---------------------------------------------------------------- engine: startup temp-root sweep
+
+    /// <summary>Startup sweep: failed/stopped runs now delete their job dir themselves,
+    /// so anything left under the Jsr4Z8 temp root is debris from a crashed/killed
+    /// process — the sweep deletes ALL of it regardless of age (old/fresh/current
+    /// fabricated mtimes all swept).</summary>
+    [Fact]
+    public void SweepTempRoot_DeletesAllLeftovers_AnyAge()
     {
         string tempBase = _temp.NewDir();
         string root = Path.Combine(tempBase, "Jsr4Z8");
@@ -214,11 +244,12 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
         var settings = new AppSettings(TempMode: TempMode.Custom, CustomTempDir: tempBase);
         try
         {
-            TaskQueueRunner.SweepStaleDiagnosticDirs(settings, excludeJobId: "currentjob");
+            TaskQueueRunner.SweepTempRoot(settings);
 
-            Assert.False(Directory.Exists(old), "8-day-old diagnostic dir must be swept");
-            Assert.True(Directory.Exists(fresh), "1-day-old dir must be kept");
-            Assert.True(Directory.Exists(current), "current job's dir must never be swept");
+            Assert.False(Directory.Exists(old), "8-day-old leftover must be swept");
+            Assert.False(Directory.Exists(fresh), "1-day-old leftover must be swept too — no age cutoff");
+            Assert.False(Directory.Exists(current), "no id exclusion: everything goes");
+            Assert.Empty(Directory.GetDirectories(root));   // the root itself survives, emptied
         }
         finally
         {

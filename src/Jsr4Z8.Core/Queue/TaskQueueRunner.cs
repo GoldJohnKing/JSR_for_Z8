@@ -10,16 +10,16 @@ using Jsr4Z8.Core.Settings;
 
 namespace Jsr4Z8.Core.Queue;
 
-/// <summary>Outcome of one queued task run. <see cref="DiagnosticDir"/> is non-null
-/// exactly when the job temp dir was KEPT for diagnosis (any failure — see the run
-/// steps below); null on success (temp deleted) and on failures that predate dir creation.</summary>
+/// <summary>Outcome of one queued task run: success/cancel flags, the humanized
+/// message, the written DNG path on success, and the wall-clock duration. The job
+/// temp dir is deleted on EVERY terminal outcome (success and failure/stopped alike —
+/// 失败/停止即删), so no diagnostic path is carried.</summary>
 public sealed record TaskRunOutcome(
     bool Success,
     bool Cancelled,
     string Message,
     string? OutputPath,
-    TimeSpan Elapsed,
-    string? DiagnosticDir);
+    TimeSpan Elapsed);
 
 /// <summary>Events surfaced by <see cref="TaskQueueRunner"/> while one run is in flight.
 /// <see cref="BackendFinished"/> mirrors the underlying BackendRunner event so observers
@@ -51,9 +51,11 @@ public sealed record BackendFinished(RunnerResult Result) : QueueEvent;
 /// ⑤ on backend success the newest &lt;prefix&gt;*.dng under the job dir (the backend
 /// nests it in &lt;prefix&gt;_V15_3_5_K7_&lt;ts&gt;_&lt;n&gt;\) is finalized via
 /// <see cref="JsrDngFinalizer.Finalize"/> into JSR_&lt;基准帧名&gt;.dng next to the
-/// reference frame (or the configured custom dir), ⑥ success deletes the job temp
-/// dir, any failure keeps it for diagnosis (path in the outcome). Never throws:
-/// failures and cancellation come back as a <see cref="TaskRunOutcome"/>.
+/// reference frame (or the configured custom dir), ⑥ every terminal outcome deletes
+/// the job temp dir (success cleanup and the failure/stopped paths alike — no more
+/// ~3 GB kept diagnostic dirs; leftover debris is handled by the startup
+/// <see cref="SweepTempRoot"/>). Never throws: failures and cancellation come back as
+/// a <see cref="TaskRunOutcome"/>.
 /// </summary>
 public sealed class TaskQueueRunner
 {
@@ -62,13 +64,6 @@ public sealed class TaskQueueRunner
 
     private const string NoDngMessage = "后端未产出 DNG";
     private const string CancelledMessage = "已停止";
-
-    /// <summary>Failed/stopped diagnostic dirs (final-review finding 4): job temp dirs
-    /// are ~3 GB each and accumulate forever without pruning. Once per process, the
-    /// first run fires a sweep of <see cref="SweepStaleDiagnosticDirs"/>.</summary>
-    public const int DiagnosticDirMaxAgeDays = 7;
-
-    private static int _startupSweepDone;
 
     private readonly PayloadManager _payload;
 
@@ -104,17 +99,6 @@ public sealed class TaskQueueRunner
         string jobId = Guid.NewGuid().ToString("N");
         string jobDir = Path.Combine(ResolveTempBase(settings), "Jsr4Z8", jobId);
 
-        // Final-review finding 4: once per process, prune stale diagnostic dirs older
-        // than DiagnosticDirMaxAgeDays (the current job excluded). Fire-and-forget on a
-        // background thread — a ~3 GB recursive delete must not delay the first run,
-        // and the sweep swallows every IO error so it can never crash one either.
-        if (Interlocked.Exchange(ref _startupSweepDone, 1) == 0)
-        {
-            AppSettings sweepSettings = settings;
-            string currentJobId = jobId;
-            _ = Task.Run(() => SweepStaleDiagnosticDirs(sweepSettings, currentJobId));
-        }
-
         try
         {
             // ① payload: off the caller thread — EnsureExtracted is synchronous work
@@ -148,13 +132,19 @@ public sealed class TaskQueueRunner
                 ct).ConfigureAwait(false);
 
             if (!result.Success)
-                return new TaskRunOutcome(false, ct.IsCancellationRequested, result.Message, null, clock.Elapsed, jobDir);
+            {
+                TryDeleteDir(jobDir); // 失败即删：不再保留多 GB 诊断目录
+                return new TaskRunOutcome(false, ct.IsCancellationRequested, result.Message, null, clock.Elapsed);
+            }
 
             // ⑤ the backend product: newest <prefix>*.dng anywhere under the job dir,
             // skipping *.partial segments (Task 13 carried review fix).
             string? backendDng = FindNewestProductDng(jobDir, jobId);
             if (backendDng is null)
-                return new TaskRunOutcome(false, false, NoDngMessage, null, clock.Elapsed, jobDir);
+            {
+                TryDeleteDir(jobDir);
+                return new TaskRunOutcome(false, false, NoDngMessage, null, clock.Elapsed);
+            }
 
             string destDir = settings.OutputMode == OutputMode.Custom && !string.IsNullOrWhiteSpace(settings.CustomOutputDir)
                 ? settings.CustomOutputDir
@@ -169,22 +159,19 @@ public sealed class TaskQueueRunner
 
             // ⑥ success: clean the whole job dir (request/cfg/log/product). Best effort —
             // a locked file must not turn a finished job into a reported failure.
-            try
-            {
-                Directory.Delete(jobDir, recursive: true);
-            }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
+            TryDeleteDir(jobDir);
 
-            return new TaskRunOutcome(true, false, result.Message, written, clock.Elapsed, null);
+            return new TaskRunOutcome(true, false, result.Message, written, clock.Elapsed);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            return new TaskRunOutcome(false, true, CancelledMessage, null, clock.Elapsed, Kept(jobDir));
+            TryDeleteDir(jobDir); // stopped runs delete their temp dir too
+            return new TaskRunOutcome(false, true, CancelledMessage, null, clock.Elapsed);
         }
         catch (Exception ex) // queue robustness: one task's crash must not take down the queue
         {
-            return new TaskRunOutcome(false, false, ex.Message, null, clock.Elapsed, Kept(jobDir));
+            TryDeleteDir(jobDir);
+            return new TaskRunOutcome(false, false, ex.Message, null, clock.Elapsed);
         }
     }
 
@@ -201,36 +188,24 @@ public sealed class TaskQueueRunner
             ? s.CustomTempDir
             : Path.GetTempPath();
 
-    /// <summary>Deletes every &lt;TempBase&gt;\Jsr4Z8\&lt;dir&gt; whose LastWriteTimeUtc is older
-    /// than <see cref="DiagnosticDirMaxAgeDays"/> days (the ~3 GB diagnostic dirs kept
-    /// by failed/stopped runs — final-review finding 4), skipping the given job id and
-    /// swallowing all IO errors: best effort, never fatal to a run. The temp base is
-    /// resolved from the CURRENT settings at sweep time. Internal for the mtime-based
-    /// unit test (fabricated old/new dirs).</summary>
-    internal static void SweepStaleDiagnosticDirs(AppSettings settings, string? excludeJobId = null)
+    /// <summary>Startup sweep: deletes EVERY &lt;TempBase&gt;\Jsr4Z8\&lt;dir&gt; regardless of
+    /// age. Failed/stopped runs now delete their job dir themselves (失败即删), so
+    /// anything still under the root is debris from a crashed/killed process. Best
+    /// effort — every IO error is swallowed, never fatal to a launch. Public: the app
+    /// wires it once at entry (a later task).</summary>
+    public static void SweepTempRoot(AppSettings settings)
     {
         try
         {
             string root = Path.Combine(ResolveTempBase(settings), "Jsr4Z8");
             if (!Directory.Exists(root))
                 return;
-            DateTime cutoff = DateTime.UtcNow - TimeSpan.FromDays(DiagnosticDirMaxAgeDays);
             foreach (string dir in Directory.EnumerateDirectories(root))
-            {
-                if (string.Equals(Path.GetFileName(dir), excludeJobId, StringComparison.OrdinalIgnoreCase))
-                    continue;
-                try
-                {
-                    if (Directory.GetLastWriteTimeUtc(dir) < cutoff)
-                        Directory.Delete(dir, recursive: true);
-                }
-                catch (IOException) { }
-                catch (UnauthorizedAccessException) { }
-            }
+                TryDeleteDir(dir);
         }
         catch (Exception)
         {
-            // The sweep must never take a run down with it.
+            // The sweep must never take a launch down with it.
         }
     }
 
@@ -253,7 +228,19 @@ public sealed class TaskQueueRunner
         return false;
     }
 
-    private static string? Kept(string jobDir) => Directory.Exists(jobDir) ? jobDir : null;
+    /// <summary>Best-effort recursive delete — the temp cleanup on every terminal
+    /// outcome. A locked/missing dir must never surface as an error of its own
+    /// (DirectoryNotFoundException is an IOException, so a never-created job dir is
+    /// swallowed too).</summary>
+    private static void TryDeleteDir(string dir)
+    {
+        try
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
 
     /// <summary>Appends one finalizer warning line to the run's job.log. Best effort —
     /// a locked/missing log must never fail a run that is about to succeed.</summary>

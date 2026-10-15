@@ -123,7 +123,7 @@ public class E2eTests
     {
         string state = outcome.Success ? "Success" : outcome.Cancelled ? "Cancelled" : "Failed";
         Ev($"{label}: {state}, 耗时 {outcome.Elapsed.TotalSeconds:F1}s, 消息「{outcome.Message}」, " +
-           $"输出 {outcome.OutputPath ?? "-"}, 诊断目录 {outcome.DiagnosticDir ?? "-"}");
+           $"输出 {outcome.OutputPath ?? "-"}");
         lock (capture.Lines)
             Ev($"{label}: 日志 {capture.Lines.Count} 行, V12 进度 {capture.V12ProgressLines} 条, " +
                $"导出 ETA 进度 {capture.EtaProgressLines} 条, 峰值百分比 {capture.MaxPercent}%");
@@ -368,11 +368,11 @@ public class E2eTests
         }
     }
 
-    // ---- Step 3b: stop mid-run kills the backend tree, keeps temp ----
+    // ---- Step 3b: stop mid-run kills the backend tree, deletes temp ----
 
     [Fact]
     [Trait("Category", "E2E")]
-    public async Task StopMidRun_CancelsWithin5Seconds_NoBackendLeftover_TempKept()
+    public async Task StopMidRun_CancelsWithin5Seconds_NoBackendLeftover_TempDeleted()
     {
         if (!Enabled)
         {
@@ -397,8 +397,11 @@ public class E2eTests
         Assert.StartsWith("已停止", outcome.Message);
         Assert.True(stopWatch.Elapsed <= TimeSpan.FromSeconds(5.5),
             $"停止耗时 {stopWatch.Elapsed.TotalSeconds:F1}s > 5s");
-        Assert.NotNull(outcome.DiagnosticDir);
-        Assert.True(Directory.Exists(outcome.DiagnosticDir!), "停止后临时目录应保留");
+        // 失败/停止即删: the run used the default temp settings, so its job dir lived
+        // under %TEMP%\Jsr4Z8\<jobId> — nothing may remain under that root.
+        string tempRoot = Path.Combine(Path.GetTempPath(), "Jsr4Z8");
+        Assert.True(!Directory.Exists(tempRoot) || !Directory.EnumerateDirectories(tempRoot).Any(),
+            $"停止后临时目录应被删除，仍残留子目录: {tempRoot}");
 
         // No backend process leftover (tree kill through the harness; the forced
         // processes vanish from tasklist within seconds of driver teardown)

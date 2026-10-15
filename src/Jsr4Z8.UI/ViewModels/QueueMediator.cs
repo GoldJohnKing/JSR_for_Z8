@@ -14,9 +14,9 @@ namespace Jsr4Z8.UI.ViewModels;
 /// <see cref="IDispatcher"/> seam (Avalonia in the app, inline in headless tests), and
 /// the run outcome mapped to <see cref="TaskGroupViewModel.GoDone"/>/
 /// <see cref="TaskGroupViewModel.GoFailed"/> with humanized messages. Progress scale:
-/// payload extraction 0-5%, backend percent 5-100 (linear); a failure that kept the
-/// job temp dir appends the 诊断目录 hint to the card's error message; a stopped run
-/// lands in Failed with stage 已停止 (Retry available). UI progress throttling
+/// payload extraction 0-5%, backend percent 5-100 (linear); a failure surfaces the
+/// humanized message only; a stopped run lands in Failed with stage 已停止
+/// (Retry available). UI progress throttling
 /// (post-release fix): the backend streams ~20 progress lines/s with rotating subtask
 /// stage names, which made the stage label flicker — ReportProgress/StageText updates
 /// now pass a time gate (<see cref="UiProgressGate"/> via an injectable
@@ -31,7 +31,6 @@ public sealed class QueueMediator : ITaskRunner
     private const int BackendPercentBase = 5;
     private const int BackendPercentSpan = 95;
     private const string StoppedStage = "已停止";
-    private const string DiagnosticPrefix = "诊断目录：";
 
     /// <summary>Default UI progress gate: at most ~5 card updates per second.</summary>
     public static readonly TimeSpan UiProgressGate = TimeSpan.FromMilliseconds(200);
@@ -99,7 +98,7 @@ public sealed class QueueMediator : ITaskRunner
             }
             catch (Exception ex) // engine contract says it never throws; backstop so a card can never stick in Running
             {
-                ApplyOutcome(vm, new TaskRunOutcome(false, false, ex.Message, null, TimeSpan.Zero, null));
+                ApplyOutcome(vm, new TaskRunOutcome(false, false, ex.Message, null, TimeSpan.Zero));
             }
         }
         finally
@@ -204,9 +203,7 @@ public sealed class QueueMediator : ITaskRunner
             }
             else
             {
-                string message = outcome.DiagnosticDir is { } dir
-                    ? $"{outcome.Message}\n{DiagnosticPrefix}{dir}"
-                    : outcome.Message;
+                string message = outcome.Message;
                 if (outcome.Cancelled)
                     vm.ReportProgress(vm.Progress, StoppedStage); // stopped-task ruling: stage 已停止, then Failed
                 vm.GoFailed(message);
