@@ -492,9 +492,15 @@ public partial class TaskGroupViewModel : ObservableObject
     /// path (a card built without full metadata) falls back to a synchronous read here.</summary>
     private void RecomputeAndApply()
     {
+        // Distinct (Task 4 pre-step, controller ruling 1a): two overlapping
+        // AddFilesAsync calls each dedupe against the pre-add snapshot, so both can
+        // AddRange the same paths — the display projection dedupes OrdinalIgnoreCase
+        // (stable: keeps first occurrence, so the natural order stands) and a
+        // duplicate frame can never materialize into Group/chips.
         List<string> display = _framePaths
             .OrderBy(Path.GetFileName, NaturalFileNameComparer.Instance)
             .ThenBy(p => p, StringComparer.OrdinalIgnoreCase)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         _framePaths.Clear();
         _framePaths.AddRange(display);
@@ -567,7 +573,19 @@ public partial class TaskGroupViewModel : ObservableObject
             return cached;
         if (_readErrors.TryGetValue(path, out string? error))
             throw new RawReadException(error);
-        RawMetadata m = _read(path);
+        RawMetadata m;
+        try
+        {
+            m = _read(path);
+        }
+        catch (RawReadException ex)
+        {
+            // Record before rethrowing (Task 4 pre-step, controller ruling 1b): the
+            // fallback real read happens at most once per path — every later
+            // ReadCached call replays the recorded failure instead of re-reading.
+            _readErrors[path] = ex.Message;
+            throw;
+        }
         _meta[path] = m;
         return m;
     }

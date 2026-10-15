@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Jsr4Z8.Core;
 using Jsr4Z8.Core.Model;
 using Jsr4Z8.Core.Ptc;
@@ -491,6 +492,99 @@ public class TaskGroupVmTests
         Assert.Equal("无法读取", vm.FrameChips[6].InfoText);
     }
 
+    /// <summary>Task 4 pre-step (controller ruling 1b): ReadCached's fallback real read
+    /// must record its failure into _readErrors BEFORE rethrowing — so the same
+    /// uncached-unreadable path is read from disk exactly once and every later
+    /// ReadCached call replays the recorded exception instead of re-reading (the
+    /// rethrow itself is what PickReference/Validate already tolerate: the frame is
+    /// flagged 无法读取, never crashes the card).</summary>
+    [Fact]
+    public void ReadCached_FallbackReadFailure_RecordsAndRethrows()
+    {
+        string failing = Frames[6];
+        int reads = 0;
+        Func<string, RawMetadata> read = path =>
+        {
+            if (string.Equals(path, failing, StringComparison.OrdinalIgnoreCase))
+            {
+                reads++;
+                throw new RawReadException("EXIF 解析失败");
+            }
+            return Meta();
+        };
+        // Card built Ready with 6 of 7 frames cached; the failing 7th is uncached, so
+        // the next recompute falls through to the real reader for it.
+        var vm = new TaskGroupViewModel(new TaskGroup(Frames), ValidResult,
+            metadata: Frames.Take(6).ToDictionary(f => f, _ => Meta(), StringComparer.OrdinalIgnoreCase),
+            read: read);
+
+        vm.RemoveFile(vm.FrameChips[0]);                    // any set change forces a recompute
+
+        Assert.Equal(1, reads);                            // 读盘恰一次，之后走 _readErrors 回放
+        Assert.Equal(TaskState.Blocked, vm.State);          // rethrow → validator flags 无法读取
+        Assert.Contains("无法读取", vm.IssuesText);
+        Assert.Equal("无法读取", vm.FrameChips[^1].InfoText);
+    }
+
+    /// <summary>Task 4 pre-step (controller ruling 1a): overlapping concurrent
+    /// AddFilesAsync calls each dedupe against the pre-add snapshot, so both land the
+    /// same paths — the recompute's display projection must never let a duplicate
+    /// frame materialize. The read seam blocks on a TaskCompletionSource so both calls
+    /// are provably past their dedupe check (and mid-read) before either merges; the
+    /// merges themselves run on a single-threaded pump (the UI dispatcher's
+    /// serialization contract — the VM is UI-thread-affine for mutations), so the
+    /// double AddRange lands back-to-back exactly as it would behind the real dispatcher.</summary>
+    [Fact]
+    public async Task ConcurrentAdd_SamePath_NoDuplicateFrame()
+    {
+        string[] first3 = Frames.Take(3).ToArray();
+        string[] rest = Frames.Skip(3).ToArray();
+        var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Func<string, RawMetadata> read = _ =>
+        {
+            gate.Task.Wait();
+            return Meta();
+        };
+        var vm = new TaskGroupViewModel(new TaskGroup(first3),
+            new ValidationResult(false,
+                new[] { new ValidationIssue("", IssueKind.FrameCount,
+                    $"帧数不符：任务组需要 7 帧，实际 {first3.Length} 帧") },
+                null),
+            read: read);
+
+        var pump = new SerialPump();
+        var done = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Exception? fault = null;
+        var uiThread = new Thread(() =>
+        {
+            SynchronizationContext.SetSynchronizationContext(pump);
+            try
+            {
+                Task a = vm.AddFilesAsync(rest);                // blocks in its background read
+                Task b = vm.AddFilesAsync(rest);                // dedupes vs the SAME pre-add snapshot
+                gate.SetResult(true);
+                pump.RunUntilComplete(a, b);                    // merges serialize, one at a time
+            }
+            catch (Exception ex)
+            {
+                fault = ex;
+            }
+            finally
+            {
+                done.SetResult(true);
+            }
+        });
+        uiThread.Start();
+        await done.Task;
+
+        Assert.Null(fault);
+        Assert.Equal(TaskState.Ready, vm.State);
+        Assert.Equal(7, vm.FrameChips.Count);                   // 双份 fresh 不得产出重复帧
+        Assert.Equal(7, vm.Group.FramePaths.Count);
+        Assert.Equal(Frames, vm.FrameChips.Select(c => c.Path).ToArray());
+        Assert.Equal(Frames, vm.Group.FramePaths);
+    }
+
     /// <summary>Automatic reference recomputes on add: a 3-frame bracket's middle
     /// exposure (Frames[1]) yields to the 7-frame set's middle exposure (Frames[3])
     /// once the remaining 4 arrive — the same exposure-middle rule the creator used.</summary>
@@ -551,5 +645,26 @@ public class ThemeServiceTests
         theme.Cycle();
         theme.Apply();                                 // Application.Current is null under xUnit
         Assert.Equal(ThemeMode.Light, theme.Mode);
+    }
+}
+
+/// <summary>Single-threaded SynchronizationContext for ConcurrentAdd_SamePath_
+/// NoDuplicateFrame: await continuations posted here execute one at a time on the
+/// pumping thread — the same serialization the Avalonia UI dispatcher gives the VM's
+/// UI-thread-affine mutations in production (without it the two merge sections would
+/// race on the shared state, which the real app never allows to happen).</summary>
+internal sealed class SerialPump : SynchronizationContext
+{
+    private readonly BlockingCollection<(SendOrPostCallback Callback, object? State)> _queue = new();
+
+    public override void Post(SendOrPostCallback d, object? state) => _queue.Add((d, state));
+
+    public void RunUntilComplete(params Task[] tasks)
+    {
+        while (!Task.WhenAll(tasks).IsCompleted)
+        {
+            (SendOrPostCallback callback, object? state) = _queue.Take();
+            callback(state);
+        }
     }
 }

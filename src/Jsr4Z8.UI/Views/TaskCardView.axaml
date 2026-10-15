@@ -2,13 +2,16 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:Avalonia.Data.Converters"
              xmlns:vm="clr-namespace:Jsr4Z8.UI.ViewModels"
+             xmlns:views="clr-namespace:Jsr4Z8.UI.Views"
              x:Class="Jsr4Z8.UI.Views.TaskCardView"
              x:DataType="vm:TaskGroupViewModel"
              x:CompileBindings="True">
     <!-- One task-group card (docs/design/card-states.html 六态). The root border carries
          the st-ready/st-running/st-done/st-failed/st-blocked class (maintained from
-         code-behind on State changes) that colors the status pill; action buttons stay
-         pure CanExecute and chips forward clicks to SetReferenceCommand. -->
+         code-behind on State changes) that colors the status pill, plus st-droptarget
+         while a NEF drag hovers an editable card (卡内拖放补齐). Chips are display+hover
+         only; the per-chip ★/✕ mini buttons and the commands' own CanExecute carry the
+         Ready/Blocked-only edit gating. -->
     <UserControl.Resources>
         <!-- Feather-style line icons (MIT), stroke rendered at usage site -->
         <StreamGeometry x:Key="Icon.Play">M5 3l14 9-14 9V3z</StreamGeometry>
@@ -16,6 +19,9 @@
         <StreamGeometry x:Key="Icon.RotateCw">M23 4v6h-6M20.49 15a9 9 0 1 1-2.12-9.36L23 10</StreamGeometry>
         <StreamGeometry x:Key="Icon.External">M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3</StreamGeometry>
         <StreamGeometry x:Key="Icon.Trash">M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6</StreamGeometry>
+        <StreamGeometry x:Key="Icon.FolderPlus">M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2zM12 11v6M9 14h6</StreamGeometry>
+        <StreamGeometry x:Key="Icon.Star">M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z</StreamGeometry>
+        <StreamGeometry x:Key="Icon.X">M18 6 6 18M6 6l12 12</StreamGeometry>
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -104,14 +110,14 @@
             <Setter Property="FontWeight" Value="Medium" />
         </Style>
 
-        <!-- 文件芯片：基准=主色底白字带 ★，其余 Fill0；点击换基准 -->
+        <!-- 文件芯片：基准=主色底白字带实心★，其余 Fill0 空心★；本体仅展示+悬浮，
+             换基准/移除走芯片内迷你按钮 -->
         <Style Selector="Border.chip">
             <Setter Property="Background" Value="{DynamicResource SemiColorFill0}" />
             <Setter Property="CornerRadius" Value="999" />
             <Setter Property="Padding" Value="9,2" />
             <Setter Property="Margin" Value="0,0,6,6" />
             <Setter Property="MinHeight" Value="22" />
-            <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Border.chip TextBlock">
             <Setter Property="FontSize" Value="12" />
@@ -128,6 +134,59 @@
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
 
+        <!-- 芯片内迷你动作按钮（★设基准 / ✕移除）：行尾动作的芯片内微缩版，透明扁平常显 -->
+        <Style Selector="Button.chip-action">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="2" />
+            <Setter Property="MinWidth" Value="20" />
+            <Setter Property="MinHeight" Value="20" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <!-- 悬停仅做底色提亮（芯片自身悬停已是 Fill1，这里用 Fill2 保对比） -->
+        <Style Selector="Button.chip-action:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SemiColorFill2}" />
+        </Style>
+        <Style Selector="Button.chip-action:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SemiColorFill2}" />
+        </Style>
+        <!-- ★：非基准=Text3 空心；基准=#F0A020 实心（Blocked 橙警告色系一致） -->
+        <Style Selector="Button.chip-action Path.star-icon">
+            <Setter Property="Stroke" Value="{DynamicResource SemiColorText3}" />
+            <Setter Property="StrokeThickness" Value="1.7" />
+        </Style>
+        <Style Selector="Button.chip-action.reference Path.star-icon">
+            <Setter Property="Fill" Value="#F0A020" />
+            <Setter Property="Stroke" Value="#F0A020" />
+        </Style>
+        <Style Selector="Button.chip-star">
+            <Setter Property="ToolTip.Tip" Value="设为基准帧" />
+        </Style>
+        <Style Selector="Button.chip-star.reference">
+            <Setter Property="ToolTip.Tip" Value="当前基准帧" />
+        </Style>
+        <!-- ✕：Text3 常态，悬停转危险色（row-action-danger 同式）；基准胶囊里用白 -->
+        <Style Selector="Button.chip-action Path.x-icon">
+            <Setter Property="Stroke" Value="{DynamicResource SemiColorText3}" />
+            <Setter Property="StrokeThickness" Value="1.7" />
+        </Style>
+        <Style Selector="Border.chip.reference Path.x-icon">
+            <Setter Property="Stroke" Value="White" />
+        </Style>
+        <Style Selector="Button.chip-action:pointerover Path.x-icon">
+            <Setter Property="Stroke" Value="{DynamicResource SemiColorDanger}" />
+        </Style>
+
+        <!-- 拖放悬停高亮（卡内补齐）：主色描边 + 主色浅底 -->
+        <Style Selector="Border.card.st-droptarget">
+            <Setter Property="Background" Value="{DynamicResource SemiColorPrimaryLight}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SemiColorPrimary}" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+
         <!-- 校验/运行错误条 -->
         <Style Selector="Border.msg">
             <Setter Property="Background" Value="{DynamicResource SemiColorDangerLight}" />
@@ -141,7 +200,9 @@
         </Style>
     </UserControl.Styles>
 
-    <Border x:Name="Root" Classes="card" ClipToBounds="True">
+    <!-- 卡根同时是拖放目标（卡内补齐）：含 NEF 且可编辑时 Copy+高亮；Drop 先吞再补齐，
+         避免冒泡到窗口级新建组（路由事件在 code-behind AddHandler 接线） -->
+    <Border x:Name="Root" Classes="card" ClipToBounds="True" DragDrop.AllowDrop="True">
         <StackPanel>
             <!-- 贴卡顶的 4px 进度条（仅运行中，同 Save_Z8 总进度样式） -->
             <ProgressBar IsVisible="{Binding IsRunning}"
@@ -194,6 +255,15 @@
                             <TextBlock Text="打开" FontSize="12" />
                         </StackPanel>
                     </Button>
+                    <Button Classes="Small" Click="OnAddRawFiles" IsVisible="{Binding IsEditable}"
+                            ToolTip.Tip="向本组补齐 RAW 帧">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Viewbox Width="13" Height="13">
+                                <Path Classes="icon" Data="{StaticResource Icon.FolderPlus}" />
+                            </Viewbox>
+                            <TextBlock Text="添加 RAW…" FontSize="12" />
+                        </StackPanel>
+                    </Button>
                     <Button Classes="Small" Command="{Binding RemoveCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <Viewbox Width="13" Height="13">
@@ -205,7 +275,7 @@
                 </StackPanel>
             </Grid>
 
-            <!-- 芯片行：★基准 + 其余帧，点击换基准 -->
+            <!-- 芯片行：★设基准 + 文件名悬浮参数 + ✕移除（仅 Ready/Blocked 可编辑） -->
             <ItemsControl x:Name="ChipsHost" ItemsSource="{Binding FrameChips}" Margin="14,2,8,0">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -214,11 +284,25 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:FrameChipViewModel">
-                        <Border Classes="chip" Classes.reference="{Binding IsReference}"
-                                PointerPressed="OnChipPointerPressed" ToolTip.Tip="点击设为基准帧">
-                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="★" FontSize="11" IsVisible="{Binding IsReference}" />
-                                <TextBlock Text="{Binding FileName}" />
+                        <Border Classes="chip" Classes.reference="{Binding IsReference}">
+                            <StackPanel Orientation="Horizontal" Spacing="3">
+                                <Button Classes="chip-action chip-star" Classes.reference="{Binding IsReference}"
+                                        Command="{ReflectionBinding $parent[views:TaskCardView].DataContext.SetReferenceCommand}"
+                                        CommandParameter="{Binding}">
+                                    <Viewbox Width="12" Height="12">
+                                        <Path Classes="star-icon" Data="{StaticResource Icon.Star}" />
+                                    </Viewbox>
+                                </Button>
+                                <TextBlock Text="{Binding FileName}" VerticalAlignment="Center"
+                                           MaxWidth="160" TextTrimming="CharacterEllipsis"
+                                           ToolTip.Tip="{Binding InfoText}" />
+                                <Button Classes="chip-action chip-x" ToolTip.Tip="移除此帧"
+                                        Command="{ReflectionBinding $parent[views:TaskCardView].DataContext.RemoveFileCommand}"
+                                        CommandParameter="{Binding}">
+                                    <Viewbox Width="12" Height="12">
+                                        <Path Classes="x-icon" Data="{StaticResource Icon.X}" />
+                                    </Viewbox>
+                                </Button>
                             </StackPanel>
                         </Border>
                     </DataTemplate>

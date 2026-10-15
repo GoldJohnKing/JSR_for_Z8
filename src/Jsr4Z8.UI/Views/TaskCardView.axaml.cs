@@ -1,6 +1,10 @@
 using System.ComponentModel;
+using System.IO;
+using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Jsr4Z8.UI.ViewModels;
 
 namespace Jsr4Z8.UI.Views;
@@ -9,9 +13,11 @@ namespace Jsr4Z8.UI.Views;
 /// Card visuals for one TaskGroupViewModel. The state classes (st-ready/st-running/
 /// st-done/st-failed/st-blocked on the root border, consumed by this control's styles)
 /// are maintained in code-behind from the VM's State because Avalonia has no
-/// string→Classes binding; everything else binds straight to the VM. The chip row's
-/// click-to-set-reference interaction forwards to SetReferenceCommand and is gated to
-/// Ready/Blocked cards (matching the command's own CanExecute).
+/// string→Classes binding; everything else binds straight to the VM. Edit interactions
+/// (★设基准/✕移除帧 via the commands' CanExecute, the chips host IsEnabled gate below)
+/// and the windowing-only concerns live here too: the card-level RAW picker (添加 RAW…)
+/// and the card drop target (卡内补齐) — the latter swallows DragOver/Drop so the
+/// window-level handlers never double-handle a card drop.
 /// </summary>
 public partial class TaskCardView : UserControl
 {
@@ -21,6 +27,11 @@ public partial class TaskCardView : UserControl
     {
         InitializeComponent();
         DataContextChanged += (_, _) => BindStateClasses();
+        // 卡内拖放补齐：拖放路由事件没有 XAML 可接线的 CLR 包装，走 AddHandler
+        //（同 MainWindow 窗口级模式）；挂在 this 上吃 Root 及其子元素的冒泡。
+        AddHandler(DragDrop.DragOverEvent, OnCardDragOver);
+        AddHandler(DragDrop.DragLeaveEvent, OnCardDragLeave);
+        AddHandler(DragDrop.DropEvent, OnCardDrop);
     }
 
     private void BindStateClasses()
@@ -47,18 +58,79 @@ public partial class TaskCardView : UserControl
         Root.Classes.Set("st-done", state == TaskState.Done);
         Root.Classes.Set("st-failed", state == TaskState.Failed);
         Root.Classes.Set("st-blocked", state == TaskState.Blocked);
-        // 换基准只在 Ready/Blocked 有意义（与 SetReferenceCommand.CanExecute 一致）；
-        // 其余状态芯片只作展示，禁掉点击免得给出死光标。
-        ChipsHost.IsEnabled = state is TaskState.Ready or TaskState.Blocked;
+        // 卡内编辑（★/✕/悬浮）只在 Ready/Blocked 有意义（与 IsEditable 一致）；
+        // 其余状态整排只作展示，禁掉点击免得给出死光标。锁定卡的拖放高亮一并清掉。
+        bool editable = state is TaskState.Ready or TaskState.Blocked;
+        ChipsHost.IsEnabled = editable;
+        if (!editable)
+            Root.Classes.Set("st-droptarget", false);
     }
 
-    /// <summary>点芯片 → 该帧设为基准（VM 自带状态守卫，这里的启用门只负责手感）。</summary>
-    private void OnChipPointerPressed(object? sender, PointerPressedEventArgs e)
+    // ---------- 卡内补齐：添加 RAW… ----------
+
+    /// <summary>头部「添加 RAW…」：NEF 多选选择器 → <see cref="TaskGroupViewModel.AddFilesAsync"/>
+    /// （同 MainWindow.OnBrowseFiles 的选择器模式，选择器逻辑放 code-behind）。</summary>
+    private async void OnAddRawFiles(object? sender, RoutedEventArgs e)
     {
-        if (sender is Border { DataContext: FrameChipViewModel chip } &&
-            DataContext is TaskGroupViewModel vm)
+        if (DataContext is not TaskGroupViewModel { IsEditable: true } vm)
+            return;
+        if (TopLevel.GetTopLevel(this)?.StorageProvider is not { } storage)
+            return;
+
+        var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            vm.SetReferenceCommand.Execute(chip);
-        }
+            Title = "添加 RAW（Nikon NEF）",
+            AllowMultiple = true,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("Nikon RAW") { Patterns = new[] { "*.nef" } }
+            }
+        });
+
+        string[] paths = FilterNefPaths(files.Select(f => f.TryGetLocalPath()));
+        if (paths.Length > 0)
+            await vm.AddFilesAsync(paths);
     }
+
+    // ---------- 卡内补齐：拖放（窗口级保持：卡未处理时冒泡新建组） ----------
+
+    private void OnCardDragOver(object? sender, DragEventArgs e)
+    {
+        e.Handled = true;
+        bool accept = DataContext is TaskGroupViewModel { IsEditable: true } && HasNefPayload(e);
+        e.DragEffects = accept ? DragDropEffects.Copy : DragDropEffects.None;
+        Root.Classes.Set("st-droptarget", accept);
+    }
+
+    private async void OnCardDrop(object? sender, DragEventArgs e)
+    {
+        // 先吞再补齐：窗口级 Drop 不再对卡上落点新建组。
+        e.Handled = true;
+        Root.Classes.Set("st-droptarget", false);
+        if (DataContext is not TaskGroupViewModel vm)
+            return;
+        string[] paths = FilterNefPaths(
+            e.Data.GetFiles()?.Select(f => f.TryGetLocalPath())
+            ?? Enumerable.Empty<string?>());
+        if (paths.Length > 0)
+            await vm.AddFilesAsync(paths);          // VM 自带 IsEditable 守卫
+    }
+
+    private void OnCardDragLeave(object? sender, DragEventArgs e)
+    {
+        Root.Classes.Set("st-droptarget", false);
+    }
+
+    /// <summary>拖放与文件选择器共用的 NEF 过滤（MainWindow 同式）：非空且扩展名 .nef。</summary>
+    private static string[] FilterNefPaths(IEnumerable<string?> paths) =>
+        paths.Where(p => !string.IsNullOrEmpty(p) && IsNef(p))
+             .Select(p => p!)
+             .ToArray();
+
+    private static bool HasNefPayload(DragEventArgs e) =>
+        e.Data.GetFiles() is { } items && items.Any(f =>
+            f.TryGetLocalPath() is { } path && IsNef(path));
+
+    private static bool IsNef(string path) =>
+        string.Equals(Path.GetExtension(path), ".nef", StringComparison.OrdinalIgnoreCase);
 }
