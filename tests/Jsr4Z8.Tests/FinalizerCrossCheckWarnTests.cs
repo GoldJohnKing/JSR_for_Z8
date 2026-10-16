@@ -4,7 +4,7 @@ using Xunit;
 namespace Jsr4Z8.Tests;
 
 /// <summary>
-/// AsShotNeutral cross-check warning (final-review finding 8): the finalizer
+/// AsShotNeutral cross-check warning: the finalizer
 /// compares the backend product's AsShotNeutral against 1/cam_mul derived from
 /// the reference NEF via LibRaw and warn-logs deviations &gt; 1e-4 — never
 /// fatal, the backend value carries. The warning path had zero coverage: a

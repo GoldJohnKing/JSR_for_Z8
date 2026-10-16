@@ -64,7 +64,7 @@ public class E2eTests
     private static string ResolveExtractedBackend()
     {
         Assert.True(Directory.Exists(PayloadManager.DefaultBackendRoot),
-            $"后端载荷根不存在: {PayloadManager.DefaultBackendRoot}（先运行 out\\Jsr4Z8_v1.0.0.exe --selftest 释放载荷）");
+            $"后端载荷根不存在: {PayloadManager.DefaultBackendRoot}（先运行 out\\Jsr4Z8_v<版本>.exe --selftest 释放载荷）");
         string[] candidates = Directory.GetDirectories(PayloadManager.DefaultBackendRoot)
             .Where(d => File.Exists(Path.Combine(d, TaskQueueRunner.EngineRelativePath)))
             .ToArray();
@@ -200,7 +200,7 @@ public class E2eTests
         Assert.Equal(42, TestTiff.U16(file, 2));
         var ifd0 = TestTiff.ParseIfd(file, TestTiff.U32(file, 4));
 
-        // IFD0 identity & attribution (probe fact #9: the tool names itself, no Artist tag)
+        // IFD0 identity & attribution (the tool names itself, no Artist tag)
         Assert.Equal("JSR for Z8", TestTiff.Ascii(ifd0.Tags[305].Value));
         Assert.False(ifd0.Tags.ContainsKey(315), "IFD0 不得携带 Artist 署名");
 
@@ -225,8 +225,8 @@ public class E2eTests
         Assert.Equal(24u, TestTiff.U32(aa, 4));
         Assert.Equal(11024u, TestTiff.U32(aa, 8));
         Assert.Equal(16536u, TestTiff.U32(aa, 12));
-        // Post-release fix 8: DefaultCropOrigin is ActiveArea-relative (DNG spec) —
-        // full-frame pair writes (0,0), never the pre-fix absolute (24,16).
+        // DefaultCropOrigin is ActiveArea-relative (DNG spec) —
+        // full-frame pair writes (0,0), never an absolute (24,16).
         Assert.Equal(0u, TestTiff.U32(raw.Tags[50719].Value, 0));
         Assert.Equal(0u, TestTiff.U32(raw.Tags[50719].Value, 8));
         Assert.Equal(16512u, TestTiff.U32(raw.Tags[50720].Value, 0));
@@ -237,8 +237,8 @@ public class E2eTests
         Assert.True(ifd0.Tags.ContainsKey(50731), "BaselineNoise missing");
         Assert.True(ifd0.Tags.ContainsKey(50732), "BaselineSharpness missing");
 
-        // AsShotNeutral = 1/cam_mul of the reference frame (probe fact #8 locked the
-        // DSC_7576 values [0.560175, 1.0, 0.557734]; captures with their own as-shot
+        // AsShotNeutral = 1/cam_mul of the reference frame
+        // (DSC_7576 values [0.560175, 1.0, 0.557734]; captures with their own as-shot
         // WB pass the expectation in).
         var asn = ifd0.Tags[50728].Value;
         Assert.Equal(3u, ifd0.Tags[50728].Count);
@@ -295,8 +295,8 @@ public class E2eTests
         Assert.InRange(mean, 100, 65000); // non-trivial, neither black nor clipped white
 
         // LibRaw metadata probe (evidence only, no assert): this LibRaw fork REJECTS
-        // every 3-sample LinearRaw DNG with -2 — measured 2026-10-14 on the backend's
-        // own tifffile products too (probe1/roi_sample), so it is a reader limitation,
+        // every 3-sample LinearRaw DNG with -2 — the backend's own
+        // tifffile products are rejected too, so it is a reader limitation,
         // not a product defect. Pixel verification above goes through the LJ decoder.
         Ev($"LibRaw {LibRawNative.GetVersion()}");
         IntPtr h = LibRawNative.OpenRaw(dngPath, out int error);
@@ -355,7 +355,7 @@ public class E2eTests
 
         // No backend process leftover (tree kill through the harness; the forced
         // processes vanish from tasklist within seconds of driver teardown). The
-        // payload carries no top-level Bridge shell (Task 3) and the direct
+        // payload carries no top-level Bridge shell and the direct
         // invocation never spawns one — jsr_backend.exe is the only image to watch.
         double goneBackend = await WaitProcessGoneSeconds("jsr_backend.exe", TimeSpan.FromSeconds(15));
         Assert.True(goneBackend >= 0, "jsr_backend.exe 停止后 15s 内未退出");

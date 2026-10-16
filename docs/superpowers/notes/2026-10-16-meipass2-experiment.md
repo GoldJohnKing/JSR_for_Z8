@@ -135,6 +135,8 @@ RN=14.07 BL=1008 FW=1102.2，其余开关按观测值硬编码；新鲜输出目
 
 ## 7. 推荐实施形态（若立项）与风险清单
 
+> 已按「打包期预解包（EnginePreextractor）入载荷 resources\jsr_backend_runtime\，释放于 %LOCALAPPDATA%\JSR4Z8\backend\<hash16>，_PYI_* 注入直跑」形态实施（AGENT.md §3/§4）；本节为当时的候选草案，保留作背景。
+
 **形态**（对应 §2 已验证的解包器与 §3 已验证的注入）：
 1. **内容寻址持久目录**：`%LOCALAPPDATA%\JSR4Z8\engine-extract\<sha256(exe)[:8]>\`（本实验即此命名，`5e315a17`）。首跑或版本变更时由 C# 侧解包器（cookie→TOC→b 条目 zlib，.NET `ZLibStream`；TOC 名内 `\` 分隔符直接采纳）写入新目录后原子换引用；旧目录等引用归零再删（PayloadManager 式：作业队列串行 + 引用计数即可，无需文件锁）。完整性护栏：解包后对 manifest（文件数/总字节，可选逐文件哈希）断言，失败即回退无注入模式。
 2. **环境注入点**：引擎 spawn 的 ProcessStartInfo 上设三元组：`_PYI_ARCHIVE_FILE=<jsr_backend.exe 全路径>`、`_PYI_APPLICATION_HOME_DIR=<持久目录>`、`_PYI_PARENT_PROCESS_LEVEL=0`。**必须整组设置**——缺 `_PYI_ARCHIVE_FILE` 时引导器会剥掉另两个（§1.2），静默退化为现行解压行为（无害但失去收益；可在 E2E 断言「注入跑后 %TEMP% 无新 `_MEI`」防退化）。

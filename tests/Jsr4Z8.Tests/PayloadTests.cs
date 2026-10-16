@@ -8,18 +8,18 @@ using Xunit;
 namespace Jsr4Z8.Tests;
 
 /// <summary>
-/// Task 10: payload pack → extract → verify → self-heal pipeline, using the SAME
+/// Payload pack → extract → verify → self-heal pipeline, using the SAME
 /// PayloadPacker code the release packer tool (tools/pack-payload) uses. The tests
-/// build a minimal fake payload in temp dirs — the real ~393 MB backend payload is
-/// never committed or embedded into test builds (Task 15 packs it at release time).
+/// build a minimal fake payload in temp dirs — the real ~202 MB backend payload is
+/// never committed or embedded into test builds (build.bat packs it at release time).
 /// Windows-host tests: the manager writes/renames/deletes real directories.
-/// Task 1 (2026-10-16 预解包): the fake engine is a synthetic mini PyInstaller onefile
+/// The fake engine is a synthetic mini PyInstaller onefile
 /// exe (CArchive fixture builder below); every pack pre-extracts it through
 /// EnginePreextractor (tool project — referenced from the test csproj) exactly like
 /// tools/pack-payload does, so the manifest carries the resources\jsr_backend_runtime\
 /// tree instead of the onefile exe itself.
-/// Task 1 (2026-10-16 薄档案): the staged tree exe is a THIN copy — every b-entry
-/// body range zeroed at pack time (probe F1 form; the source onefile exe is never modified).
+/// The staged tree exe is a THIN copy — every b-entry
+/// body range zeroed at pack time (the source onefile exe is never modified).
 /// </summary>
 public class PayloadTests : IClassFixture<TestTemp>
 {
@@ -39,7 +39,7 @@ public class PayloadTests : IClassFixture<TestTemp>
         public void Report(double value) => Reports.Add(value);
     }
 
-    // ---- Task 1（2026-10-16 预解包）: 合成微型 CArchive 夹具 ----
+    // ---- 合成微型 CArchive 夹具 ----
 
     /// <summary>载荷内预解包引擎树前缀（与 <see cref="PayloadPacker.EngineRuntimeDir"/> 契约一致的 OS 分隔符拼写）。</summary>
     private const string RuntimeTreePrefix = "resources\\jsr_backend_runtime\\";
@@ -127,7 +127,7 @@ public class PayloadTests : IClassFixture<TestTemp>
         stream.Write(buffer);
     }
 
-    // ---- Task 1（2026-10-16 薄档案）: 变换形检 helpers（测试侧独立解析，不复用被测代码）----
+    // ---- 变换形检 helpers（测试侧独立解析，不复用被测代码）----
 
     /// <summary>独立布局读取出的 TOC 条目（类型/名/体偏移/体长）。</summary>
     private sealed record TocLayoutEntry(char Type, string Name, long Pos, long CSize);
@@ -302,7 +302,7 @@ public class PayloadTests : IClassFixture<TestTemp>
         Assert.True(File.Exists(payload.PayloadBin), "payload.bin written");
         Assert.True(File.Exists(payload.ManifestJson), "payload.manifest.json written");
 
-        // 预解包形态（Task1，2026-10-16 用户裁定）：onefile exe 不再整体入载荷，取而代之的是
+        // 预解包形态：onefile exe 不整体入载荷，取而代之的是
         // 预解包树 resources\jsr_backend_runtime\（4 个 b 条目 + 引擎 exe 本体拷贝）+ notice.txt。
         Assert.Equal(6, payload.Manifest.Files.Count);
         Assert.Equal(
@@ -377,7 +377,7 @@ public class PayloadTests : IClassFixture<TestTemp>
         {
             "Jiangtherapee Bridge.exe",
             "THIRD_PARTY_NOTICES.md",
-            // 预解包替代（Task1，2026-10-16 用户裁定）：源 onefile exe 出载荷。
+            // 预解包替代：源 onefile exe 不入载荷。
             "resources/jsr_backend.exe",
             "resources/jsr_v98_k14_backend.exe",
             "resources/jsr_fast_k14_backend.exe",
@@ -457,7 +457,7 @@ public class PayloadTests : IClassFixture<TestTemp>
             File.ReadAllBytes(second.ManifestJson));
     }
 
-    // ---- Task 1（2026-10-16 预解包）: EnginePreextractor × 合成微型 CArchive ----
+    // ---- EnginePreextractor × 合成微型 CArchive ----
 
     [Fact]
     public void Extract_MiniCArchive_WritesBEntriesTreeAndThinEngineCopy()

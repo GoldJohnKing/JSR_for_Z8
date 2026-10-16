@@ -27,29 +27,21 @@ public sealed record PayloadPackResult(
 /// <summary>
 /// Packs the backend distribution into the payload pair (payload.bin +
 /// payload.manifest.json) and provides the manifest/archive readers used by
-/// <see cref="PayloadManager"/> for extraction. Shared library code: the release packer
-/// tool (tools/pack-payload, invoked by the release script) and the tests
-/// (fake 2-file payloads in temp dirs) both go through it — the real ~393 MB payload is
-/// never committed or embedded into test builds.
+/// <see cref="PayloadManager"/> for extraction. Shared library code: the release
+/// packer tool (tools/pack-payload, invoked by build.bat) and the tests (fake
+/// payloads in temp dirs) both go through it — the real ~202 MB payload is never
+/// committed or embedded into test builds.
 ///
-/// Scanned from &lt;srcDir&gt; (byte-exact constraint) plus a pre-extracted engine tree
-/// supplied by the caller: the resources/ tree minus the exclusion list
-/// (<see cref="IsExcluded"/>) — the onefile engine resources\jsr_backend.exe is no
-/// longer embedded whole (预解包替代——2026-10-16 用户裁定，docs/superpowers/notes/
-/// 2026-10-16-meipass2-experiment.md 为证): tools/pack-payload pre-extracts its embedded
-/// PyInstaller CArchive (EnginePreextractor) into a staged tree that <see cref="Pack"/>
-/// maps under resources\jsr_backend_runtime\ — thinned jsr_backend.exe copy at the
-/// tree root included (see the disclosure on the whitelist's onefile entry), the
-/// runtime engine source (the _PYI_* triple runs the tree's exe against
-/// the tree: zero %TEMP% _MEI). The onefile exe itself is an ExactPath exclusion so a
-/// whitelist regression cannot smuggle it back in; so is the top-level
-/// "Jiangtherapee Bridge.exe" shell. assistant 单形态 7 帧锁定 →
-/// K14 引擎不携带；manual 标定 → z8_presets 不携带；onefile 自解压实证后 _internal 整树
-/// 剥离（含先前单列的 Tcl/Tk、ffmpeg 视频 DLL、wgpu 测试残留），连同从未 spawn 的
-/// raw_bridge/jxl_worker 工具及其 libjxl/mingw DLL 家族（探针 2026-10-16 §3/§4）；
-/// THIRD_PARTY_NOTICES.md 不再打包（许可仍随 resources/licenses 分发）。Everything else in
+/// Payload contents: the resources/ tree of &lt;srcDir&gt; (byte-exact) minus the
+/// exclusion list (<see cref="IsExcluded"/> — rationale per entry there), plus
+/// the pre-extracted engine runtime tree mapped under resources\jsr_backend_runtime\
+/// (tools/pack-payload's EnginePreextractor output, including the thinned engine
+/// exe copy at the tree root; runtime contract: the _PYI_* triple runs the
+/// tree's exe against the tree — zero %TEMP% _MEI; see
+/// docs/superpowers/notes/2026-10-16-meipass2-experiment.md). Everything else in
 /// the source package (README.md, DeepSeek助手使用说明.md, FILES-SHA256.json,
-/// ThirdPartySources/, THIRD_PARTY_NOTICES.md, the Bridge shell) is not part of the payload.
+/// ThirdPartySources/, THIRD_PARTY_NOTICES.md — licenses ship in resources/licenses
+/// — and the Bridge shell) is not part of the payload.
 ///
 /// payload.bin layout (all integers little-endian):
 ///   u32  magic 0x3142504A (bytes spell "JPB1")
@@ -68,8 +60,7 @@ public static class PayloadPacker
     /// <summary>
     /// 载荷内预解包引擎树的目录前缀（相对后端根；正斜杠拼写与排除清单约定一致，组路径时按 OS 分隔符）。
     /// <see cref="Pack"/> 把调用方预解包好的引擎树（EnginePreextractor.Extract 输出）整树映射到其下，
-    /// 含树根薄化的 jsr_backend.exe 本体拷贝（b 体清零，见排除清单同款披露）。运行时契约（计划
-    /// docs/superpowers/plans/2026-10-16-preextract-payload.md）：
+    /// 含树根薄化的 jsr_backend.exe 本体拷贝（b 体清零）。运行时契约：
     /// _PYI_ARCHIVE_FILE=&lt;释放根&gt;\resources\jsr_backend_runtime\jsr_backend.exe、
     /// _PYI_APPLICATION_HOME_DIR=&lt;释放根&gt;\resources\jsr_backend_runtime。
     /// </summary>
@@ -100,16 +91,16 @@ public static class PayloadPacker
 
     /// <summary>
     /// Payload exclusion list (paths relative to the backend source root, '/' separators,
-    /// matched case-insensitively — Windows source trees). Ruling per entry:
+    /// matched case-insensitively — Windows source trees). Rationale per entry:
     /// </summary>
     private static readonly (ExclusionKind Kind, string Pattern)[] ExcludedPayloadEntries =
     {
-        // 预解包替代——2026-10-16 用户裁定，实验文档为证（docs/superpowers/notes/2026-10-16-meipass2-experiment.md）：
-        // onefile exe 不再整体入载荷。打包期 EnginePreextractor（tools/pack-payload）把其内嵌
-        // CArchive 解成文件树（含薄化 exe 本体拷贝——随包引擎 exe 为薄化改造副本：b 体清零，
-        // 打包期变换；原件=reference/ 树 onefile exe 未动；评估 docs/superpowers/notes/
-        // 2026-10-16-thin-archive-probe.md 为证）经 resources\jsr_backend_runtime\ 前缀入载荷，
-        // 运行时 _PYI_* 三元组直跑树内引擎——零 %TEMP% _MEI。本 ExactPath 挡住 onefile 整体重嵌回潮。
+        // onefile exe 不整体入载荷：打包期 EnginePreextractor 把其内嵌 CArchive 解成
+        // 文件树（含薄化 exe 本体拷贝：b 体清零，长度不变，打包期变换；原件=reference/
+        // 树 onefile exe 未动）经 resources\jsr_backend_runtime\ 前缀入载荷，运行时
+        // _PYI_* 三元组直跑树内引擎——零 %TEMP% _MEI。本 ExactPath 挡住 onefile 整体重嵌回潮。
+        // （机制实证 docs/superpowers/notes/2026-10-16-meipass2-experiment.md、
+        // 2026-10-16-thin-archive-probe.md）
         (ExclusionKind.ExactPath, "resources/jsr_backend.exe"),
         // Top-level Bridge shell: the GUI invokes the engine directly,
         // so the shell is dead weight — this ExactPath entry keeps a future whitelist
@@ -127,7 +118,7 @@ public static class PayloadPacker
         (ExclusionKind.DirectoryPrefix, "resources/_internal/"),
         // Never-spawned tools and their libjxl/mingw DLL family: zero literal references
         // in the engine's PYZ, our C# side never spawns the exes, and the DLL family's
-        // only importers were these two tool exes (probe doc §2/§4; r11/r12 smoke).
+        // only importers were these two tool exes (payload-trim-probe §2/§4).
         (ExclusionKind.ExactPath, "resources/raw_bridge.exe"),
         (ExclusionKind.ExactPath, "resources/jxl_worker.exe"),
         (ExclusionKind.ExactPath, "resources/libjxl.dll"),

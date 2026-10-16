@@ -8,12 +8,12 @@ using Xunit;
 namespace Jsr4Z8.Tests;
 
 /// <summary>
-/// Task 2 (direct invoke): BackendRequest.BuildArguments + the bare-line
+/// BackendRequest.BuildArguments + the bare-line
 /// ProtocolParser against the real direct-run captures in fixtures\protocol\
-/// (direct_success.log = the 2026-10-15 probe §7 archive: one full 7-frame
-/// lossless run, 324 bare engine lines, zero ASSISTANT_* envelopes, exit 0;
+/// (direct_success.log = a real full 7-frame lossless run: 324 bare engine
+/// lines, zero ASSISTANT_* envelopes, exit 0;
 /// direct_fail.log = the hand-crafted bare failure shape). The argv template is
-/// the probe-verified wire contract (docs/superpowers/notes/2026-10-15-jsr-backend-argv-probe.md
+/// the verified wire contract (docs/superpowers/notes/2026-10-15-jsr-backend-argv-probe.md
 /// §2/§5); fixture lines are used verbatim.
 /// </summary>
 public class ProtocolTests
@@ -43,11 +43,12 @@ public class ProtocolTests
     // ---- BackendRequest.BuildArguments --------------------------------------------
 
     [Fact]
-    public void BuildArguments_MatchesProbeVerifiedArgvTemplate()
+    public void BuildArguments_MatchesVerifiedArgvTemplate()
     {
-        // The exact main-chain argv the 2026-10-15 probe captured live (§2, re-verified
-        // on 2.3.27 §5): order, values, one --raw-frame per frame in group order, the
-        // Bridge-filled defaults replayed as observed constants.
+        // The exact main-chain argv captured live from a real direct run
+        // (argv-probe §2, re-verified on payload 2.3.27 §5): order, values, one
+        // --raw-frame per frame in group order, the Bridge-filled defaults
+        // replayed as observed constants.
         string[] frames =
         {
             @"D:\pics\DSC_7576.NEF", @"D:\pics\DSC_7577.NEF", @"D:\pics\DSC_7578.NEF",
@@ -93,7 +94,7 @@ public class ProtocolTests
     {
         // Rounding is the old BuildJson behavior carried over verbatim: fullwell =
         // Math.Round(ptc.FullwellE, 1, AwayFromZero); RN/BL pass through as-is. The
-        // InvariantCulture shortest form drops a trailing ".0" (probe §5: BL 1008 →
+        // InvariantCulture shortest form drops a trailing ".0" (BL 1008 →
         // "--black-level-dn 1008", table FW 9512 → "9512", not "9512.0").
         var group = new TaskGroup(new[] { @"D:\pics\a.NEF" });
         var dark = new DarkMatch(3200, BlackDn: 1008, ReadNoiseDn: 14.07, Source: "preset");
@@ -198,7 +199,7 @@ public class ProtocolTests
         Assert.Equal(324, lines.Length);
         Assert.Equal(lines.Length, events.Length); // 事件总数 = 行数
 
-        // The measured run-1 line mix (probe §7.2): 110 V12 + 87 ETA progress lines,
+        // The measured line mix: 110 V12 + 87 ETA progress lines,
         // zero envelopes anywhere.
         var progress = events.OfType<Log>().Where(e => e.Progress is not null).ToList();
         Assert.Equal(110, progress.Count(e => e.Progress!.Stage != "DNG 导出"));

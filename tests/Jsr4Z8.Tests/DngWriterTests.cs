@@ -6,10 +6,10 @@ using Xunit;
 namespace Jsr4Z8.Tests;
 
 /// <summary>
-/// Task 8: DngWriter port — NefToDngConverter.Convert on samples/DSC_7576.NEF
+/// DngWriter — NefToDngConverter.Convert on samples/DSC_7576.NEF
 /// must produce a complete lossless DNG whose structure reads back correctly
-/// (Save_Z8 tests/SaveZ8.Tests read-back pattern). Facts measured 2026-10-13
-/// on that file: 3 embedded previews (160×120 / 1620×1080 / 8256×5504),
+/// (Save_Z8 tests/SaveZ8.Tests read-back pattern). Measured on that file:
+/// 3 embedded previews (160×120 / 1620×1080 / 8256×5504),
 /// IFD0 at file offset 8, EXIF ISO 3200, NEFInfo block 8 vignette flag ≠ 0
 /// (Vignette Control ON → both OpcodeList2/3 emitted).
 /// </summary>
@@ -175,7 +175,7 @@ public class DngWriterTests
         Assert.Null(Converted.Value.Result.Error);
         string dng = Converted.Value.Dng;
 
-        // Handle-level open (Task 2 surface): product must be a readable raw
+        // Handle-level open: product must be a readable raw
         IntPtr h = LibRawNative.OpenRaw(dng, out int error);
         Assert.NotEqual(IntPtr.Zero, h);
         try

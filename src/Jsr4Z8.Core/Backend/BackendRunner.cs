@@ -4,23 +4,21 @@ using System.Text;
 namespace Jsr4Z8.Core.Backend;
 
 /// <summary>
-/// Runs one DIRECT jsr_backend.exe invocation end to end (probe §7):
-/// spawns the engine executable with the argv from the spec — no Bridge, no
-/// request.json, no config dir — with the _PYI_* triple injected (see RunAsync:
-/// the pre-extracted runtime tree runs in place, zero %TEMP% _MEI) — and
-/// streams its bare stdout lines (zero
-/// ASSISTANT_* envelopes): SRHQ progress parsing stays in ProtocolParser, every
-/// line is forwarded as LogLine and appended to the spec's log file (UTF-8,
-/// stderr lines prefixed "stderr| "). Started is synthesized at spawn (pid = the
-/// engine parent we spawned — the same-argv child it relays never gets a pid of
-/// its own on this side), Finished at exit from the parent's ExitCode plus the
-/// humanized tail extraction (SRHQ_NET_ABORT:&lt;stage&gt;|&lt;msg&gt; or a
-/// MemoryError line). Cancellation kills the whole process tree with
-/// "cmd /c taskkill /T /F /PID": every engine invocation self-respawns a
-/// same-argv child ~2s in and the tree can hold a third unnamed grandchild —
-/// killing only the spawned pid's direct child would leak them. Callbacks and
-/// log writes are serialized across the two reader tasks, so onEvent is never
-/// invoked concurrently.
+/// Runs one DIRECT jsr_backend.exe invocation end to end: spawns the engine
+/// executable with the argv from the spec — no Bridge, no request.json, no
+/// config dir — with the _PYI_* triple injected (see RunAsync: the
+/// pre-extracted runtime tree runs in place, single instance, zero %TEMP%
+/// _MEI) — and streams its bare stdout lines (zero ASSISTANT_* envelopes):
+/// SRHQ progress parsing stays in ProtocolParser, every line is forwarded as
+/// LogLine and appended to the spec's log file (UTF-8, stderr lines prefixed
+/// "stderr| "). Started is synthesized at spawn from the pid we hold.
+/// Finished at exit from ExitCode plus the humanized tail extraction
+/// (SRHQ_NET_ABORT:&lt;stage&gt;|&lt;msg&gt; or a MemoryError line). Cancellation kills
+/// the process tree with "cmd /c taskkill /T /F /PID" — defensive: the
+/// injected run is single-instance, but a regression to the non-injected
+/// spawn shape (same-argv child relaying its exit code) would otherwise leak
+/// it. Callbacks and log writes are serialized across the two reader tasks,
+/// so onEvent is never invoked concurrently.
 /// </summary>
 public sealed class BackendRunner
 {
@@ -92,18 +90,18 @@ public sealed class BackendRunner
         process.Start();
         int enginePid = process.Id; // captured once: the kill task outlives the disposed Process object
 
-        // The bare-line protocol has no START envelope: synthesize it. Our own pid IS
-        // the root — the same-argv child the engine spawns never surfaces here.
+        // The bare-line protocol has no START envelope: synthesize it from our
+        // own spawned pid (the process root).
         lock (gate)
         {
             onEvent(new Started(new JsrStart(StartedStage, StartedEngine, StartedMode, spec.EngineExe, enginePid)));
         }
 
-        // Tree kill: /T walks engine parent -> same-argv child -> the unnamed third
-        // grandchild; /F because the engine does not respond to polite termination.
-        // Guarded so cancel + failure-cleanup kill once. taskkill runs on the thread
-        // pool: ct.Register callbacks may fire on a UI thread, which must not block
-        // waiting for the killer to exit.
+        // Tree kill: /T walks the whole engine tree, /F because the engine does
+        // not respond to polite termination. Defensive against a regression to
+        // the self-respawning spawn shape. Guarded so cancel + failure-cleanup
+        // kill once. taskkill runs on the thread pool: ct.Register callbacks may
+        // fire on a UI thread, which must not block waiting for the killer to exit.
         int killDone = 0;
         int killExitCode = 0; // 0 = not run or succeeded; >0 = taskkill's exit code; -1 timeout; -2 not started
         Task killTask = Task.CompletedTask;
@@ -149,8 +147,8 @@ public sealed class BackendRunner
             }
         });
 
-        // Waiting the pipes (both writers gone) AND the parent process: the parent
-        // relays the same-argv child's exit code 0.3-0.5s after the child dies.
+        // Waiting the pipes (both writers gone) AND the process exit: a relayed
+        // exit code can trail the last output line by a fraction of a second.
         await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
         await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
         registration.Dispose();
@@ -158,10 +156,9 @@ public sealed class BackendRunner
         bool cancelled = ct.IsCancellationRequested;
         bool success = !cancelled && process.ExitCode == 0;
 
-        // Belt-and-braces after a failure/cancel: a
-        // failed/killed parent may have left its same-argv child or the unnamed
-        // grandchild running — /T on our own root pid reaps whatever is still
-        // attached to the tree. Best effort; harmless when the tree is already gone.
+        // Belt-and-braces after a failure/cancel: /T on our own root pid reaps
+        // whatever is still attached to the engine tree. Best effort; harmless
+        // when the tree is already gone.
         if (!success)
             KillTree();
 

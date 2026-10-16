@@ -566,7 +566,7 @@ public class DngWriter
 
             foreach (var tag in CopyableIfd0Tags)
             {
-                // Attribution policy (probe fact #9): the final product names
+                // Attribution policy: the final product names
                 // itself via options.Software and carries no IFD0 Artist tag;
                 // NEF EXIF-region photographer metadata migrates untouched.
                 if (tag == TagSoftware && options.Software != null) continue;

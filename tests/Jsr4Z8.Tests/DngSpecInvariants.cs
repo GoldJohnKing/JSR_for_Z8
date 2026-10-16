@@ -5,7 +5,7 @@ namespace Jsr4Z8.Tests;
 /// <summary>
 /// Experience-driven DNG/TIFF container invariants for files OUR writer
 /// produces (DngWriter/DngComposer/JsrDngFinalizer). The ACR post-mortems
-/// (.superpowers/sdd-postrelease-fix*) showed local judges passing files that
+/// showed local judges passing files that
 /// real consumers rejected — these checks pin the container-level rules every
 /// produced file must satisfy, so a writer regression screams in CI instead of
 /// at the user's ACR:
@@ -18,7 +18,7 @@ namespace Jsr4Z8.Tests;
 ///      full TileWidth×TileLength even at the image edge (TIFF padding rule),
 ///      strips carry their actual row count (backend tifffile convention);
 ///  (e) DefaultCropOrigin+DefaultCropSize fit inside the ActiveArea extent
-///      under the DNG spec's ActiveArea-RELATIVE origin semantics (fix 8);
+///      under the DNG spec's ActiveArea-RELATIVE origin semantics;
 ///  (f) the DNG identity/color chain (DNGVersion, BackwardVersion,
 ///      UniqueCameraModel, ColorMatrix1, CalibrationIlluminant1) is present.
 /// </summary>
@@ -201,7 +201,7 @@ internal static class DngSpecInvariants
         Assert.Equal(expectedUnits, (uint)counts.Length);
 
         // (e) DefaultCropOrigin+DefaultCropSize inside the ActiveArea extent,
-        // origin understood RELATIVE to the ActiveArea origin (DNG spec, fix 8).
+        // origin understood RELATIVE to the ActiveArea origin (DNG spec).
         if (Find(raw, TagActiveArea) is { } aa && Find(raw, TagDefaultCropOrigin) is { } co && Find(raw, TagDefaultCropSize) is { } cs)
         {
             Assert.Equal(4u, aa.Count);

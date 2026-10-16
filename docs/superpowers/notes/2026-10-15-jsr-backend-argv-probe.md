@@ -14,7 +14,7 @@
 
 进程树（PPID 链）：`testhost(28040) → Jiangtherapee Bridge.exe(28152) → jsr_backend.exe preview 链(32116→30700) 与主算链(36784→22980)`。
 
-**Bridge.exe（PID 28152，PPID 28040=testhost，创建 20:32:10.000）**——即 BackendRunner 发出的原始命令，逐字一致（协议事实 #1 实测复现）：
+**Bridge.exe（PID 28152，PPID 28040=testhost，创建 20:32:10.000）**——即 BackendRunner 发出的原始命令，逐字一致（实测复现）：
 
 ```
 "C:\Users\GoldJohnKing\AppData\Local\JSR4Z8\backend\3e1f6aa175be089e\Jiangtherapee Bridge.exe" --assistant-jsr-job C:\Users\GoldJohnKing\AppData\Local\Temp\Jsr4Z8\fe104f6667ef4b0cb468652d4537d9fc\request.json C:\Users\GoldJohnKing\AppData\Local\JSR4Z8\backend\3e1f6aa175be089e\resources C:\Users\GoldJohnKing\AppData\Local\Temp\Jsr4Z8\fe104f6667ef4b0cb468652d4537d9fc\cfg

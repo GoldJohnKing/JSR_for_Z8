@@ -16,7 +16,7 @@
     <ProjectReference Include="..\..\src\Jsr4Z8.UI\Jsr4Z8.UI.csproj" />
     <!-- Pack-time engine pre-extractor lives in the pack-payload tool (deliberately NOT in
          the shipped Core library — the product never parses CArchives at runtime); tests
-         exercise it directly via this reference (Task 1, 2026-10-16 预解包). -->
+         exercise it directly via this reference. -->
     <ProjectReference Include="..\..\tools\pack-payload\pack-payload.csproj" />
   </ItemGroup>
   <ItemGroup>

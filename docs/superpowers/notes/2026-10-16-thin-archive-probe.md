@@ -1,5 +1,7 @@
 # 薄档案（thin archive）可行性探针：零填充体实证与压缩测量（2026-10-16）
 
+> **已实施**（本评估的 F1 形态）：打包期预解包+引擎本体薄拷贝已上线，实测 payload.bin 202,208,052 B（AGENT.md §2/§3）；下文为评估期口径。
+
 > 探针对象：现行线上载荷释放树 `%LOCALAPPDATA%\JSR4Z8\backend\9382ed09d9739092\resources\jsr_backend_runtime\`
 > （1,417 文件＝1,416 个 CArchive b 文件 + 引擎本体；树内 `jsr_backend.exe` 201,243,142 B，
 > sha256 `5e315a17…`——与 meipass2 实验同体）。提取树全程只读（每跑前后清点 1,417 文件 / 587,339,873 B 不变）。

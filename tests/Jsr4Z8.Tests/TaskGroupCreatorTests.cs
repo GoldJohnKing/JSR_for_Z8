@@ -8,8 +8,8 @@ using Xunit;
 namespace Jsr4Z8.Tests;
 
 /// <summary>
-/// Task 4: headless tests for inline group creation — TaskGroupCreator replaces the
-/// deleted 新建任务组 dialog. A drop/pick of NEF files becomes a validated TaskGroup
+/// Headless tests for inline group creation — TaskGroupCreator: a drop/pick
+/// of NEF files becomes a validated TaskGroup
 /// directly in the main window: .nef filter/dedupe/natural sort, the exposure-bracketing
 /// reference pick (equal exposures → natural first; 7 differing shutters → the middle
 /// exposure), and TaskGroupValidator through a per-call memoized reader. The
@@ -128,7 +128,7 @@ public class TaskGroupCreatorTests
             created.Group.FramePaths);                                // 去重后自然升序（2 < 10）
     }
 
-    /// <summary>Review Focus 1: a non-NEF-only payload must not create anything — the
+    /// <summary>A non-NEF-only payload must not create anything — the
     /// caller no-ops, so a stray drop can never yield an empty card or a status flicker.</summary>
     [Fact]
     public async Task Create_NonNefOnly_ReturnsNull()
@@ -136,7 +136,7 @@ public class TaskGroupCreatorTests
         Assert.Null(await TaskGroupCreator.CreateAsync(["a.jpg", "B.NRW", "c.nef.txt"]));
     }
 
-    /// <summary>Task 3: the creation result carries the per-path metadata (the memoized
+    /// <summary>The creation result carries the per-path metadata (the memoized
     /// read pass the reference pick and validation already used) so the card VM can
     /// seed its caches and build hover texts without re-reading — keys are the frame
     /// paths, case-insensitive (Windows), readable frames only.</summary>
@@ -346,7 +346,7 @@ public class TaskGroupCreatorTests
         Assert.Equal(0, main.ValidatingCount);
     }
 
-    /// <summary>Review Focus 1 (main-window side): a non-NEF-only drop is a no-op — no
+    /// <summary>Main-window side: a non-NEF-only drop is a no-op — no
     /// card, counter untouched, status line unchanged (no 正在校验 flicker).</summary>
     [Fact]
     public async Task AddFilesAsync_EmptyNef_NoCardNoStatusFlicker()
@@ -361,7 +361,7 @@ public class TaskGroupCreatorTests
         Assert.Equal("拖放 7 张 RAW 开始", main.StatusText);
     }
 
-    /// <summary>Review Focus 2 (concurrency): two drops whose flights overlap each get
+    /// <summary>Concurrency: two drops whose flights overlap each get
     /// their own card — two independently validating cards, no cross-talk, and the
     /// derived counter tracks both until both land. The read seam blocks on a TCS gate
     /// so the mid-flight count/status assertions are deterministic (the mock reader

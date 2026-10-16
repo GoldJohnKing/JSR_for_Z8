@@ -6,12 +6,12 @@ using Xunit;
 namespace Jsr4Z8.Tests;
 
 /// <summary>
-/// Task 5: TaskGroup + TaskGroupValidator — 8-file consistency validation.
+/// TaskGroup + TaskGroupValidator — 8-file consistency validation.
 /// Negative cases inject a mock reader via the Validate(TaskGroup, Func&lt;string,RawMetadata&gt;)
 /// seam; the positive case reads the real sample frames DSC_7576..7582 with
 /// RawMetadataReader (all Z 8 at ISO 3200 → exact PTC hit 1102.2 e⁻). Non-finite ISO is
-/// rejected as NotFiniteIso before it can reach PtcTable.Lookup (Task 4 carried finding:
-/// Lookup(NaN) would otherwise return a NaN fit value).
+/// rejected as NotFiniteIso before it can reach PtcTable.Lookup
+/// (Lookup(NaN) would otherwise return a NaN fit value).
 /// </summary>
 public class ValidationTests
 {
@@ -402,7 +402,7 @@ public class ValidationTests
     public void NonFiniteIso_RejectedBeforePtcLookup()
     {
         // Reference frame NaN: must be NotFiniteIso, and the NaN must NOT reach
-        // PtcTable.Lookup (Task 4 carried finding: Lookup(NaN) returns a NaN fit).
+        // PtcTable.Lookup (Lookup(NaN) returns a NaN fit).
         var refNaN = new Dictionary<string, RawMetadata> { [FrameNames[0]] = Meta(iso: double.NaN) };
         ValidationResult rNaN = TaskGroupValidator.Validate(Group(), Reader(perFile: refNaN));
         Assert.False(rNaN.CanRun);

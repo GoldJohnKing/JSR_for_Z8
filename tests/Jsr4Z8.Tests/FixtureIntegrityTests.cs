@@ -21,22 +21,22 @@ public class FixtureIntegrityTests
         // real captured backend stdout (the Bridge-era envelope logs)
         { "protocol/stdout2.log", "32f745aac1445031efcecc85b6eafbc8ca1b67bbed5c68fe8d0f3323740c9381" },
         { "protocol/stdout3.log", "58e941f4aa0715d628dc544329ae2103ac595666f003b54931e0ac57a4a5615b" },
-        // real captured DIRECT-RUN stdout (2026-10-15 probe §7: bare lines, zero envelopes)
+        // real captured DIRECT-RUN stdout (bare lines, zero envelopes)
         { "protocol/direct_success.log", "eaafc02c391b6f253495238c5ca79c6355b9df34bc539d99840aba283ce60cf0" },
         { "protocol/direct_fail.log", "1c867d7279a2fbb37056c6c4b3cdfa1706d52f628f34ac2b8b98d06ee27dd288" },
         // real backend product DNG (foreign PIL/tifffile LJ stream)
         { "backend-dng/roi_sample.dng", "9d51d3b58756348bbdd8bc55dd04bbdc1eb52398b29eac0cfcffd9dd38db8127" },
         // stub backend engines (BackendRunnerTests; stub_dual_* replicate the
-        // engine's same-argv child self-respawn, probe §7.3)
+        // engine's same-argv child self-respawn of the non-injected spawn shape)
         { "stub_backend/stub_backend.bat", "a7717c7263a00e29fbc850a81d41ce609d4852e201b956f9c84e0375b47644c4" },
         { "stub_backend/stub_dng.bat", "29746cf8057b25fdf616e7c1047f9f2bb9a1b202a9451f04db02a421955a94cf" },
         { "stub_backend/stub_dual.bat", "a4112811ca31765f0e082cb4e86a74f64eac03661fcecc6e84d5b6ed2b653ccc" },
         { "stub_backend/stub_dual_child.bat", "787d4d094392c4efdc77a0e190865a8e98c61f654bcb7989794be17f1ce7abed" },
         { "stub_backend/stub_fail.bat", "e6c96684ea0e30ee4ab9ebf100446054ede3044b184e1d44c0cd305e2fce1e73" },
         { "stub_backend/stub_kill.bat", "a89693405df8235a6108ca30b806a0575c8f83d7a00e1486246f6b5682faf4af" },
-        // _PYI_* injection echo stub (2026-10-16 meipass2 experiment e1-c3): BackendRunnerTests
-        // locks the spawn-injected triple character-exact (plus its own %~f0: fact A's
-        // same-path lock, 2026-10-16-thin-archive evaluation) against it
+        // _PYI_* injection echo stub (meipass2 experiment e1-c3): BackendRunnerTests
+        // locks the spawn-injected triple character-exact (plus its own %~f0 for the
+        // same-path lock — see 2026-10-16-thin-archive-probe.md) against it
         { "stub_backend/stub_env.bat", "0234636808547b9804da82e8562de60cdd9e5e7694ab66a6d9b59b34edce2571" },
     };
 

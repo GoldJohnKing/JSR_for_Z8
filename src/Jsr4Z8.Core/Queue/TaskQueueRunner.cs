@@ -42,7 +42,7 @@ public sealed record BackendFinished(RunnerResult Result) : QueueEvent;
 /// caller — the UI's queue mediator — owns the loop and the single-flight gate):
 /// ① <see cref="PayloadManager.EnsureExtracted"/> (progress → 0-5% of the card),
 /// ② per-run temp dir &lt;TempBase&gt;\Jsr4Z8\&lt;jobId&gt;\ (unique per run — the direct
-/// invocation needs no cfg dir, probe §7), ③ the jsr_backend.exe argv via
+/// invocation needs no cfg dir), ③ the jsr_backend.exe argv via
 /// <see cref="BackendRequest.BuildArguments"/> (no memory budget at all — 不设预算，驱动自行分配;
 /// fullwell = the validated PTC match rounded to 1 decimal; output = the job dir,
 /// prefix = jobId), ④ <see cref="BackendRunner.RunAsync"/> — the DIRECT engine

@@ -14,7 +14,7 @@ namespace Jsr4Z8.Core.Backend;
 /// PTC match) plus the Bridge-filled defaults replayed as observed constants
 /// (--dng-compression auto, --developer-mode, --out-png off, --out-format jpeg,
 /// --jpeg-quality 95, --camera-profile-source libraw). No request.json and no
-/// config dir — the engine needs neither (probe §7).
+/// config dir — the engine needs neither.
 /// </summary>
 public static class BackendRequest
 {

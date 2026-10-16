@@ -4,11 +4,11 @@ using Xunit;
 namespace Jsr4Z8.Tests;
 
 /// <summary>
-/// Task 3: RawMetadataReader (LibRaw-backed metadata) and NefAssetExtractor
+/// RawMetadataReader (LibRaw-backed metadata) and NefAssetExtractor
 /// (ported Save_Z8 TiffIfdExtractor) against samples/DSC_7576.NEF.
-/// Facts measured 2026-10-13 on that file (LibRaw raw_width/raw_height are
-/// the padded sensor dims 8280×5520, not the cropped 8256×5504 the plan
-/// estimated; WhiteLevel 16383 here equals the declared 14-bit maximum).
+/// Measured on that file (LibRaw raw_width/raw_height are
+/// the padded sensor dims 8280×5520, not the cropped 8256×5504;
+/// WhiteLevel 16383 here equals the declared 14-bit maximum).
 /// </summary>
 public class RawMetadataTests
 {

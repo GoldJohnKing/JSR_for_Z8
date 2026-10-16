@@ -6,7 +6,7 @@ namespace Jsr4Z8.Tests;
 /// <summary>
 /// Native interop smoke test: opens a real sample NEF through the ported
 /// libraw_wrapper.dll and checks the metadata LibRaw reports for it.
-/// Facts measured 2026-10-13 on samples/DSC_7576.NEF.
+/// Measured on samples/test_frames/lossless/DSC_7576.NEF.
 /// </summary>
 public class NativeSmokeTests
 {

@@ -7,13 +7,13 @@ using Xunit;
 namespace Jsr4Z8.Tests;
 
 /// <summary>
-/// Task 9: JsrDngFinalizer — fuse the backend's LinearRaw RGB product with the
+/// JsrDngFinalizer — fuse the backend's LinearRaw RGB product with the
 /// reference NEF's preserved metadata into JSR_&lt;基准帧名&gt;.dng.
 ///
 /// Fixture fixtures/backend-dng/roi_sample.dng: real backend product
 /// (Transformer-JSR V15.3.5, mode=roi @(512,512,1024,768), frames
-/// DSC_7576..7582, fullwell 1102.2, generated 2026-10-13 via
-/// --assistant-jsr-job). Measured raw SubIFD: 2048×1536, SamplesPerPixel=3,
+/// DSC_7576..7582, fullwell 1102.2, via --assistant-jsr-job). Measured raw
+/// SubIFD: 2048×1536, SamplesPerPixel=3,
 /// 16-bit, Photometric=34892, Compression=7 (tifffile LJ strips, predictor 4,
 /// 12 strips × 128 rows), BlackLevel=0 / WhiteLevel=65535; IFD0
 /// AsShotNeutral=[0.560175,1.0,0.557734], ColorMatrix1 = Z8 profile;
@@ -53,7 +53,7 @@ public class FinalizerTests
         return (final, dir);
     });
 
-    /// <summary>ACR bisection V0 variant (post-release fix 4): all four
+    /// <summary>ACR bisection V0 variant: all four
     /// feature-suppression seams off — backend-like minimal output (raw +
     /// thumbnail + DNG basics). Strip layout to mirror the harness's V0
     /// artifact. One run per test session. Internal: reused by the
@@ -71,7 +71,7 @@ public class FinalizerTests
         return (final, dir);
     });
 
-    /// <summary>Passthrough variant (post-release fix 5): the backend's own
+    /// <summary>Passthrough variant: the backend's own
     /// LJ strip bytes verbatim inside the product wrapper — no decode, no
     /// re-encode. One run per test session.</summary>
     private static readonly Lazy<(string Final, string Dir)> FinalizedPassthrough = new(() =>
@@ -85,8 +85,8 @@ public class FinalizerTests
         return (final, dir);
     });
 
-    /// <summary>Reference-frame metadata/assets for the geometry-pair facts
-    /// (post-release fix 8): reads the real sample NEF once per test session —
+    /// <summary>Reference-frame metadata/assets for the geometry-pair facts:
+    /// reads the real sample NEF once per test session —
     /// metadata + preview inventory only, no pixel decode.</summary>
     private static readonly Lazy<(RawMetadata Meta, NefAssets Assets)> Reference = new(() =>
     {
@@ -138,8 +138,8 @@ public class FinalizerTests
         byte[] file = File.ReadAllBytes(final);
         var ifd0 = TestTiff.ParseIfd(file, TestTiff.U32(file, 4));
 
-        // Fact #9 (2026-10-13 user decision): no backend/attribution tags at IFD0
-        // level — Software names the tool, Artist is absent entirely.
+        // No backend/attribution tags at IFD0 level — Software names the tool,
+        // Artist is absent entirely.
         Assert.Equal("JSR for Z8", TestTiff.Ascii(ifd0.Tags[305].Value));
         Assert.False(ifd0.Tags.ContainsKey(315), "IFD0 must not carry an Artist tag");
 
@@ -214,7 +214,7 @@ public class FinalizerTests
         Assert.Equal(1u, TestTiff.Be32(ol3.Value, 4));              // WarpRectilinear
     }
 
-    /// <summary>Post-release fix 8 — full-dims (×2) path: the ActiveArea keeps
+    /// <summary>Full-dims (×2) path: the ActiveArea keeps
     /// the nonzero sensor-margin origin, and DefaultCropOrigin must be expressed
     /// relative to it (DNG spec), not in absolute stored-frame coordinates.</summary>
     [Fact]
@@ -250,7 +250,7 @@ public class FinalizerTests
         AssertCropWithinActiveArea(crop, activeArea);
     }
 
-    /// <summary>Regression lock for post-release fix 8 (root cause of the ACR
+    /// <summary>Regression lock (root cause of the ACR
     /// full-frame rejection): DefaultCropOrigin is an ActiveArea-relative
     /// offset. At full size the pre-fix absolute origin (24,16) made
     /// CropOrigin+CropSize overflow the ActiveArea edge → invalid geometry.</summary>
@@ -269,7 +269,7 @@ public class FinalizerTests
 
     /// <summary>DNG invariant: DefaultCropOrigin+DefaultCropSize must fit
     /// inside the ActiveArea ([top,left,bottom,right]); the crop origin is
-    /// ActiveArea-relative (post-release fix 8).</summary>
+    /// ActiveArea-relative.</summary>
     private static void AssertCropWithinActiveArea((uint X, uint Y, uint W, uint H) crop, uint[] activeArea)
     {
         Assert.True(crop.X + crop.W <= activeArea[3] - activeArea[1],
@@ -379,7 +379,7 @@ public class FinalizerTests
             }
     }
 
-    /// <summary>Post-release fix 4 — diagnostic seams: the four feature-suppression
+    /// <summary>Diagnostic seams: the four feature-suppression
     /// toggles produce a backend-like minimal V0 (no geometry quartet, no opcodes,
     /// no preview SubIFDs, no EXIF/GPS/XMP/Software/Baseline block) while the IFD0
     /// thumbnail, the raw payload and the DNG basics stay; the default (full)
@@ -438,7 +438,7 @@ public class FinalizerTests
         Assert.True(fullRaw.Tags.ContainsKey(51009), "full: OpcodeList2");
     }
 
-    /// <summary>Post-release fix 5 — passthrough seam: Finalize with
+    /// <summary>Passthrough seam: Finalize with
     /// passthroughRawStreams re-emits the backend's own strip bytes verbatim
     /// (every strip byte-identical, strip count/geometry unchanged) while the
     /// wrapper stays the full product file (EXIF, previews, geometry).</summary>
@@ -478,8 +478,8 @@ public class FinalizerTests
     [Fact]
     public void DecodeStream_MalformedStrip_IsContained_ReturnsErrorCode()
     {
-        // Regression lock for the ljd_decode_stream error containment fix
-        // (Task 9 review round 1): before it, libjpeg's default error_exit
+        // Regression lock for the ljd_decode_stream error containment fix:
+        // before it, libjpeg's default error_exit
         // printed and called exit(EXIT_FAILURE) — this very call would have
         // killed the test host. Garbage with no SOI marker must now come back
         // as the documented error code without taking the process down.

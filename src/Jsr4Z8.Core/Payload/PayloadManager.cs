@@ -5,28 +5,25 @@ namespace Jsr4Z8.Core.Payload;
 /// <summary>
 /// Extracts the embedded backend payload to disk and keeps it verifiably intact.
 /// Target: %LOCALAPPDATA%\JSR4Z8\backend\&lt;manifest hash first 16 hex chars&gt;\ — a
-/// directory containing the backend tree (resources/ minus the exclusion list) plus
-/// the pre-extracted engine runtime tree, with the direct-invoke engine at
-/// resources\jsr_backend_runtime\jsr_backend.exe (the onefile
-/// resources\jsr_backend.exe ships pre-extracted into that tree, not embedded whole;
-/// no top-level Bridge shell).
+/// directory containing the backend tree (resources/ minus the exclusion list)
+/// plus the pre-extracted engine runtime tree, with the direct-invoke engine at
+/// resources\jsr_backend_runtime\jsr_backend.exe (no top-level Bridge shell).
 /// Behavior:
-///  - Existing target whose every manifest entry matches its SHA-256 → returned directly
-///    (<see cref="ManifestVerifyPasses"/> counts these full passes; once verified, later
-///    calls in the same instance hit a session cache and do not touch disk at all).
-///  - Any missing file / hash mismatch / leftover ".incomplete" marker → the ENTIRE target
-///    directory is deleted and fully re-extracted (self-heal).
+///  - Existing target whose every manifest entry matches its SHA-256 → returned
+///    directly (once verified, later calls in the same instance hit a session
+///    cache and do not touch disk).
+///  - Any missing file / hash mismatch / leftover ".incomplete" marker → the
+///    ENTIRE target directory is deleted and fully re-extracted (self-heal).
 ///  - Extraction is atomic: files are written into a sibling "&lt;hash&gt;.tmp-&lt;pid&gt;"
 ///    directory behind a ".incomplete" marker, hash-verified as they are written
 ///    (streaming SHA-256 while decompressing), then the marker is removed and the
-///    directory is renamed to its final name. Renames and cleanup-directory deletes
-///    retry on transient IOException/UnauthorizedAccessException — on Windows, AV
-///    scanners and the search indexer briefly lock freshly-written directories.
-///    A crash can therefore never leave a
-///    half-written target; crashed ".tmp-*" siblings are cleaned up on the next run.
-///    After the current target is verified or extracted, stale-version pruning deletes every
-///    sibling directory under the backend root (previous payload versions and crashed tmp
-///    leftovers) best-effort — a prune failure never breaks EnsureExtracted.
+///    directory is renamed to its final name; crashed ".tmp-*" siblings are
+///    cleaned up on the next run. Renames and cleanup-directory deletes retry on
+///    transient IOException/UnauthorizedAccessException (Windows AV/indexer
+///    briefly lock freshly-written directories).
+///  - After the current target is verified or extracted, stale-version pruning
+///    deletes every sibling directory under the backend root best-effort — a
+///    prune failure never breaks EnsureExtracted.
 /// </summary>
 public sealed class PayloadManager
 {

@@ -49,7 +49,7 @@ public sealed record DngWriteOptions
 
     /// <summary>Forces the IFD0 Software tag (0x0131) to this value (the source
     /// NEF's Software copy is suppressed); null = keep the Save_Z8 copy
-    /// behavior. The finalizer sets "JSR for Z8" (probe fact #9: no backend
+    /// behavior. The finalizer sets "JSR for Z8" (no backend
     /// attribution).
     /// </summary>
     public string? Software { get; init; }

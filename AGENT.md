@@ -15,10 +15,11 @@
 
 | 动作 | 命令（Windows host） |
 |---|---|
-| 全量测试 | `dotnet test --nologo`（当前 **285/285 全绿**；黑场标定恒为预置表匹配——见 §5 决策 3） |
-| 一键发布 | `build.bat` → `out\Jsr4Z8_v<版本>.exe`（单文件实测 249,288,792 B（249.3MB，MiB 口径 237.8）；预解包载荷实测：**1,444 文件/原始 587,974,158 B（560.7MiB）/payload.bin 202,208,052 B（192.8MiB）/manifest hash 5c78910676d79955**；构成=引擎本体**薄拷贝** 201,243,142 B（b 体清零的打包期变换，长度不变、盘上树零影响、DEFLATE 后 8,813,230 B；原件=reference/ onefile 未动；无三变量 spawn 即响亮失败，见评估文档）+CArchive 树余 1,416 文件 386,096,731 B→压缩 193,108,942 B（184.2MiB）+licenses/元数据 27 文件 634,285 B；薄档案评估与端到端实证 docs/superpowers/notes/2026-10-16-thin-archive-probe.md（注入契约实证 …/2026-10-16-meipass2-experiment.md）；Step 4 恒跑 pack-payload：预解包 onefile 引擎入 `resources\jsr_backend_runtime\`，自动选 reference/ 下最高版本，manifest 哈希比对自决换入，无需手动删 payload.*） |
+| 全量测试 | `dotnet test --nologo`（当前 **280/280 全绿**；黑场标定恒为预置表匹配——见 §5 决策 3） |
+| 一键发布 | `build.bat` → `out\Jsr4Z8_v<版本>.exe`（单文件实测 249,288,792 B；Step 4 恒跑 pack-payload：预解包 onefile 引擎入 `resources\jsr_backend_runtime\`，自动选 reference/ 下最高版本，manifest 哈希比对自决换入，无需手动删 payload.*） |
+| 载荷实测 | 预解包载荷：**1,444 文件/原始 587,974,158 B/payload.bin 202,208,052 B/manifest hash 5c78910676d79955**；构成=引擎本体**薄拷贝** 201,243,142 B（b 体清零的打包期变换，长度不变、盘上树零影响；原件=reference/ onefile 未动；无三变量 spawn 即响亮失败）+CArchive 树余 1,416 文件 386,096,731 B→压缩 193,108,942 B+licenses/元数据 27 文件 634,285 B；薄档案评估与端到端实证 docs/superpowers/notes/2026-10-16-thin-archive-probe.md（注入契约实证 …/2026-10-16-meipass2-experiment.md） |
 | 无头自检 | `out\Jsr4Z8_v*.exe --selftest [file.nef]`（释放/校验载荷+验树内引擎 `resources\jsr_backend_runtime\jsr_backend.exe`+LibRaw 冒烟） |
-| E2E（真 GPU，~6min/全幅） | cmd 脚本内 `set JSR4Z8_E2E=1` + `dotnet test --filter FullyQualifiedName~E2eTests.<名>`；门控见 `tests/Jsr4Z8.Tests/E2eTests.cs`；**完整 E2E 默认不跑，仅用户明示要求时运行** |
+| E2E（真 GPU，~6min/全幅） | cmd 脚本内 `set JSR4Z8_E2E=1` + `dotnet test --filter FullyQualifiedName~E2eTests.<名>`；门控规则见 §4 硬契约末条 |
 | 诊断工具 | `tools/finalize-variant/`（离线调用融合器：crop/passthrough/featureSet 剥离矩阵，ACR 排障利器） |
 
 版本号在 `src/Jsr4Z8.UI/Jsr4Z8.UI.csproj` `<Version>`（当前 **0.1.0**，用户指定不用 1.x）。
@@ -56,7 +57,7 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐)
 
 1. **不传显存预算**（用户明确要求"始终不限制"）。**无设置功能**：恒默认行为——输出=基准帧同目录、临时=%TEMP%，无配置持久化。
 2. **最终 DNG 的 IFD0 无 Artist、Software="JSR for Z8"**——后端算法署名不进 IFD0（载荷不携带 THIRD_PARTY_NOTICES.md；第三方许可仍在 resources/licenses 内随载荷分发）；NEF EXIF 区内摄影者自有标签照常迁移。
-3. **黑场标定恒为预置自动匹配（无手动黑场文件路径）**。7 帧在 **机型/ISO/位深/压缩/画幅** 五维两两一致（机型逐文件验 Z8；位深=TIFF BitsPerSample、压缩=MakerNote NEFCompression、画幅=raw 尺寸；**陷阱**：Z8 全部 NEF 的 TIFF Compression 恒 34713，HE(13)/HE*(14) 与无损(3) 只能靠 NEFCompression 判别），任一不一致禁止执行。PTC 按机型+ISO 匹配（单像素参数，读出维度不影响归一化 shot 斜率）；预置黑场 `Dark/Embedded/dark_z8.csv`（102 行 = 34 档 ISO × 3 压缩，后端 2.3.27 z8_presets manifest 离线导出：black_dn 标称、RN=√四相位时域方差均值、映射 0→3/3→14/4→13；Lo 档 32/40/50 为完备性纳入）按 **(压缩,ISO) 双键**精确匹配——画幅不参与（读噪与画幅无关，DX vs FX ≤1%@高ISO，任意画幅取 FX 行）。画像外（12bit）或表外 ISO → `CaptureFormatUnsupported`"拍摄格式不支持"。物理事实：HE/HE\* 读噪比无损 +3~7%（量化噪声叠加；后端 2.3.27 库 Lo 档另见 6~13% 级偏差：无损 Lo32 实测 RN 1.87 vs 64 档 2.00（低约 6%），Lo32 HE 2.12 对无损溢价至 +13%）；ISO500=DCG 切换点故不插值；Lo 扩展档=假ISO（数据≡ISO64，自动命中 64 行）；常规快门不影响标定。
+3. **黑场标定恒为预置自动匹配（无手动黑场文件路径）**。7 帧在 **机型/ISO/位深/压缩/画幅** 五维两两一致（机型逐文件验 Z8；位深=TIFF BitsPerSample、压缩=MakerNote NEFCompression、画幅=raw 尺寸；**陷阱**：Z8 全部 NEF 的 TIFF Compression 恒 34713，HE(13)/HE*(14) 与无损(3) 只能靠 NEFCompression 判别），任一不一致禁止执行。PTC 按机型+ISO 匹配（单像素参数，读出维度不影响归一化 shot 斜率）；预置黑场 `Dark/Embedded/dark_z8.csv`（102 行 = 34 档 ISO × 3 压缩，后端 2.3.27 z8_presets manifest 离线导出：black_dn 标称、RN=√四相位时域方差均值、映射 0→3/3→14/4→13；Lo 档 32/40/50 为完备性纳入）按 **(压缩,ISO) 双键**精确匹配——画幅不参与（读噪与画幅无关，DX vs FX ≤1%@高ISO，任意画幅取 FX 行）。画像外（12bit）或表外 ISO → `CaptureFormatUnsupported`"拍摄格式不支持"。物理事实（口径唯一来源 DarkTable.cs 类注释）：HE 读噪比无损 +5~13%（Lo 档最大），HE\* −1.5~+3%（有损编码量化噪声叠加）；ISO500=DCG 切换点故不插值；Lo 扩展档=假ISO（数据≡ISO64，自动命中 64 行）；常规快门不影响标定。
 4. 输出名固定 `JSR_<基准帧名>.dng`；基准帧=等曝光时文件名自然排序第 1 张、曝光包围（仅快门不同）时按曝光升序取中间帧（第 4 张）。任务组可先少后补（卡内「添加 RAW…」按钮或再拖放到卡）；芯片★星标=手动基准（仅就绪/无法执行态可设，星标帧被移除则回退自动选取）；悬浮文件名显示关键参数（机型/快门/光圈/ISO/位深/压缩/画幅/拍摄时间）；>7 或 <7 帧均阻断为「帧数不符」。非等曝光组芯片显示 ±EV 偏差胶囊（点击设基准，等曝光组保留星标；EV 恒以中间曝光为 0EV 锚点，不随基准切换）；拖入/补齐即时建卡并显示校验中 Loading，校验由卡片自持（ValidateAsync），状态条随分组状态着色于卡底。
 5. 顺序队列一次一组；失败/停止不阻断后续；失败/停止立即删除本任务临时目录（不留诊断目录），启动时清扫临时根（TempBase）下 Jsr4Z8 的全部残留（应对崩溃残留；单实例互斥；清扫跳过 2 分钟内新写的目录）。
 6. 布局默认 **Tiles**（`DngWriteOptions.RawLayout` 的 Strips 选项为 ACR 排障变体，测试与 finalize-variant 工具在用）。
@@ -71,7 +72,7 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐)
 4. **编码器/解码器对称偏误**：自家编解码往返全绿 ≠ 规范正确；必须有独立血统解码器交叉验证（pylibjpeg=经典 IJG）。
 5. **测试不留垃圾**：测试临时目录统一 GUID 根+finally 清理（TestTemp helper）；曾有 34 个 `jsr4z8_*` 泄漏到用户 %TEMP%。
 6. **UI 进度必须节流**：后端进度 ~20 行/秒、子任务名轮换，直通 UI 会闪烁（200ms 合并节流，终态必达）。
-7. 派 subagent 审查时**禁止全局 find**——reference/(649MB)、external/、~/.nuug 会超时；限定 grep 路径。
+7. 派 subagent 审查时**禁止全局 find**——reference/（约 854MB）、external/、~/.nuget 会超时；限定 grep 路径。
 8. 运行期错误文案要人话化：直调引擎后直接从裸行提取 `SRHQ_NET_ABORT:stage|msg` / MemoryError 行（ASSISTANT_* 信封已随 Bridge 移除而消失，无需再跳信封行）。
 9. 进入 Running/Done 必须清 ErrorText（用户踩过"重试后旧失败提示不消失"）。
 10. **E2E 门控用例长期不跑会腐烂**：中文路径副本拍平、抓取流写句柄两缺陷即例（长期被 `JSR4Z8_E2E=1` 门控跳过所掩盖）——完整 E2E 仅用户明示时运行，该窗口到来时应全绿后再交付。
@@ -79,15 +80,15 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐)
 ## 7. 已知遗留（低风险，勿顺手重构）
 
 - 编码侧 `lje_encode_tile`/`lje_selftest` 仍用 libjpeg 默认 error_exit（输入自生成，风险低）。
-- DngWriter 潜在 ≥2GiB 载荷的 int/uint 算术隐患 5 处（W8/W12/W13/W14/R6，见 `.superpowers/sdd-postrelease-fix6-report.md` 审计表，当前最大 1.1GB 安全）。
+- DngWriter 潜在 ≥2GiB 载荷的 int/uint 算术隐患 5 处（W8/W12/W13/W14/R6；审计明细在作者本地 `.superpowers/sdd-postrelease-fix6-report.md`，未入库；当前最大 1.1GB 安全）。
 - build.bat Step4 的 cmake 路径硬编码（载荷段自动选版+哈希比对换新）。
 - StartAll 与用户单卡点击交错时可能跳过一张就绪卡（需重点击）；卡片 VM 订阅共享 runner 事件不退订（有界）。
 - 星标/✕ 命令绑定经 ReflectionBinding（运行时解析，编译期不校验）——UI 冒烟（人工手测）覆盖。
-- 分支 `feat/jsr4z8` 已合并回 main（含 ACR 几何修复，用户人工核验 DNG 输出通过）。
 
 ## 8. 文档地图
 
 - 活性契约参考（argv 探测/裸行协议/直调实证，硬契约的事实出处）：`docs/superpowers/notes/2026-10-15-jsr-backend-argv-probe.md`
 - 注入契约/预解包实证（_PYI_* 三元组机制、零 _MEI、持久目录只读性）：`docs/superpowers/notes/2026-10-16-meipass2-experiment.md`
-- 排障/修复报告（ACR 攻坚全程）：`.superpowers/sdd-postrelease-fix*.md`（fix1-11）
+- 排障/修复记录（ACR 攻坚全程）：作者本地 `.superpowers/sdd-postrelease-fix*.md`（fix1-11，未入库；可执行结论已浓缩进 §6 经验教训）
+- 清理决策与防误删清单（2026-10-16 全库清理审计）：`docs/cleanup-audit-2026-10-16.md`
 - 样例：`samples/test_frames/`（`lossless`=DSC_7576-7582 七帧无损等曝光组；`he_compressed`=DSC_7652-7658 七帧 HE 组；`unequal_exposure`=DSC_7855-7861 七帧不等曝光/包围组（1/3EV 快门梯 1/200…1/50，中间曝光 1/100 为基准帧），均未入 git；黑场标定无样本文件——预置黑场表来源为后端 z8_presets manifest 离线导出，见 §5 决策 3）；后端原包：`reference/` 下仅 2.3.27 一树在（2.3.25 已移除）；勿改一字节；载荷取 2.3.27（build.bat 自动选最高版本；黑场表/argv 契约随版重验）

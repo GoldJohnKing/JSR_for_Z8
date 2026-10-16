@@ -14,7 +14,7 @@ public sealed record Unrecognized(string Text) : ProtocolEvent;
 
 /// <summary>
 /// Parses one line of jsr_backend stdout/stderr — the BARE-LINE protocol of the
-/// direct invocation (probe §7.2): SRHQ_V12_PROGRESS|percent|stage and
+/// direct invocation: SRHQ_V12_PROGRESS|percent|stage and
 /// SRHQ_ETA_PROGRESS|dng|done|total are the only structured lines; everything else
 /// (PTC echo, FRAME lines, Proxy chatter, DONE tail) is ordinary text carried
 /// verbatim. The export-phase ETA maps onto the last 5 percent

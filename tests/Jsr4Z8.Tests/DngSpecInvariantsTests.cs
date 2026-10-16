@@ -10,7 +10,7 @@ namespace Jsr4Z8.Tests;
 /// TIFF/DNG rules that the ACR rejection post-mortems showed local judges do
 /// not check. Pins the incident classes: tag-order/alignment regressions,
 /// unit-count/SOF geometry drift (edge padding vs actual-rows conventions),
-/// and another crop-origin absolute/relative mixup (post-release fix 8).
+/// and another crop-origin absolute/relative mixup.
 /// </summary>
 public class DngSpecInvariantsTests
 {

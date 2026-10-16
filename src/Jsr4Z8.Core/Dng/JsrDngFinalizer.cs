@@ -12,7 +12,7 @@ namespace Jsr4Z8.Core.Dng;
 /// carried forward losslessly (re-encoded as 256×256 LJ tiles); identity,
 /// EXIF/GPS/Interop/XMP, previews and lens opcodes come from the reference
 /// NEF; geometry (ActiveArea/DefaultCrop) is adapted to the ×2 backend
-/// domain. IFD0 attribution is rewritten per probe fact #9: Software = "JSR for
+/// domain. IFD0 attribution is rewritten: Software = "JSR for
 /// Z8", no Artist tag (backend and NEF attribution suppressed at IFD0 level;
 /// NEF EXIF-region photographer metadata migrates untouched).
 /// </summary>

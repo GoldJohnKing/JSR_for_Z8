@@ -123,9 +123,9 @@ static void my_error_exit(j_common_ptr cinfo)
 // When outW/outH/outNc are non-NULL they receive the stream's width, height
 // and component count. Returns the decoded sample count
 // (width*height*components), or negative on error (-1 malformed/unsupported
-// stream, -2 destination too small, -3 read failure). Task 9 uses this to
-// read backend DNG strips written by tifffile (predictor 4) into pixel arrays.
-// Malformed input is contained: any libjpeg fatal error longjmps to the
+// stream, -2 destination too small, -3 read failure). The finalizer uses this
+// to read backend DNG strips written by tifffile (predictor 4) into pixel
+// arrays. Malformed input is contained: any libjpeg fatal error longjmps to the
 // setjmp below (never exits the process); every return path destroys dinfo.
 EXPORT long long ljd_decode_stream(const unsigned char* src, size_t cap,
                                    unsigned short* dst, size_t dstCap,

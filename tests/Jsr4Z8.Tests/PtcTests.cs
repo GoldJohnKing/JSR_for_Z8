@@ -4,11 +4,11 @@ using Xunit;
 namespace Jsr4Z8.Tests;
 
 /// <summary>
-/// Task 4: PtcTable — Nikon Z8 PTC index (12 embedded rows), exact table hits,
+/// PtcTable — Nikon Z8 PTC index (12 embedded rows), exact table hits,
 /// two-segment off-table fit, bounds rejection, and leave-one-out sanity.
 /// Constants are computed from the CSV rows (brand=Nikon, model=Z8) and pinned
 /// to 4 significant digits. The off-table fit is a least-squares straight line
-/// in log10 space (log10 FWC = a + b·log10 ISO): the plan's own &lt;5%
+/// in log10 space (log10 FWC = a + b·log10 ISO): the &lt;5%
 /// leave-one-out check at ISO 1600 rules out a line fit in linear space
 /// (32.7% error there); this is the standard power-law PTC model.
 /// </summary>

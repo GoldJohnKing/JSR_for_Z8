@@ -9,7 +9,7 @@ using Xunit;
 namespace Jsr4Z8.Tests;
 
 /// <summary>
-/// Task 11: headless ViewModel tests for the card-flow main window
+/// Headless ViewModel tests for the card-flow main window
 /// (MainViewModel + TaskGroupViewModel state machine). The VMs carry pure state
 /// only — no Avalonia dispatcher dependency — so they are testable in xUnit
 /// without a UI thread. ThemeService lives here too (same brief file list):
@@ -108,7 +108,7 @@ public class TaskGroupVmTests
         var vm = ReadyVm();
         Assert.Equal(TaskState.Ready, vm.State);
         Assert.Equal("就绪", vm.StateText);
-        Assert.Equal("待输出 JSR_DSC_7576.dng", vm.MetaText);   // Task 5: meta line is the output name only
+        Assert.Equal("待输出 JSR_DSC_7576.dng", vm.MetaText);   // meta line is the output name only
         Assert.DoesNotContain("PTC", vm.MetaText);
         Assert.DoesNotContain("黑场", vm.MetaText);
 
@@ -132,7 +132,7 @@ public class TaskGroupVmTests
     }
 
     /// <summary>Documented contract: invalid transitions are IGNORED (no throw) and
-    /// return false — Task 13 pushes backend events from background threads, where a
+    /// return false — backend events arrive from background threads, where a
     /// late event (e.g. progress after a user stop) must never crash the app. A
     /// transition returns true iff the state actually changed (same-state is a no-op).</summary>
     [Fact]
@@ -243,7 +243,7 @@ public class TaskGroupVmTests
         Assert.False(blocked.OpenFolderCommand.CanExecute(null));
     }
 
-    /// <summary>Task 3 (星标基准, no reorder): starring a chip only moves the ★ — chips
+    /// <summary>星标基准 (no reorder): starring a chip only moves the ★ — chips
     /// stay in natural filename order — while <see cref="TaskGroupViewModel.Group"/>
     /// is rebuilt with the starred frame first (the remaining frames keep display
     /// order) and ReferenceName/OutputName follow. Starring does NOT revalidate: the
@@ -272,7 +272,7 @@ public class TaskGroupVmTests
         Assert.Equal(string.Empty, vm.IssuesText);
     }
 
-    /// <summary>Review Focus 5: the swap is a Ready/Blocked-only interaction —
+    /// <summary>The swap is a Ready/Blocked-only interaction —
     /// Running/Done/Failed cards disable it (a Done output was produced from the old
     /// reference; a Running group is in flight).</summary>
     [Fact]
@@ -283,7 +283,7 @@ public class TaskGroupVmTests
             Assert.False(To(state).SetReferenceCommand.CanExecute(null));
     }
 
-    /// <summary>Task 6 carried finding: backend PROGRESS lines can exceed 100 —
+    /// <summary>Backend PROGRESS lines can exceed 100 —
     /// the VM clamps before display.</summary>
     [Fact]
     public void ReportProgress_ClampsTo0And100()
@@ -342,7 +342,7 @@ public class TaskGroupVmTests
         Assert.Contains("帧数不符", vm.IssuesText);
     }
 
-    /// <summary>Post-release fix 10 (Bug B: 重试不清除失败提示): a Failed card's
+    /// <summary>重试不清除失败提示: a Failed card's
     /// ErrorText drives the always-visible error bar in TaskCardView, so a retry run
     /// must clear it the moment the card re-enters Running (the old failure must not
     /// persist through — or past — the new run), and Done must clear it too (a success
@@ -394,7 +394,7 @@ public class TaskGroupVmTests
         Assert.Equal(string.Empty, vm.ErrorText);
     }
 
-    // ---- Task 3: 渐进补齐/移除/星标基准/悬浮参数 ----------------------------------
+    // ---- 渐进补齐/移除/星标基准/悬浮参数 ----------------------------------
 
     /// <summary>Progressive top-up: a 3-frame card is Blocked on 帧数不符; adding the
     /// missing 4 revalidates through the read seam → Ready with refreshed Ptc/Dark
@@ -554,7 +554,7 @@ public class TaskGroupVmTests
         Assert.Equal(string.Empty, vm.FrameChips[6].InfoText);
     }
 
-    /// <summary>Task 4 pre-step (controller ruling 1b): ReadCached's fallback real read
+    /// <summary>ReadCached's fallback real read
     /// must record its failure into _readErrors BEFORE rethrowing — so the same
     /// uncached-unreadable path is read from disk exactly once and every later
     /// ReadCached call replays the recorded exception instead of re-reading (the
@@ -588,7 +588,7 @@ public class TaskGroupVmTests
         Assert.Equal("无法读取", vm.FrameChips[^1].InfoText);
     }
 
-    /// <summary>Task 4 pre-step (controller ruling 1a): overlapping concurrent
+    /// <summary>Overlapping concurrent
     /// AddFilesAsync calls each dedupe against the pre-add snapshot, so both land the
     /// same paths — the recompute's display projection must never let a duplicate
     /// frame materialize. The read seam blocks on a TaskCompletionSource so both calls
@@ -676,7 +676,7 @@ public class TaskGroupVmTests
         Assert.True(vm.FrameChips[3].IsReference);
     }
 
-    // ---- Task 2 (F3): ±EV 偏差胶囊 -----------------------------------------------
+    // ---- ±EV 偏差胶囊 -------------------------------------------------------
 
     /// <summary>Bracketed card: every chip's EvText is the EV deviation relative to the
     /// FIXED middle-exposure anchor (the creator's auto pick 1/1000 — 0EV 锚点恒为中间
@@ -761,9 +761,9 @@ public class TaskGroupVmTests
         Assert.Equal(string.Empty, vm.FrameChips[6].InfoText);   // 未读取 → 空（F4），非 无法读取
     }
 
-    // ---- Task 3 (F4): 即时建卡 + 卡片级校验 Loading -------------------------------
+    // ---- 即时建卡 + 卡片级校验 Loading ----------------------------------------
 
-    /// <summary>Review Focus 1：校验飞行中读取抛错（非 RawReadException）不得悬死
+    /// <summary>校验飞行中读取抛错（非 RawReadException）不得悬死
     /// Loading —— 卡落 Blocked、IssuesText 给人话文案，IsValidating 必然复位。</summary>
     [Fact]
     public async Task ValidateAsync_ReadThrows_BlockedWithFriendlyMessage_NotStuckLoading()
@@ -779,7 +779,7 @@ public class TaskGroupVmTests
         Assert.Contains("disk gone", card.IssuesText);
     }
 
-    /// <summary>Review Focus 5：校验中整卡编辑入口全锁（IsEditable=false —— ★/✕/添加 RAW
+    /// <summary>校验中整卡编辑入口全锁（IsEditable=false —— ★/✕/添加 RAW
     /// 全部走它），状态胶囊文字为 校验中；落定后按状态恢复。</summary>
     [Fact]
     public async Task IsEditable_FalseWhileValidating()

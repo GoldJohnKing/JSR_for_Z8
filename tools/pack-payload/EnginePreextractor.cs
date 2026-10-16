@@ -6,8 +6,7 @@ namespace Jsr4Z8.Tools;
 
 /// <summary>
 /// PyInstaller CArchive 预解包器（仅打包期使用——刻意不进 Jsr4Z8.Core：产品运行时从不解析 CArchive）。
-/// 逐逻辑移植实验验证过的 Python 解包器
-/// （.superpowers/sdd/2026-10-16-meipass2-experiment/ws/extract_carchive.py；证据
+/// 逐逻辑移植实验验证过的 Python 解包器（证据
 /// docs/superpowers/notes/2026-10-16-meipass2-experiment.md §2——真档案对账 1,416 个 b 文件 /
 /// 386,096,731 B，与引导器自解压目录逐文件 sha256 相同）。格式事实：
 /// - MEI cookie（魔数 "MEI\x0c\x0b\x0a\x0b\x0e"）位于文件末 8 KB 内，取最后一次出现；
@@ -18,9 +17,9 @@ namespace Jsr4Z8.Tools;
 ///   走完必须恰好落在 TOC 末；
 /// - 仅 'b'（binary）条目解包落盘——m/s/z/o 留在 exe 内由引导器内存读取；cmprsFlag=1 时
 ///   zlib（RFC 1950）解压，解压输出长度必须等于 TOC usize；
-/// - 目标布局 = 实验验证的运行时契约（计划 docs/superpowers/plans/2026-10-16-preextract-payload.md）：
+/// - 目标布局 = 运行时契约：
 ///   b 文件按 TOC 名相对路径落盘，外加 onefile exe 本体拷贝进树根——拷贝随即施加薄档案变换
-///   （b 条目体区间清零，评估 docs/superpowers/notes/2026-10-16-thin-archive-probe.md F1 形态；
+///   （b 条目体区间清零，见 docs/superpowers/notes/2026-10-16-thin-archive-probe.md；
 ///   源 onefile 永不改动）——运行时 _PYI_ARCHIVE_FILE=&lt;树&gt;\jsr_backend.exe 直跑
 ///   （bootloader 从自身文件读 CArchive）。
 /// </summary>

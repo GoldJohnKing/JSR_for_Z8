@@ -18,8 +18,7 @@ Jiangtherapee Python 后端（stormer7 引擎，V15.3.5 Transformer），在 GPU
 
 ## 使用说明
 
-1. 运行 `Jsr4Z8_v0.1.0.exe`。首次启动校验并释放后端载荷（约 588 MB，仅一次，
-   实测数秒完成；之后每次启动只做哈希校验，实测不到 1 秒）。程序为单实例运行（重复启动会提示已运行）。
+1. 运行 `Jsr4Z8_v0.1.0.exe`（首次启动释放后端载荷，之后每次启动只做哈希校验）。程序为单实例运行（重复启动会提示已运行）。
 2. 新建任务：拖放或点选同一场景的 **7 张 NEF**，直接在主界面创建任务组
    （无弹窗）。七帧必须在
    **机型 / ISO / 位深 / 压缩格式 / 画幅** 五个维度完全一致，任一不一致都会
@@ -37,7 +36,7 @@ Jiangtherapee Python 后端（stormer7 引擎，V15.3.5 Transformer），在 GPU
    每帧显示 ±EV 偏差，点击偏差标签可设为基准帧（等曝光组使用星标）。
 3. 开始后卡片实时显示后端进度（对齐 → Transformer 重建 → DNG 导出），可随时
    停止——后端进程树随即终止，临时文件随即删除。
-4. 完成后在样张目录得到 `JSR_DSC_7576.dng`（330 MB 量级）。
+4. 完成后在样张目录得到 `JSR_DSC_7576.dng`（实测约 358 MB）。
 5. 输出写入基准帧所在目录；临时文件在 %TEMP% 下。样张路径含中文与空格完全支持。
 
 ## SmartScreen 与杀毒软件说明
@@ -59,20 +58,15 @@ build.bat
 
 前置：VS 2022/2026（VC/NMake 工具链）+ .NET 8 SDK + git 子模块 + CMake。
 脚本依次构建 LibRaw（JO nikon-he-production fork）与 libjpeg-turbo 原生库、
-打包后端载荷（`tools\pack-payload`，自动选 `reference\` 下版本号最高的
-Jiangtherapee 发布；载荷= `resources\` 引擎树 + 打包期预解包的引擎运行时树
+打包后端载荷（`tools\pack-payload`：自动选 `reference\` 下版本号最高的
+Jiangtherapee 发布；载荷 = `resources\` 引擎树 + 打包期预解包的引擎运行时树
 `resources\jsr_backend_runtime\`——运行时直调树内 `jsr_backend.exe`（引导器
-环境注入，引擎原地运行，不再向 `%TEMP%` 自解压），顶层 `Bridge.exe` 壳与
-onefile 整体引擎不打包），最后单文件自包含发布（原生 DLL 压缩内嵌）。
-打包器会自动裁剪不需要的后端文件（顶层 Bridge.exe、K14 引擎、`_internal`
-整树、raw_bridge/jxl_worker 工具与其 libjxl-DLL 家族、z8_presets 等）——
-`_internal` 整树与冗余工具的裁剪基于 onefile 自解压与依赖矩阵实证（探针
-2026-10-16）；预解包+注入直跑已通过真 GPU E2E 全流程验证（七帧无损重建、
-输出 DNG 与结果 COMPLETE、全程零 `%TEMP%` 自解压目录、单引擎实例，
-2026-10-16 实测）；每次构建
-都重新比对 manifest 哈希，载荷有更新即自动换入（无需手动删 `payload.bin`）。
+环境注入，引擎原地运行，不向 `%TEMP%` 自解压）；排除清单裁掉顶层 Bridge.exe、
+K14 引擎、`_internal` 整树、raw_bridge/jxl_worker 工具与其 libjxl-DLL 家族、
+z8_presets 等），最后单文件自包含发布（原生 DLL 压缩内嵌）。每次构建都重新
+比对 manifest 哈希，载荷有更新即自动换入（无需手动删 `payload.bin`）。
 注意：发布后请删除 `src\Jsr4Z8.Core\Payload\Embedded\payload.bin`（及同名
-`.manifest.json`），否则此后每次 Core 构建/测试都会重新内嵌 ~393 MB 载荷，
+`.manifest.json`），否则此后每次 Core 构建/测试都会重新内嵌 ~202 MB 载荷，
 显著拖慢开发构建（详见 `build.bat` 尾部说明）。
 
 ## 致谢与许可

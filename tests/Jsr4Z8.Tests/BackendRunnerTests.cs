@@ -5,16 +5,17 @@ using Xunit;
 namespace Jsr4Z8.Tests;
 
 /// <summary>
-/// Task 2 (direct invoke): BackendRunner against the cmd.exe stub engines in
+/// BackendRunner against the cmd.exe stub engines in
 /// fixtures\stub_backend\ — bare-line stdout (success / fail / dual-instance
-/// self-respawn / long-running-with-heartbeat-grandchild). The stubs replay the
-/// measured direct-run shape of jsr_backend.exe (2026-10-15 probe §7: zero
-/// ASSISTANT_* envelopes, SRHQ bare lines, exit code relayed by the spawned
-/// parent, same-argv child + unnamed grandchild in the tree), so cancellation
+/// self-respawn / long-running-with-heartbeat-grandchild). The stubs replay
+/// the measured process shapes of jsr_backend.exe (zero ASSISTANT_* envelopes,
+/// SRHQ bare lines; the dual stub replays the non-injected spawn shape: exit
+/// code relayed by the spawned parent, same-argv child + unnamed grandchild in
+/// the tree), so cancellation
 /// must keep the whole-tree kill (taskkill /T /F), Started is the runner's own
 /// synthesis, and every streamed line must land in the run log file. stub_env.bat
 /// instead echoes the _PYI_* spawn-injection triple for its character-exact lock,
-/// plus its own %~f0 for the same-path lock (evaluation fact A: _PYI_ARCHIVE_FILE
+/// plus its own %~f0 for the same-path lock (_PYI_ARCHIVE_FILE
 /// must equal the spawned exe's own path — a foreign archive is silently ignored).
 /// Windows-host tests: the stubs are .bat files driven through the same Process
 /// path the real engine executable uses.
@@ -110,8 +111,8 @@ public class BackendRunnerTests : IClassFixture<TestTemp>
     [Fact]
     public async Task DualInstance_StubDual_WaitsForParent_TakesParentExitCode()
     {
-        // The engine's every invocation self-respawns a same-argv child ~2s in
-        // (probe §7.3); the child does the work and exits FIRST, the parent relays
+        // The engine's NON-INJECTED spawn shape self-respawns a same-argv child
+        // ~2s in; the child does the work and exits FIRST, the parent relays
         // its exit code 0.3-0.5s later. The stub parent streams one more line AFTER
         // the child's death and only then exits 0 — the runner must take the PARENT:
         // its lines, its exit code, its WaitForExit.
