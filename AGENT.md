@@ -22,7 +22,7 @@
 | E2E（真 GPU，~6min/全幅） | cmd 脚本内 `set JSR4Z8_E2E=1` + `dotnet test --filter FullyQualifiedName~E2eTests.<名>`；门控规则见 §4 硬契约末条 |
 | 诊断工具 | `tools/finalize-variant/`（离线调用融合器：crop/passthrough/featureSet 剥离矩阵，ACR 排障利器） |
 
-版本号在 `src/Jsr4Z8.UI/Jsr4Z8.UI.csproj` `<Version>`（当前 **0.1.0**，用户指定不用 1.x）。
+版本号在 `src/Jsr4Z8.UI/Jsr4Z8.UI.csproj` `<Version>`（当前 **1.0.0**；2026-10-17 用户裁定首个 GitHub Release 用 1.0.0，取代早先“不用 1.x”的限制）。
 
 ## 3. 架构
 
