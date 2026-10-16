@@ -64,7 +64,7 @@ public class E2eTests
     private static string ResolveExtractedBackend()
     {
         Assert.True(Directory.Exists(PayloadManager.DefaultBackendRoot),
-            $"后端载荷根不存在: {PayloadManager.DefaultBackendRoot}（先运行 out\\Jsr4Z8_v<版本>.exe --selftest 释放载荷）");
+            $"后端载荷根不存在: {PayloadManager.DefaultBackendRoot}（先运行 out\\JSR4Z8_v<版本>.exe --selftest 释放载荷）");
         string[] candidates = Directory.GetDirectories(PayloadManager.DefaultBackendRoot)
             .Where(d => File.Exists(Path.Combine(d, TaskQueueRunner.EngineRelativePath)))
             .ToArray();
