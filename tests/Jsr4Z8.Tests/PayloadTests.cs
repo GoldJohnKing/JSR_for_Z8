@@ -18,6 +18,8 @@ namespace Jsr4Z8.Tests;
 /// EnginePreextractor (tool project — referenced from the test csproj) exactly like
 /// tools/pack-payload does, so the manifest carries the resources\jsr_backend_runtime\
 /// tree instead of the onefile exe itself.
+/// Task 1 (2026-10-16 薄档案): the staged tree exe is a THIN copy — every b-entry
+/// body range zeroed at pack time (probe F1 form; the source onefile exe is never modified).
 /// </summary>
 public class PayloadTests : IClassFixture<TestTemp>
 {
@@ -123,6 +125,93 @@ public class PayloadTests : IClassFixture<TestTemp>
         Span<byte> buffer = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32BigEndian(buffer, value);
         stream.Write(buffer);
+    }
+
+    // ---- Task 1（2026-10-16 薄档案）: 变换形检 helpers（测试侧独立解析，不复用被测代码）----
+
+    /// <summary>独立布局读取出的 TOC 条目（类型/名/体偏移/体长）。</summary>
+    private sealed record TocLayoutEntry(char Type, string Name, long Pos, long CSize);
+
+    /// <summary>
+    /// 测试侧独立 CArchive 布局读取（末 8 KB cookie + TOC 条目步进）——薄变换区间断言专用；
+    /// 刻意不复用 EnginePreextractor 的解析（变换后独立解析成功本身就是「TOC 偏移仍有效」的证据）。
+    /// </summary>
+    private static (long ArchiveStart, long TocStart, long CookieOffset, List<TocLayoutEntry> Entries)
+        ReadMiniLayout(byte[] exe)
+    {
+        int tailLength = Math.Min(8192, exe.Length);
+        int tailStart = exe.Length - tailLength;
+        byte[] magic = { (byte)'M', (byte)'E', (byte)'I', 0x0C, 0x0B, 0x0A, 0x0B, 0x0E };
+        int cookieRelative = exe.AsSpan(tailStart, tailLength).LastIndexOf(magic);
+        Assert.True(cookieRelative >= 0, "夹具必有 cookie");
+        long cookieOffset = tailStart + cookieRelative;
+        uint pkgLen = BinaryPrimitives.ReadUInt32BigEndian(exe.AsSpan((int)cookieOffset + 8));
+        uint tocOff = BinaryPrimitives.ReadUInt32BigEndian(exe.AsSpan((int)cookieOffset + 12));
+        uint tocLen = BinaryPrimitives.ReadUInt32BigEndian(exe.AsSpan((int)cookieOffset + 16));
+        long archiveStart = cookieOffset + 88 - pkgLen;
+        long tocStart = archiveStart + tocOff;
+        long tocEnd = tocStart + tocLen;
+        Assert.Equal(cookieOffset, tocEnd); // TOC 恰止于 cookie
+        var entries = new List<TocLayoutEntry>();
+        long cursor = tocStart;
+        while (cursor < tocEnd)
+        {
+            uint structLen = BinaryPrimitives.ReadUInt32BigEndian(exe.AsSpan((int)cursor));
+            uint pos = BinaryPrimitives.ReadUInt32BigEndian(exe.AsSpan((int)cursor + 4));
+            uint csize = BinaryPrimitives.ReadUInt32BigEndian(exe.AsSpan((int)cursor + 8));
+            char type = (char)exe[(int)cursor + 17];
+            int nameStart = (int)cursor + 18;
+            int nul = Array.IndexOf(exe, (byte)0, nameStart, (int)cursor + (int)structLen - nameStart);
+            entries.Add(new(type, Encoding.UTF8.GetString(exe, nameStart, nul - nameStart), pos, csize));
+            cursor += structLen;
+        }
+        Assert.Equal(tocEnd, cursor); // structLen 步进恰好走完 TOC
+        return (archiveStart, tocStart, cookieOffset, entries);
+    }
+
+    /// <summary>
+    /// 薄变换 F1 形态断言（docs/superpowers/notes/2026-10-16-thin-archive-probe.md §1.1/§6）：
+    /// 长度不变；stub 头/TOC/cookie 与 z·m·s·o 体逐字节原样；每个 b 条目体区间
+    /// [archiveStart+pos, +csize) 全零。夹具条目体零间隙相邻——多清/少清一字节都会在相邻断言
+    /// （b 体全零 或 邻居体原样）之一显形；末位 b 体窗口恰抵 TOC 起点，右越界即破坏 TOC 断言。
+    /// 薄档重解析成功且条目与原档逐项一致 = TOC 偏移仍有效。
+    /// </summary>
+    private static void AssertThinF1Form(byte[] original, byte[] thin)
+    {
+        Assert.Equal(original.Length, thin.Length); // 长度不变 → 所有 TOC 偏移保持有效
+
+        (long archiveStart, long tocStart, long cookieOffset, List<TocLayoutEntry> entries) = ReadMiniLayout(original);
+
+        // 变换后重解析 + 条目逐项对账（类型/名/体偏移/体长）。
+        (_, _, _, List<TocLayoutEntry> reparsed) = ReadMiniLayout(thin);
+        Assert.Equal(entries, reparsed);
+
+        // stub 头 / TOC / cookie 逐字节原样。
+        Assert.True(thin.AsSpan(0, (int)archiveStart).SequenceEqual(original.AsSpan(0, (int)archiveStart)),
+            "stub 头必须逐字节原样");
+        Assert.True(
+            thin.AsSpan((int)tocStart, (int)(cookieOffset - tocStart))
+                .SequenceEqual(original.AsSpan((int)tocStart, (int)(cookieOffset - tocStart))),
+            "TOC 必须逐字节原样");
+        Assert.True(thin.AsSpan((int)cookieOffset).SequenceEqual(original.AsSpan((int)cookieOffset)),
+            "cookie 必须逐字节原样");
+
+        foreach (TocLayoutEntry entry in entries)
+        {
+            long start = archiveStart + entry.Pos;
+            if (entry.Type == 'b')
+            {
+                Assert.True(thin.AsSpan((int)start, (int)entry.CSize).IndexOfAnyExcept((byte)0) < 0,
+                    $"b 条目 {entry.Name} 体区间 @0x{start:X}+{entry.CSize} 应全零");
+            }
+            else
+            {
+                Assert.True(
+                    thin.AsSpan((int)start, (int)entry.CSize)
+                        .SequenceEqual(original.AsSpan((int)start, (int)entry.CSize)),
+                    $"{entry.Type} 条目 {entry.Name} 体必须逐字节原样（子模式活体集，引导器必读）");
+            }
+        }
     }
 
     /// <summary>
@@ -371,7 +460,7 @@ public class PayloadTests : IClassFixture<TestTemp>
     // ---- Task 1（2026-10-16 预解包）: EnginePreextractor × 合成微型 CArchive ----
 
     [Fact]
-    public void Extract_MiniCArchive_WritesBEntriesTreeAndEngineCopy()
+    public void Extract_MiniCArchive_WritesBEntriesTreeAndThinEngineCopy()
     {
         string exe = Path.Combine(TempDir(), "jsr_backend.exe");
         File.WriteAllBytes(exe, BuildMiniOnefile(StandardMiniEntries()));
@@ -386,8 +475,9 @@ public class PayloadTests : IClassFixture<TestTemp>
             Directory.EnumerateFiles(dest, "*", SearchOption.AllDirectories)
                 .Select(p => Path.GetRelativePath(dest, p))
                 .OrderBy(p => p, StringComparer.Ordinal));
-        // 引擎 exe 本体逐字节原样拷贝进树根（实验配方：_PYI_ARCHIVE_FILE=<树>\jsr_backend.exe 直跑）。
-        Assert.Equal(File.ReadAllBytes(exe), File.ReadAllBytes(Path.Combine(dest, "jsr_backend.exe")));
+        // 树内引擎 exe 为薄化副本（打包期变换，评估 F1 形态）：b 体区间全零、其余逐字节原样、
+        // 长度不变（区间级断言见 AssertThinF1Form；运行契约 _PYI_ARCHIVE_FILE=<树>\jsr_backend.exe 直跑）。
+        AssertThinF1Form(File.ReadAllBytes(exe), File.ReadAllBytes(Path.Combine(dest, "jsr_backend.exe")));
         // b 条目内容逐字节等于档案内的未压缩体（zlib 与 cmprsFlag=0 两路、'\' 与 '/' 两种名内分隔符）。
         Assert.Equal(BodyPython, File.ReadAllBytes(Path.Combine(dest, "python310.dll")));
         Assert.Equal(BodyNestedBackslash, File.ReadAllBytes(Path.Combine(dest, "torch", "lib", "fun.dll")));
@@ -431,6 +521,65 @@ public class PayloadTests : IClassFixture<TestTemp>
         string exe = Path.Combine(TempDir(), "jsr_backend.exe");
         File.WriteAllBytes(exe, archive);
         Assert.Throws<InvalidDataException>(() => EnginePreextractor.Extract(exe, TempDir()));
+    }
+
+    /// <summary>
+    /// 薄变换（Task1 thin-archive）：Extract 管线在树内 exe 拷贝后即施加（源 onefile 零触碰）；
+    /// ThinTransform 独立 seam 同效；确定性（同输入同输出字节）+ 幂等（重复施加不变）；
+    /// 边界形态：末位条目即 b（体窗口恰抵 TOC 起点）——末窗右越界一字节即破坏 TOC 断言。
+    /// </summary>
+    [Fact]
+    public void ThinTransform_ZeroesOnlyBEntryBodies_Deterministic_Idempotent()
+    {
+        byte[] original = BuildMiniOnefile(StandardMiniEntries(), stubLength: 96, trailerLength: 128);
+        string exe = Path.Combine(TempDir(), "jsr_backend.exe");
+        File.WriteAllBytes(exe, original);
+
+        // Extract 管线形态：树内拷贝即薄体（b 体零、其余原样、长度同）。
+        string dest = TempDir();
+        Assert.Equal(4, EnginePreextractor.Extract(exe, dest));
+        byte[] staged = File.ReadAllBytes(Path.Combine(dest, "jsr_backend.exe"));
+        AssertThinF1Form(original, staged);
+
+        // 独立 seam：同一原档直接变换 → 与管线产物逐字节一致（确定性：同输入同输出）。
+        string seam = Path.Combine(TempDir(), "jsr_backend.exe");
+        File.WriteAllBytes(seam, original);
+        EnginePreextractor.ThinTransform(seam);
+        byte[] thin = File.ReadAllBytes(seam);
+        AssertThinF1Form(original, thin);
+        Assert.Equal(staged, thin);
+
+        // 幂等：对已薄化文件重复施加 → 字节不变。
+        EnginePreextractor.ThinTransform(seam);
+        Assert.Equal(thin, File.ReadAllBytes(seam));
+
+        // 源 onefile 只读（参考树零触碰契约——变换只发生在打包 staging 拷贝上）。
+        Assert.Equal(original, File.ReadAllBytes(exe));
+
+        // 边界形态：末位条目即 b，体窗口恰抵 TOC 起点（末窗不越入 TOC/cookie）。
+        byte[] boundary = BuildMiniOnefile(new List<MiniArchiveEntry>
+        {
+            new("b", "first.dll", BodyPython),
+            new("z", "PYZ-00.pyz", Encoding.ASCII.GetBytes("pyz archive body")),
+            new("m", "PIL._imaging", Encoding.ASCII.GetBytes("embedded pyd module body")),
+            new("b", "last.dll", Encoding.ASCII.GetBytes("last b body sits flush against the TOC")),
+        });
+        string boundaryExe = Path.Combine(TempDir(), "jsr_backend.exe");
+        File.WriteAllBytes(boundaryExe, boundary);
+        EnginePreextractor.ThinTransform(boundaryExe);
+        AssertThinF1Form(boundary, File.ReadAllBytes(boundaryExe));
+    }
+
+    /// <summary>打包级断言：载荷 staging 树内的引擎 exe 即薄化副本；源树 onefile 保持原样（只读）。</summary>
+    [Fact]
+    public void Pack_StagedEngineExe_IsThinCopy_SourceOnfileUntouched()
+    {
+        string src = MakeFakeTree();
+        FakePayload payload = PackTree(src);
+
+        byte[] original = File.ReadAllBytes(Path.Combine(src, "resources", "jsr_backend.exe"));
+        AssertThinF1Form(original, File.ReadAllBytes(Path.Combine(payload.StagingDir, "jsr_backend.exe")));
+        Assert.Equal(original, File.ReadAllBytes(Path.Combine(src, "resources", "jsr_backend.exe"))); // 源只读复核
     }
 
     /// <summary>
