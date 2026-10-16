@@ -833,7 +833,6 @@ public partial class TaskGroupViewModel : ObservableObject
     partial void OnStateChanged(TaskState value)
     {
         OnPropertyChanged(nameof(StateText));
-        OnPropertyChanged(nameof(IsRunning));
         OnPropertyChanged(nameof(BarValue));
         OnPropertyChanged(nameof(MetaText));
         OnPropertyChanged(nameof(IsEditable));

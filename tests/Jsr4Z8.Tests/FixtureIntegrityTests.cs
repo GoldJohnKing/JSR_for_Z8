@@ -18,10 +18,9 @@ public class FixtureIntegrityTests
     /// <summary>(repo-relative fixture path, SHA256 of the committed bytes).</summary>
     public static TheoryData<string, string> LockedFixtures => new()
     {
-        // real captured backend stdout (protocol facts #1-#4)
+        // real captured backend stdout (the Bridge-era envelope logs)
         { "protocol/stdout2.log", "32f745aac1445031efcecc85b6eafbc8ca1b67bbed5c68fe8d0f3323740c9381" },
         { "protocol/stdout3.log", "58e941f4aa0715d628dc544329ae2103ac595666f003b54931e0ac57a4a5615b" },
-        { "protocol/success.log", "58e941f4aa0715d628dc544329ae2103ac595666f003b54931e0ac57a4a5615b" },
         // real captured DIRECT-RUN stdout (2026-10-15 probe §7: bare lines, zero envelopes)
         { "protocol/direct_success.log", "eaafc02c391b6f253495238c5ca79c6355b9df34bc539d99840aba283ce60cf0" },
         { "protocol/direct_fail.log", "1c867d7279a2fbb37056c6c4b3cdfa1706d52f628f34ac2b8b98d06ee27dd288" },

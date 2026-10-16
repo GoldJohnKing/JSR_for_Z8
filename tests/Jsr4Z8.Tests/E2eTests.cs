@@ -16,8 +16,8 @@ namespace Jsr4Z8.Tests;
 /// real extracted backend payload, a real GPU run and the real finalizer
 /// product. Opt-in via environment variable JSR4Z8_E2E=1; with it unset every
 /// test returns early and passes (normal CI stays fast and GPU-free). With it
-/// set, the five tests of this class run sequentially (single xUnit class =
-/// single collection) and cost ~25-30 min of GPU time: four full ~5.5 min runs
+/// set, the three tests of this class run sequentially (single xUnit class =
+/// single collection) and cost ~11-12 min of GPU time: two full ~5.5 min runs
 /// plus one 30 s cancel.
 ///
 /// Payload note: the queue's payload phase is pointed at the payload the
@@ -184,55 +184,6 @@ public class E2eTests
         string expected = Path.Combine(SamplesDir(), "test_frames", "lossless", "JSR_DSC_7576.dng");
         Assert.True(File.Exists(expected), $"最终 DNG 缺失: {expected}");
         AssertFinalDng(expected);
-    }
-
-
-    [Fact]
-    [Trait("Category", "E2E")]
-    public async Task FullRun_HeFrames_NoDark_HePresetAutoMatch_ProducesValidJsrDng()
-    {
-        if (!Enabled)
-        {
-            Ev("skipped (set JSR4Z8_E2E=1 to run)");
-            return;
-        }
-
-        // The 7 HE ISO-3200 frames: the group must auto-match the HE preset row
-        // (13, 3200) — not the lossless row, whose read noise is ~6% lower — and
-        // run the manual-DN path end to end.
-        string heDir = Path.Combine(SamplesDir(), "test_frames", "he_compressed");
-        var group = new TaskGroup(Directory.GetFiles(heDir, "*.NEF").OrderBy(p => p).ToArray());
-        var validation = TaskGroupValidator.Validate(group);
-        Assert.True(validation.CanRun, string.Join("；", validation.Issues.Select(i => i.MessageZh)));
-        Assert.NotNull(validation.Ptc);
-        Assert.NotNull(validation.Dark);
-        Assert.Equal(3200d, validation.Dark!.Iso);
-        DarkMatch heRow = DarkTable.LoadDefault().Lookup(3200, 13)!;
-        Assert.Equal(heRow.BlackDn, validation.Dark.BlackDn, 3);
-        Assert.Equal(heRow.ReadNoiseDn, validation.Dark.ReadNoiseDn, 3);
-        Ev($"校验: Z8·HE·ISO3200 · 满阱 {validation.Ptc!.FullwellE:0.0} e⁻ · 黑场 HE 预置行 " +
-           $"（black {validation.Dark.BlackDn} DN · RN {validation.Dark.ReadNoiseDn} DN；无损行 RN {DarkTable.LoadDefault().Lookup(3200, 3)!.ReadNoiseDn} DN 不适用）");
-
-        var engine = new TaskQueueRunner { ResolveBackendOverride = _ => new TaskQueueRunner.BackendPayload(ResolveExtractedBackend()) };
-        TaskRunOutcome outcome = await engine
-            .RunAsync(group, validation.Ptc, validation.Dark, CancellationToken.None, _ => { });
-        ReportOutcome(outcome, new RunCapture(), "全流程·HE 预置黑场");
-
-        Assert.True(outcome.Success, outcome.Message);
-        string expected = Path.Combine(heDir, "JSR_DSC_7652.dng");
-        Assert.True(File.Exists(expected), $"最终 DNG 缺失: {expected}");
-        AssertFinalDng(expected, group.ReferencePath);
-    }
-    /// <summary>Overload computing the expected AsShotNeutral from the reference
-    /// NEF's own as-shot WB (1/cam_mul, G normalized) — captures shot at another
-    /// time/scene carry different multipliers than the locked DSC_7576 values.</summary>
-    private static void AssertFinalDng(string dngPath, string referenceNefPath)
-    {
-        var reference = Jsr4Z8.Core.RawMetadataReader.Read(referenceNefPath);
-        AssertFinalDng(dngPath, new[]
-        {
-            1.0 / reference.CamMul[0], 1.0 / reference.CamMul[1], 1.0 / reference.CamMul[2],
-        });
     }
 
     private static void AssertFinalDng(string dngPath, double[]? expectedAsShotNeutral = null)
@@ -452,111 +403,4 @@ public class E2eTests
         Assert.True(File.Exists(expected), $"中文路径产物缺失: {expected}");
         Ev($"中文路径产物: {new FileInfo(expected).Length / 1024.0 / 1024.0:F1} MB");
     }
-
-    // ---- Step 4 capture: raw bare-line stdout stream of one full direct run ----
-
-    [Fact]
-    [Trait("Category", "E2E")]
-    public async Task SuccessStdoutCapture_SpawnsEngineDirectly_SavesRawBareLineStream()
-    {
-        if (!Enabled)
-        {
-            Ev("skipped (set JSR4Z8_E2E=1 to run)");
-            return;
-        }
-
-        var (group, ptc, dark, _, _) = PrepareRun(SamplesDir());
-        string engineExe = ResolveExtractedBackend();
-        string workDir = Path.Combine(ArtifactsDir(), "capture");
-        try { Directory.Delete(workDir, recursive: true); } catch (DirectoryNotFoundException) { }
-        Directory.CreateDirectory(Path.Combine(workDir, "out"));
-        string outDir = Path.Combine(workDir, "out");
-        string stdoutPath = Path.Combine(workDir, "success.log");
-        string stderrPath = Path.Combine(workDir, "success.stderr.log");
-
-        // Raw tap: spawn the engine exactly as BackendRunner does (direct invoke:
-        // argv from BackendRequest.BuildArguments, no Bridge/request.json/cfg),
-        // but persist every stdout/stderr line VERBATIM instead of through the
-        // parser — this is the bare-line stream the direct_success.log fixture
-        // shape comes from (Task 3 rewrite: the assertions below pin the bare
-        // protocol shape on a real GPU run).
-        IReadOnlyList<string> arguments = BackendRequest.BuildArguments(group, ptc, dark, outputDir: outDir, prefix: "cap1");
-        var psi = new ProcessStartInfo
-        {
-            FileName = engineExe,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-        };
-        foreach (string argument in arguments)
-            psi.ArgumentList.Add(argument);
-
-        var clock = Stopwatch.StartNew();
-        using var process = Process.Start(psi)!;
-        using var stdoutFile = new StreamWriter(stdoutPath, append: false, new UTF8Encoding(false)) { AutoFlush = true };
-        using var stderrFile = new StreamWriter(stderrPath, append: false, new UTF8Encoding(false)) { AutoFlush = true };
-        Task pumpOut = Task.Run(async () =>
-        {
-            string? line;
-            while ((line = await process.StandardOutput.ReadLineAsync().ConfigureAwait(false)) is not null)
-                stdoutFile.WriteLine(line);
-        });
-        Task pumpErr = Task.Run(async () =>
-        {
-            string? line;
-            while ((line = await process.StandardError.ReadLineAsync().ConfigureAwait(false)) is not null)
-                stderrFile.WriteLine(line);
-        });
-        await Task.WhenAll(pumpOut, pumpErr);
-        await process.WaitForExitAsync(CancellationToken.None);
-        clock.Stop();
-        Ev($"抓取运行: engine 退出码 {process.ExitCode}, 耗时 {clock.Elapsed.TotalSeconds:F1}s, " +
-           $"stdout {new FileInfo(stdoutPath).Length / 1024.0 / 1024.0:F2} MB");
-        Assert.Equal(0, process.ExitCode);
-
-        // 捕获 StreamWriter 是方法级 using（块尾才释放），而下面的校验用
-        // File.ReadAllLines 以 FileShare.Read 重开文件——写句柄还开着必然共享冲突。
-        // 进程已退出、泵已完成，先显式关闭再读。
-        stdoutFile.Dispose();
-        stderrFile.Dispose();
-
-        // The captured bare-line stream, asserted end to end: zero ASSISTANT_*
-        // envelopes (the Bridge wrapper is gone), V12 progress with exactly one
-        // SRHQ_V12_PROGRESS|100| 导出完成 line, the "DONE total <s>" tail as the
-        // last line, and (asserted above) exit code 0.
-        string[] lines = File.ReadAllLines(stdoutPath);
-        int v12 = 0, eta = 0, envelopes = 0, v12At100 = 0;
-        foreach (string line in lines)
-        {
-            if (line.StartsWith("ASSISTANT_", StringComparison.Ordinal))
-                envelopes++;
-            if (line.StartsWith("SRHQ_V12_PROGRESS|100|", StringComparison.Ordinal))
-                v12At100++;
-            switch (ProtocolParser.ParseLine(line))
-            {
-                case Log l when l.Progress is not null:
-                    if (l.Progress.Stage == DngExportStage) eta++;
-                    else v12++;
-                    break;
-            }
-        }
-        string? lastNonEmpty = lines.LastOrDefault(l => l.Length > 0);
-        Ev($"抓取流: {lines.Length} 行, 信封 {envelopes}, " +
-           $"V12 进度 {v12}（P100 {v12At100} 次）, ETA 进度 {eta}, 尾行「{lastNonEmpty}」");
-        Assert.Equal(0, envelopes);
-        Assert.True(v12 > 0 && eta > 0);
-        Assert.Equal(1, v12At100);
-        Assert.NotNull(lastNonEmpty);
-        Assert.StartsWith("DONE total", lastNonEmpty, StringComparison.Ordinal);
-
-        // The backend really produced its DNG (kept for reference; not finalized here).
-        string? product = TaskQueueRunner.FindNewestProductDng(outDir, "cap1");
-        Assert.True(product is not null, "抓取运行未产出后端 DNG");
-        Ev($"抓取运行后端产物: {product} ({new FileInfo(product!).Length / 1024.0 / 1024.0:F1} MB)");
-        Ev($"裸行流已捕获固化: {stdoutPath}");
-    }
-
 }

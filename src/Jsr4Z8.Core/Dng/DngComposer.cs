@@ -9,80 +9,15 @@ namespace Jsr4Z8.Core.Dng;
 /// Low-level DNG composition: one <see cref="RawPayload"/> (replaceable pixel
 /// source) + the frame's <see cref="RawMetadata"/> + the NEF's preserved
 /// <see cref="NefAssets"/> → a complete DNG file (Save_Z8 DngWriter topology).
-///
-/// Output-domain policy (Save_Z8/ADC parity, AGENTS: 未压缩 DNG 存 x&lt;&lt;2
-/// (BL=4032/WL=63568)；压缩 DNG 存 14-bit 原值 (BL=1008/WL=15892) — 两套域等价，
-/// 勿混用): CFA payloads default to the compressed native 14-bit domain — NOT
-/// <see cref="RawMetadata.WhiteLevel"/>, which is LibRaw's declared 14-bit
-/// maximum (16383). LinearRaw RGB payloads default to BL=0/WL=65535 (backend
-/// product). Both levels are overridable per call.
+/// The output domain is set per call via <see cref="DngWriteOptions"/>: CFA
+/// products store either the native 14-bit domain (compressed: BL=1008/WL=15892)
+/// or the ×4 16-bit domain (uncompressed: BL=4032/WL=63568, samples &lt;&lt;2 — two
+/// equivalent domains, never mixed); LinearRaw RGB products store BL=0/WL=65535.
 /// </summary>
 public static class DngComposer
 {
-    /// <summary>Z8 14-bit native domain (compressed output) — ADC parity constants.</summary>
-    private const int CfaBlackLevel14 = 1008;
-    private const int CfaWhiteLevel14 = 15892;
-
-    /// <summary>×4 16-bit domain (uncompressed baseline): 1008×4 / 15892×4.</summary>
-    private const int CfaBlackLevel16 = 4032;
-    private const int CfaWhiteLevel16 = 63568;
-    private const int CfaPixelBitShift = 2;
-
     /// <summary>NEF IFD0 sits directly behind the 8-byte TIFF header (Nikon II layout).</summary>
     private const uint NefIfd0Base = 8;
-
-    /// <summary>Composes the complete DNG (raw SubIFD + previews + EXIF/GPS + opcodes).</summary>
-    /// <param name="payload">Pixel source: CFA mosaic (Samples=1) or LinearRaw RGB (Samples=3).</param>
-    /// <param name="meta">Frame metadata (identity, WB → AsShotNeutral).</param>
-    /// <param name="assets">Preserved NEF blocks (EXIF/GPS regions, previews, NEFInfo).</param>
-    /// <param name="destDngPath">Output file path.</param>
-    /// <param name="blackLevel">Overrides the domain default BlackLevel.</param>
-    /// <param name="whiteLevel">Overrides the domain default WhiteLevel.</param>
-    /// <param name="compress">true = lossless-JPEG tiles (Compression=7); false = uncompressed.</param>
-    public static void Compose(RawPayload payload, RawMetadata meta, NefAssets assets, string destDngPath,
-        int? blackLevel = null, int? whiteLevel = null, bool compress = true)
-    {
-        ArgumentNullException.ThrowIfNull(payload);
-        ArgumentNullException.ThrowIfNull(meta);
-        ArgumentNullException.ThrowIfNull(assets);
-        if (payload.Data.Length != (long)payload.W * payload.H * payload.Samples)
-            throw new ArgumentException(
-                $"payload.Data.Length {payload.Data.Length} != W·H·Samples {payload.W}×{payload.H}×{payload.Samples}");
-
-        int bl, wl, shift;
-        if (payload.IsCfa)
-        {
-            bl = blackLevel ?? (compress ? CfaBlackLevel14 : CfaBlackLevel16);
-            wl = whiteLevel ?? (compress ? CfaWhiteLevel14 : CfaWhiteLevel16);
-            shift = compress ? 0 : CfaPixelBitShift;
-        }
-        else
-        {
-            // LinearRaw payloads are already in their final 16-bit domain.
-            bl = blackLevel ?? 0;
-            wl = whiteLevel ?? 65535;
-            shift = 0;
-        }
-
-        var options = new DngWriteOptions
-        {
-            Compress = compress,
-            SamplesPerPixel = payload.Samples,
-            PhotometricInterpretation = (ushort)(payload.IsCfa ? 32803 : 34892),
-            BlackLevel = bl,
-            WhiteLevel = wl,
-            PixelBitShift = shift,
-            CfaPattern = payload.IsCfa ? MapCfaPattern(payload.CfaPattern) : null,
-        };
-
-        // AsShotNeutral = 1/cam_mul per component (Save_Z8/ADC parity).
-        float[]? cameraWb = meta.CamMul is { Length: >= 3 }
-            ? Array.ConvertAll(meta.CamMul, v => (float)v)
-            : null;
-
-        var sourceMetadata = ParseAssets(assets);
-        DngWriter.Write(destDngPath, payload.Data, payload.W, payload.H, options, sourceMetadata, cameraWb);
-    }
 
     /// <summary>
     /// Full-control composition path: <paramref name="options"/> is the complete
@@ -119,23 +54,6 @@ public static class DngComposer
 
         DngWriter.Write(destDngPath, payload.Data, payload.W, payload.H, options,
             ParseAssets(assets), cameraWb);
-    }
-
-    /// <summary>2×2 phase string ("RGGB", chars from {R,G,B}) → DNG CFAPattern colors (0=R,1=G,2=B).</summary>
-    private static byte[] MapCfaPattern(string? phase)
-    {
-        if (phase is not { Length: 4 })
-            throw new ArgumentException($"CFA payload requires a 4-char CfaPattern (e.g. \"RGGB\"), got \"{phase}\"");
-        var colors = new byte[4];
-        for (int i = 0; i < 4; i++)
-            colors[i] = phase[i] switch
-            {
-                'R' => 0,
-                'G' => 1,
-                'B' => 2,
-                _ => throw new ArgumentException($"CfaPattern char '{phase[i]}' not in {{R,G,B}}"),
-            };
-        return colors;
     }
 
     /// <summary>

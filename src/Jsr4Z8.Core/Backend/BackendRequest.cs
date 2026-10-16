@@ -48,7 +48,7 @@ public static class BackendRequest
         arguments.Add("--full-well-electrons");
         arguments.Add(fullwell.ToString(CultureInfo.InvariantCulture));
         arguments.Add("--deghost");
-        arguments.Add(Deghost(deghost: false));
+        arguments.Add("off");
         arguments.Add("--out-dng");
         arguments.Add("on");
         arguments.Add("--out-png");
@@ -63,8 +63,4 @@ public static class BackendRequest
         arguments.Add("libraw");
         return arguments;
     }
-
-    /// <summary>Deghost switch mapping (the engine takes on/off); the queue always
-    /// sends off.</summary>
-    internal static string Deghost(bool deghost) => deghost ? "on" : "off";
 }

@@ -22,7 +22,7 @@ public sealed record PayloadArchiveEntry(string Path, long RawLength, long Compr
 
 /// <summary>Summary of one <see cref="PayloadPacker.Pack"/> run.</summary>
 public sealed record PayloadPackResult(
-    int FileCount, long RawBytes, long PackedBytes, string ManifestHash, string PayloadPath, string ManifestPath);
+    int FileCount, long RawBytes, long PackedBytes, string ManifestHash, string ManifestPath);
 
 /// <summary>
 /// Packs the backend distribution into the payload pair (payload.bin +
@@ -96,9 +96,6 @@ public static class PayloadPacker
 
         /// <summary>Path starts with the pattern, which always ends in '/' — the entire directory subtree.</summary>
         DirectoryPrefix,
-
-        /// <summary>Single '*' glob: path starts with the prefix and ends with the suffix around it.</summary>
-        PrefixSuffix,
     }
 
     /// <summary>
@@ -168,15 +165,6 @@ public static class PayloadPacker
                     break;
                 case ExclusionKind.DirectoryPrefix:
                     if (normalized.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
-                        return true;
-                    break;
-                case ExclusionKind.PrefixSuffix:
-                    int star = pattern.IndexOf('*');
-                    string prefix = pattern[..star];
-                    string suffix = pattern[(star + 1)..];
-                    if (normalized.Length >= prefix.Length + suffix.Length
-                        && normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
-                        && normalized.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
                         return true;
                     break;
             }
@@ -319,7 +307,6 @@ public static class PayloadPacker
             entries.Sum(e => e.Length),
             new FileInfo(payloadPath).Length,
             manifest.Hash,
-            payloadPath,
             manifestPath);
     }
 

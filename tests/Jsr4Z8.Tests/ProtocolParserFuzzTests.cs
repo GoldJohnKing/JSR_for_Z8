@@ -108,7 +108,6 @@ public class ProtocolParserFuzzTests
     [InlineData("direct_fail.log")]
     [InlineData("stdout2.log")]
     [InlineData("stdout3.log")]
-    [InlineData("success.log")]
     public void ParseLine_RealFixtureLines_ParseDeterministically(string fixture)
     {
         string[] lines = ReadFixtureLines(fixture);
@@ -149,7 +148,6 @@ public class ProtocolParserFuzzTests
     [InlineData("direct_fail.log")]
     [InlineData("stdout2.log")]
     [InlineData("stdout3.log")]
-    [InlineData("success.log")]
     public void ParseLine_FixtureLinesWithKnownPrefix_LandInRightFamily(string fixture)
     {
         // Every REAL line starting with an SRHQ progress prefix lands in Log (or

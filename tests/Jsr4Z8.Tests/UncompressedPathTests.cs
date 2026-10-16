@@ -31,16 +31,26 @@ public class UncompressedPathTests
             H = h,
             Samples = 1,
             IsCfa = true,
-            // LibRaw 2×2 filter codes (0=R, 1/3=G, 2=B) → phase chars — the same
-            // mapping NefToDngConverter applies before DngComposer.
-            CfaPattern = new string(Array.ConvertAll(cfa, c => c switch { 0 => 'R', 2 => 'B', _ => 'G' })),
+            CfaPattern = "RGGB",
         };
+        // LibRaw 2×2 filter codes (0=R, 1/3=G, 2=B) → DNG CFAPattern colors (0=R, 1=G, 2=B).
+        byte[] cfaColors = Array.ConvertAll(cfa, c => c switch { 0 => (byte)0, 2 => (byte)2, _ => (byte)1 });
         string dir = Path.Combine(Path.GetTempPath(), "jsr4z8-uncompressedtests");
         try { Directory.Delete(dir, recursive: true); } catch { /* stale run */ }
         Directory.CreateDirectory(dir);
         string dng = Path.Combine(dir, "DSC_7576_uncompressed.dng");
+        // ×4 16-bit uncompressed domain: samples <<2, BL 1008×4, WL 15892×4.
         DngComposer.Compose(payload, RawMetadataReader.Read(nef), NefAssetExtractor.Extract(nef),
-            dng, compress: false);
+            dng, new DngWriteOptions
+            {
+                Compress = false,
+                SamplesPerPixel = 1,
+                PhotometricInterpretation = 32803,
+                BlackLevel = 4032,
+                WhiteLevel = 63568,
+                PixelBitShift = 2,
+                CfaPattern = cfaColors,
+            });
         return (dng, src);
     });
 

@@ -111,15 +111,6 @@ public class ProtocolTests
     }
 
     [Fact]
-    public void BuildArguments_DeghostMapping_OffToday()
-    {
-        // The deghost switch keeps an explicit on/off mapping hook; the request path
-        // always sends off today (the old BuildJson hardcoded deghost:false).
-        Assert.Equal("off", BackendRequest.Deghost(false));
-        Assert.Equal("on", BackendRequest.Deghost(true));
-    }
-
-    [Fact]
     public void BuildArguments_WithoutPresetRow_Throws()
     {
         var group = new TaskGroup(new[] { @"D:\pics\a.NEF" });
