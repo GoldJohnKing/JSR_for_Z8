@@ -5,7 +5,7 @@ using Jsr4Z8.Core.Payload;
 // The release script (build.bat Step 4) invokes:
 //   pack-payload <srcDir> <embeddedDir>
 // with embeddedDir = src/Jsr4Z8.Core/Payload/Embedded/ — the pair is NOT committed
-// (payload.bin is ~500 MB); the Core csproj embeds both files as resources when present.
+// (payload.bin is ~200 MB); the Core csproj embeds both files as resources when present.
 //
 // The pack always runs into a temp sibling (<EmbeddedDir>.tmp-pack-<pid>) first; the
 // freshly generated manifest is then byte-compared against the existing embedded one
