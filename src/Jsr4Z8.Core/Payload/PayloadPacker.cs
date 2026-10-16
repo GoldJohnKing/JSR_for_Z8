@@ -29,7 +29,7 @@ public sealed record PayloadPackResult(
 /// payload.manifest.json) and provides the manifest/archive readers used by
 /// <see cref="PayloadManager"/> for extraction. Shared library code: the release packer
 /// tool (tools/pack-payload, invoked by the release script) and the tests
-/// (fake 2-file payloads in temp dirs) both go through it — the real ~202 MB payload is
+/// (fake 2-file payloads in temp dirs) both go through it — the real ~393 MB payload is
 /// never committed or embedded into test builds.
 ///
 /// Scanned from &lt;srcDir&gt; (byte-exact constraint) plus a pre-extracted engine tree

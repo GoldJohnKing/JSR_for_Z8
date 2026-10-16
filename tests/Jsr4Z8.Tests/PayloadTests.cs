@@ -10,7 +10,7 @@ namespace Jsr4Z8.Tests;
 /// <summary>
 /// Task 10: payload pack → extract → verify → self-heal pipeline, using the SAME
 /// PayloadPacker code the release packer tool (tools/pack-payload) uses. The tests
-/// build a minimal fake payload in temp dirs — the real ~202 MB backend payload is
+/// build a minimal fake payload in temp dirs — the real ~393 MB backend payload is
 /// never committed or embedded into test builds (Task 15 packs it at release time).
 /// Windows-host tests: the manager writes/renames/deletes real directories.
 /// Task 1 (2026-10-16 预解包): the fake engine is a synthetic mini PyInstaller onefile
