@@ -59,16 +59,17 @@ public class E2eTests
         Enumerable.Range(7576, 7).Select(i => Path.Combine(samplesDir, "test_frames", "lossless", $"DSC_{i}.NEF")).ToArray();
 
     /// <summary>The payload the release selftest extracted; asserts the operator ran it first.
-    /// Returns the direct-invoke engine executable (resources\jsr_backend.exe).</summary>
+    /// Returns the direct-invoke engine executable (resources\jsr_backend_runtime\jsr_backend.exe
+    /// — the pre-extracted runtime tree's root copy).</summary>
     private static string ResolveExtractedBackend()
     {
         Assert.True(Directory.Exists(PayloadManager.DefaultBackendRoot),
             $"后端载荷根不存在: {PayloadManager.DefaultBackendRoot}（先运行 out\\Jsr4Z8_v1.0.0.exe --selftest 释放载荷）");
         string[] candidates = Directory.GetDirectories(PayloadManager.DefaultBackendRoot)
-            .Where(d => File.Exists(Path.Combine(d, "resources", TaskQueueRunner.EngineFileName)))
+            .Where(d => File.Exists(Path.Combine(d, TaskQueueRunner.EngineRelativePath)))
             .ToArray();
         string backend = Assert.Single(candidates);
-        return Path.Combine(backend, "resources", TaskQueueRunner.EngineFileName);
+        return Path.Combine(backend, TaskQueueRunner.EngineRelativePath);
     }
 
     /// <summary>Queue events collected during one run (background threads → lock).</summary>

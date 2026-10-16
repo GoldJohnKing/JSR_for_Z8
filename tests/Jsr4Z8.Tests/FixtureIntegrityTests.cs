@@ -35,6 +35,9 @@ public class FixtureIntegrityTests
         { "stub_backend/stub_dual_child.bat", "787d4d094392c4efdc77a0e190865a8e98c61f654bcb7989794be17f1ce7abed" },
         { "stub_backend/stub_fail.bat", "e6c96684ea0e30ee4ab9ebf100446054ede3044b184e1d44c0cd305e2fce1e73" },
         { "stub_backend/stub_kill.bat", "a89693405df8235a6108ca30b806a0575c8f83d7a00e1486246f6b5682faf4af" },
+        // _PYI_* injection echo stub (2026-10-16 meipass2 experiment e1-c3): BackendRunnerTests
+        // locks the spawn-injected triple character-exact against it
+        { "stub_backend/stub_env.bat", "3e91a8f7497f998274f84d23dedebb0cff5ebe18a637b57f515c555ce332da05" },
     };
 
     [Theory]

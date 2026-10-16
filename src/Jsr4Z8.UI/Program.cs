@@ -33,8 +33,10 @@ internal static class Program
     /// <summary>
     /// Release QA self-test, no UI: ①PayloadManager.EnsureExtracted on the real
     /// embedded payload (progress to console; a pre-existing verified extraction is
-    /// the fast path) ②assert the extracted backend engine (resources\jsr_backend.exe)
-    /// and resources tree exist ③LibRaw smoke — version probe always, NEF decode when
+    /// the fast path) ②assert the extracted backend engine
+    /// (resources\jsr_backend_runtime\jsr_backend.exe — the pre-extracted runtime
+    /// tree's root copy, the _PYI_* spawn-injection entry point) and resources tree
+    /// exist ③LibRaw smoke — version probe always, NEF decode when
     /// a file argument is given.
     /// Prints SELFTEST OK / SELFTEST FAIL and returns 0 / 1.
     /// </summary>
@@ -51,7 +53,7 @@ internal static class Program
                 Console.WriteLine("  载荷: 提取/校验嵌入后端（首次约 202 MB，请稍候）...");
                 string backend = new PayloadManager().EnsureExtracted(new ConsoleProgress());
 
-                string engineExe = Path.Combine(backend, "resources", TaskQueueRunner.EngineFileName);
+                string engineExe = Path.Combine(backend, TaskQueueRunner.EngineRelativePath);
                 string resources = Path.Combine(backend, "resources");
                 if (!File.Exists(engineExe))
                     throw new InvalidOperationException($"载荷缺少直调引擎 {engineExe}");

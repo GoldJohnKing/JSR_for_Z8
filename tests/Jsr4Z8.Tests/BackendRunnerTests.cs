@@ -12,7 +12,8 @@ namespace Jsr4Z8.Tests;
 /// ASSISTANT_* envelopes, SRHQ bare lines, exit code relayed by the spawned
 /// parent, same-argv child + unnamed grandchild in the tree), so cancellation
 /// must keep the whole-tree kill (taskkill /T /F), Started is the runner's own
-/// synthesis, and every streamed line must land in the run log file.
+/// synthesis, and every streamed line must land in the run log file. stub_env.bat
+/// instead echoes the _PYI_* spawn-injection triple for its character-exact lock.
 /// Windows-host tests: the stubs are .bat files driven through the same Process
 /// path the real engine executable uses.
 /// </summary>
@@ -129,6 +130,33 @@ public class BackendRunnerTests : IClassFixture<TestTemp>
         string log = File.ReadAllText(spec.LogFile, Encoding.UTF8);
         Assert.Contains("子实例同 argv 干活", log);
         Assert.Contains("父实例转述子实例退出码", log);
+    }
+
+    /// <summary>Locks the _PYI_* spawn injection character-exact: the stub echoes the
+    /// three variables BackendRunner must set on every engine spawn (the pre-extracted
+    /// tree runtime contract, experiment e1-c3) — one wrong character and the
+    /// bootloader's reset block strips them, silently falling back to per-run
+    /// self-extraction.</summary>
+    [Fact]
+    public async Task SpawnInjectsPyiTriple_StubEnvEcho_CharacterExactExperimentValues()
+    {
+        BackendRunSpec spec = NewSpec("stub_env.bat");
+        var events = new List<RunnerEvent>();
+
+        RunnerResult result = await new BackendRunner().RunAsync(spec, events.Add, CancellationToken.None);
+
+        Assert.True(result.Success, $"Message: {result.Message}");
+
+        // Experiment recipe (docs/superpowers/notes/2026-10-16-meipass2-experiment.md
+        // e1-c3): archive file = the engine executable's FULL path (the CArchive),
+        // home dir = its containing tree directory (no trailing separator), level = "0".
+        // Full-string equality — Contains would hide a single wrong character.
+        string engineFull = Path.GetFullPath(spec.EngineExe);
+        string treeDir = Path.GetDirectoryName(engineFull)!;
+        Assert.Contains(events, e => e is LogLine { Progress: null } l && l.Text == "_PYI_ARCHIVE_FILE=" + engineFull);
+        Assert.Contains(events, e => e is LogLine { Progress: null } l && l.Text == "_PYI_APPLICATION_HOME_DIR=" + treeDir);
+        Assert.Contains(events, e => e is LogLine { Progress: null } l && l.Text == "_PYI_PARENT_PROCESS_LEVEL=0");
+        Assert.IsType<Finished>(events[^1]);
     }
 
     [Fact]

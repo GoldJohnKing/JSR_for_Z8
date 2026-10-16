@@ -6,7 +6,9 @@ namespace Jsr4Z8.Core.Backend;
 /// <summary>
 /// Runs one DIRECT jsr_backend.exe invocation end to end (probe §7):
 /// spawns the engine executable with the argv from the spec — no Bridge, no
-/// request.json, no config dir — and streams its bare stdout lines (zero
+/// request.json, no config dir — with the _PYI_* triple injected (see RunAsync:
+/// the pre-extracted runtime tree runs in place, zero %TEMP% _MEI) — and
+/// streams its bare stdout lines (zero
 /// ASSISTANT_* envelopes): SRHQ progress parsing stays in ProtocolParser, every
 /// line is forwarded as LogLine and appended to the spec's log file (UTF-8,
 /// stderr lines prefixed "stderr| "). Started is synthesized at spawn (pid = the
@@ -64,6 +66,20 @@ public sealed class BackendRunner
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
         };
+        // The _PYI_* triple — character-exact per the experiment recipe (e1-c3,
+        // docs/superpowers/notes/2026-10-16-meipass2-experiment.md §1.2/§7): spawning
+        // the pre-extracted runtime tree's engine with the COMPLETE triple runs it
+        // straight from the tree — zero %TEMP% _MEI self-extraction, single instance.
+        // All three must be set together and exactly: a missing _PYI_ARCHIVE_FILE makes
+        // the bootloader's reset block strip the other two (silent fallback to per-run
+        // self-extraction), and archive = the engine exe's full path (it IS the
+        // CArchive), home dir = its containing tree dir (no trailing separator),
+        // level = "0" (the child role). psi is per-spawn — nothing leaks between runs.
+        string engineFullPath = Path.GetFullPath(spec.EngineExe);
+        psi.EnvironmentVariables["_PYI_ARCHIVE_FILE"] = engineFullPath;
+        psi.EnvironmentVariables["_PYI_APPLICATION_HOME_DIR"] = Path.GetDirectoryName(engineFullPath)
+            ?? throw new InvalidOperationException("引擎路径没有所在目录");
+        psi.EnvironmentVariables["_PYI_PARENT_PROCESS_LEVEL"] = "0";
         foreach (string argument in spec.Arguments)
             psi.ArgumentList.Add(argument);
 

@@ -57,8 +57,13 @@ public sealed record BackendFinished(RunnerResult Result) : QueueEvent;
 /// </summary>
 public sealed class TaskQueueRunner
 {
-    /// <summary>The backend engine executable inside the extracted payload's resources\.</summary>
-    public const string EngineFileName = "jsr_backend.exe";
+    /// <summary>The backend engine executable inside the extracted payload, relative to
+    /// the payload root: the pre-extracted runtime tree resources\jsr_backend_runtime\
+    /// (pack-time CArchive pre-extraction, <see cref="Payload.PayloadPacker.EngineRuntimeDir"/>)
+    /// carries the engine exe at its root, and BackendRunner's _PYI_* spawn injection
+    /// runs exactly this copy against the tree — zero %TEMP% _MEI (experiment
+    /// docs/superpowers/notes/2026-10-16-meipass2-experiment.md).</summary>
+    public const string EngineRelativePath = @"resources\jsr_backend_runtime\jsr_backend.exe";
 
     private const string NoDngMessage = "后端未产出 DNG";
     private const string CancelledMessage = "已停止";
@@ -68,7 +73,7 @@ public sealed class TaskQueueRunner
     /// <summary>Test seam: replaces payload resolution — receives the payload-phase
     /// progress reporter, returns the engine executable to run. The default path
     /// extracts/verifies the embedded payload and resolves
-    /// resources\<see cref="EngineFileName"/> inside it.</summary>
+    /// <see cref="EngineRelativePath"/> inside it.</summary>
     internal Func<IProgress<double>?, BackendPayload>? ResolveBackendOverride { get; set; }
 
     /// <summary>Test seam: overrides the per-job temp root base (production null →
@@ -111,7 +116,7 @@ public sealed class TaskQueueRunner
                 : await Task.Run(() =>
                 {
                     string root = _payload.EnsureExtracted(payloadProgress);
-                    return new BackendPayload(Path.Combine(root, "resources", EngineFileName));
+                    return new BackendPayload(Path.Combine(root, EngineRelativePath));
                 }, ct).ConfigureAwait(false);
 
             // ② per-run temp dir (jobId is unique — the engine's output dir).

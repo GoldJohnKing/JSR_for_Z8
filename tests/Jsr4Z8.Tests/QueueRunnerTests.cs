@@ -107,6 +107,20 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
         return condition();
     }
 
+    // ---------------------------------------------------------------- engine: payload path
+
+    /// <summary>Locks the engine path join character-exact: the engine executable is
+    /// the pre-extracted runtime tree's root copy resources\jsr_backend_runtime\jsr_backend.exe
+    /// (pack-time CArchive pre-extraction, PayloadPacker.EngineRuntimeDir) — the _PYI_*
+    /// injection contract runs THAT exe against THAT tree. Any other spelling (e.g. the
+    /// old onefile resources\jsr_backend.exe) silently breaks the injection: the
+    /// bootloader's reset block strips the vars and every run self-extracts again.</summary>
+    [Fact]
+    public void EngineRelativePath_PinsPreextractedTreeJoin()
+    {
+        Assert.Equal(@"resources\jsr_backend_runtime\jsr_backend.exe", TaskQueueRunner.EngineRelativePath);
+    }
+
     // ---------------------------------------------------------------- engine: temp-dir lifecycle
 
     [Fact]
