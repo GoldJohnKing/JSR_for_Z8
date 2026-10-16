@@ -7,7 +7,7 @@ namespace Jsr4Z8.Tests;
 
 /// <summary>
 /// Reference-tree drift canary. The untracked reference/
-/// (Jiangtherapee-Bridge-2.3.25-Windows-x64, ~649 MB) is the payload source
+/// (Jiangtherapee-Bridge-2.3.27-Windows-x64, ~854 MB) is the payload source
 /// ("勿改一字节" — AGENT §8) and the origin of the embedded PTC table; a new
 /// backend release drops a new tree in place, and nothing currently notices
 /// that the shipped payload / embedded calibration silently stopped matching
@@ -30,7 +30,7 @@ public class ReferenceDriftCanaryTests
         { 50, 100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200, 102400 };
 
     private static string ReferenceRoot() =>
-        Path.Combine(SampleFiles.RepoRoot(), "reference", "Jiangtherapee-Bridge-2.3.25-Windows-x64");
+        Path.Combine(SampleFiles.RepoRoot(), "reference", "Jiangtherapee-Bridge-2.3.27-Windows-x64");
 
     [Fact]
     public void EmbeddedPtcTable_ExactlyTwelveZ8Rows_ExpectedIsoLadder()
