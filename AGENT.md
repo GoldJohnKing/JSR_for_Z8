@@ -1,6 +1,6 @@
 # AGENT.md — JSR for Z8 项目接手指南
 
-尼康 Z8 专用的七帧 RAW 超分辨率 GUI 客户端：C#/.NET 8 + Avalonia 前端，内嵌 Jiangtherapee 2.3.27 的 Python 计算引擎（WGPU/Vulkan 计算；直调 `resources\jsr_backend.exe`，载荷不携带顶层 `Jiangtherapee Bridge.exe` 壳），以单文件 exe 分发。后端与前端仅通过 argv + stdout 裸行协议通信。
+尼康 Z8 专用的七帧 RAW 超分辨率 GUI 客户端：C#/.NET 8 + Avalonia 前端，内嵌 Jiangtherapee 2.3.27 的 Python 计算引擎（WGPU/Vulkan 计算；直调预解包树内 `resources\jsr_backend_runtime\jsr_backend.exe`，`_PYI_*` 三元组注入直跑——零 %TEMP% 自解压，载荷不携带顶层 `Jiangtherapee Bridge.exe` 壳与 onefile 整体引擎），以单文件 exe 分发。后端与前端仅通过 argv + stdout 裸行协议通信。
 
 ## 1. 环境与工作方式（必读）
 
@@ -15,9 +15,9 @@
 
 | 动作 | 命令（Windows host） |
 |---|---|
-| 全量测试 | `dotnet test --nologo`（当前 **274/274 全绿**；黑场标定恒为预置表匹配——见 §5 决策 3） |
-| 一键发布 | `build.bat` → `out\Jsr4Z8_v<版本>.exe`（~235MB 单文件（载荷 _internal 依赖矩阵裁剪后：28 文件/201,877,427 B，onefile 自解压实证见 docs/superpowers/notes/2026-10-16-payload-trim-probe.md）；Step 4 恒跑 pack-payload：自动选 reference/ 下最高版本，manifest 哈希比对自决换入，无需手动删 payload.*） |
-| 无头自检 | `out\Jsr4Z8_v*.exe --selftest [file.nef]`（释放/校验载荷+验 resources\jsr_backend.exe 引擎+LibRaw 冒烟） |
+| 全量测试 | `dotnet test --nologo`（当前 **282/282 全绿**；黑场标定恒为预置表匹配——见 §5 决策 3） |
+| 一键发布 | `build.bat` → `out\Jsr4Z8_v<版本>.exe`（单文件实测 440,567,896 B（440.6MB，MiB 口径 420.1）；预解包载荷实测：**1,444 文件/原始 587,974,158 B（560.7MiB）/payload.bin 393,487,154 B（375.3MiB）/manifest hash 9382ed09d9739092**；构成=引擎本体拷贝 201,243,142 B（不可压，DEFLATE 后 190.8MiB）+CArchive 树余 1,416 文件 386,096,731 B→压缩 193,108,942 B（184.2MiB）+licenses/元数据 27 文件 634,285 B；端到端注入实证 docs/superpowers/notes/2026-10-16-meipass2-experiment.md；Step 4 恒跑 pack-payload：预解包 onefile 引擎入 `resources\jsr_backend_runtime\`，自动选 reference/ 下最高版本，manifest 哈希比对自决换入，无需手动删 payload.*） |
+| 无头自检 | `out\Jsr4Z8_v*.exe --selftest [file.nef]`（释放/校验载荷+验树内引擎 `resources\jsr_backend_runtime\jsr_backend.exe`+LibRaw 冒烟） |
 | E2E（真 GPU，~6min/全幅） | cmd 脚本内 `set JSR4Z8_E2E=1` + `dotnet test --filter FullyQualifiedName~E2eTests.<名>`；门控见 `tests/Jsr4Z8.Tests/E2eTests.cs`；**完整 E2E 默认不跑，仅用户明示要求时运行** |
 | 诊断工具 | `tools/finalize-variant/`（离线调用融合器：crop/passthrough/featureSet 剥离矩阵，ACR 排障利器） |
 
@@ -29,23 +29,24 @@
 Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐)
    └─ QueueMediator(单飞+IDispatcher UI 线程编组+进度节流200ms)
         └─ TaskQueueRunner(顺序队列: 释放载荷→临时目录→BuildArguments argv→BackendRunner(直调)→JsrDngFinalizer)
-             ├─ PayloadManager: exe 内嵌载荷(裸DEFLATE) → %LOCALAPPDATA%\JSR4Z8\backend\<hash>\（resources\ 引擎树）释放+SHA校验+自愈+旧版本目录清理
-             ├─ BackendRunner: 直调 resources\jsr_backend.exe（argv=BuildArguments）→ stdout 裸行协议解析(ProtocolParser) → taskkill /T 树杀取消
+             ├─ PayloadManager: exe 内嵌载荷(裸DEFLATE+逐文件SHA-256 manifest) → %LOCALAPPDATA%\JSR4Z8\backend\<hash>\（resources\ 源树 27 文件+预解包引擎树 resources\jsr_backend_runtime\ 1,417 文件含引擎本体拷贝，合计 1,444 文件/587,974,158 B）释放+逐文件SHA校验+自愈+旧版本目录清理（实测首释 2.3s/复验 0.8s）
+             ├─ BackendRunner: 直调树内 resources\jsr_backend_runtime\jsr_backend.exe（注入 _PYI_* 三元组，见 §4）→ stdout 裸行协议解析(ProtocolParser) → taskkill /T 树杀取消
              └─ JsrDngFinalizer: 后端裸DNG → 解码像素 → DngComposer(复刻自Save_Z8) 重写
                   （EXIF/GPS/XMP/三级预览搬迁、镜头校正Opcode、无损JPEG Compress=7、LinearRaw 16bit×3通道）
 ```
 
-- `src/Jsr4Z8.Core`：RawMetadataReader(LibRaw)、NefAssetExtractor(TiffIfdExtractor 复刻)、Ptc(双段log-log拟合)、Dark(Embedded/dark_z8.csv 102行=34档ISO×3压缩（后端 z8_presets manifest 离线导出） 预置黑场表：双键(压缩,ISO)精确匹配不插值——ISO500=DCG切换点；画幅不参与匹配)、TaskGroupValidator(五维一致性：机型/ISO/位深/压缩/画幅 两两校验+预置黑场双键匹配，画像外=CaptureFormatUnsupported"拍摄格式不支持"；无手动黑场路径；曝光包围：仅快门速度不同的 7 帧合法，UI 层默认取中间曝光为基准帧)、Backend(argv 构建器 BuildArguments+裸行协议+直调执行器)、Dng(写盘器)、Payload(白名单=resources/ 树减排除清单：顶层 Bridge.exe/K14 引擎/_internal 整树（onefile 自解压实证——引擎从不读盘上树）/raw_bridge+jxl_worker 工具与其 libjxl-DLL 家族（从未 spawn）/z8_presets；THIRD_PARTY_NOTICES.md 不打包)、Queue。
+- `src/Jsr4Z8.Core`：RawMetadataReader(LibRaw)、NefAssetExtractor(TiffIfdExtractor 复刻)、Ptc(双段log-log拟合)、Dark(Embedded/dark_z8.csv 102行=34档ISO×3压缩（后端 z8_presets manifest 离线导出） 预置黑场表：双键(压缩,ISO)精确匹配不插值——ISO500=DCG切换点；画幅不参与匹配)、TaskGroupValidator(五维一致性：机型/ISO/位深/压缩/画幅 两两校验+预置黑场双键匹配，画像外=CaptureFormatUnsupported"拍摄格式不支持"；无手动黑场路径；曝光包围：仅快门速度不同的 7 帧合法，UI 层默认取中间曝光为基准帧)、Backend(argv 构建器 BuildArguments+裸行协议+直调执行器)、Dng(写盘器)、Payload(白名单=resources/ 树减排除清单+打包期预解包引擎树映射 resources\jsr_backend_runtime\（tools/pack-payload EnginePreextractor：CArchive b 条目→树+引擎本体逐字节拷贝）；排除：顶层 Bridge.exe/K14 引擎/onefile 整体 jsr_backend.exe（ExactPath 防回潮）/_internal 整树（引擎从不读盘上树）/raw_bridge+jxl_worker 工具与其 libjxl-DLL 家族（从未 spawn）/z8_presets；THIRD_PARTY_NOTICES.md 不打包)、Queue。
 - `external/`：git submodule ×2（y-g-jiang/LibRaw@nikon-he-production、libjpeg-turbo）——**唯一允许的源码依赖方式**；.NET 库一律 NuGet 锁版本（Avalonia 11.2.2 / Semi.Avalonia 11.2.1.10 / CT.Mvvm 8.3.2，与 Save_Z8 对齐）。
 - 复刻纪律：Save_Z8 代码（`D:\GitRepos\Save_Z8`，作者自有项目）按「复刻源文件+保留头注」方式移植，**不**作为 submodule。参考产物：`D:\GitRepos\Save_Z8\samples\DSC_7576_fixed.dng`（ACR 实证可开的 CFA 对照基准）。
 
 ## 4. 硬契约（实测钉死，勿凭直觉改）
 
-- **后端调用（直调）**：spawn 载荷内 `resources\jsr_backend.exe`（载荷唯一入口；顶层 `Jiangtherapee Bridge.exe` 不在载荷内，排除清单防回潮）。argv 模板一行化（`BackendRequest.BuildArguments`；探测实证 docs/superpowers/notes/2026-10-15-jsr-backend-argv-probe.md §2/§5/§7）：
+- **后端调用（直调）**：spawn 载荷内 `resources\jsr_backend_runtime\jsr_backend.exe`（预解包树内引擎，载荷唯一入口；onefile `resources\jsr_backend.exe` 与顶层 `Jiangtherapee Bridge.exe` 均不在载荷内，排除清单防回潮）。argv 模板一行化（`BackendRequest.BuildArguments`；探测实证 docs/superpowers/notes/2026-10-15-jsr-backend-argv-probe.md §2/§5/§7）：
   `jsr_backend.exe --output-dir <jobDir> --out-prefix <jobId> --dng-compression auto --raw-frame <f1> … --raw-frame <f7> --developer-mode --read-noise-dn <RN> --black-level-dn <BL> --full-well-electrons <FW> --deghost off --out-dng on --out-png off --out-tiff off --out-format jpeg --jpeg-quality 95 --camera-profile-source libraw`
   **无 request.json、无 cfg 目录、无预览链**（§7 无 cfg/无预览真机直调 exit 0 实证）；**memory 预算彻底不传 = 不限额**；FW=PTC 匹配值 1 位小数，RN/BL=预置黑场表值（`tests/…/ProtocolTests.cs` 逐开关锁定）。
+- **引擎注入契约（_PYI_* 三元组，2026-10-16 实证）**：spawn 树内引擎时必须整组字符级精确注入 `_PYI_ARCHIVE_FILE=<引擎 exe 全路径>`（它自身即 CArchive）、`_PYI_APPLICATION_HOME_DIR=<树目录>`（无尾分隔符）、`_PYI_PARENT_PROCESS_LEVEL=0`——引擎以「子实例」身份直跑树：**零 %TEMP% _MEI 自解压、单实例、树零写入**（端到端实测：全程 1s 轮询零 _MEI、单 pid 贯穿、树 1,444 文件前后零变化）。fallback 语义：缺 `_PYI_ARCHIVE_FILE` 时引导器复位块剥除另两个 → 静默回退 per-run 自解压（每跑泄一个 386MB `_MEI`+父子双实例）——`BackendRunnerTests` stub 回显逐字符锁三值，路径回退由 `QueueRunnerTests` 防退化锁拦截。
 - **stdout 协议（裸行，无信封）**：引擎 stdout 即协议本体，零 `ASSISTANT_*` 信封（那是 Bridge 外加的，已随直调消失）；结构行仅 `SRHQ_V12_PROGRESS|int|阶段` 与导出期 `SRHQ_ETA_PROGRESS|dng|done|total`（映射 95+5*done/total，尾三行 = `SRHQ_V12_PROGRESS|100|导出完成` → `V12 output: <dir>` → `DONE total <s>s`，P100 恰一次）；其余（`PTC {…}` 回显、`SRHQ_V12_FRAME|…`、Proxy 噪声）按原文透传；stderr 不参与协议（诊断回溯走 stderr，成功时 0 字节）。夹具：`tests/Jsr4Z8.Tests/fixtures/protocol/direct_success.log`（真实直调日志）。
-- **取消**：引擎每次调用自重复为父子双实例（~2s 间隔，实际工作在子进程，父转述退出码），树内还可能出现未名孙进程——必须 `taskkill /T /F` 杀整棵树（持有自己 spawn 的父 pid 即可）。崩溃兜底：主进程启动即加入 kill-on-close Job Object，异常退出时 OS 自动终止全部子进程；正常取消仍为 taskkill /T 树杀。
+- **取消**：注入生效后引擎单实例直跑（历史未注入形态每次自重复为父子双实例、~2s 间隔，实际工作在子进程，父转述退出码；树内还可能出现未名孙进程）——无论单双实例，都必须 `taskkill /T /F` 杀整棵树（持有自己 spawn 的父 pid 即可，防御性语义不变）。崩溃兜底：主进程启动即加入 kill-on-close Job Object，异常退出时 OS 自动终止全部子进程；正常取消仍为 taskkill /T 树杀。
 - **后端产物**：`<outputDir>/<prefix>_V15_3_5_K7_<ts>/<同名>.dng` + 辅助文件；失败残留 `.partial` 目录（成功 glob 需排除）。退出码取父实例（正常完成 0）。
 - **后端 DNG 形态**：LinearRaw(34892) 16bit×3通道、无 EXIF/预览/校正、BL=0/WL=65535、尺寸=输入 raw 填充尺寸×2（8280×5520→16560×11040）。
 - **PTC**：`Ptc/Embedded/ptc_z8.csv`（自原包提取）；表内 ISO 直取 1/alpha，表外双段 **log-log 最小二乘**（<500 / ≥500 两段）——字面线性拟合违反计划自身留一检验且 ISO499 得负满阱，勿改回。
@@ -87,5 +88,6 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐)
 ## 8. 文档地图
 
 - 活性契约参考（argv 探测/裸行协议/直调实证，硬契约的事实出处）：`docs/superpowers/notes/2026-10-15-jsr-backend-argv-probe.md`
+- 注入契约/预解包实证（_PYI_* 三元组机制、零 _MEI、持久目录只读性）：`docs/superpowers/notes/2026-10-16-meipass2-experiment.md`
 - 排障/修复报告（ACR 攻坚全程）：`.superpowers/sdd-postrelease-fix*.md`（fix1-11）
 - 样例：`samples/test_frames/`（`lossless`=DSC_7576-7582 七帧无损等曝光组；`he_compressed`=DSC_7652-7658 七帧 HE 组；`unequal_exposure`=DSC_7855-7861 七帧不等曝光/包围组（1/3EV 快门梯 1/200…1/50，中间曝光 1/100 为基准帧），均未入 git；黑场标定无样本文件——预置黑场表来源为后端 z8_presets manifest 离线导出，见 §5 决策 3）；后端原包：`reference/` 下 2.3.25 与 2.3.27 两树均在（均勿改一字节）；载荷取 2.3.27（build.bat 自动选最高版本；黑场表/argv 契约随版重验）
