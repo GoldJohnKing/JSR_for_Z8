@@ -13,7 +13,7 @@ public class NativeSmokeTests
     [Fact]
     public void OpenSampleNef_ReadsMakeModelIso()
     {
-        string nef = FindSample(Path.Combine("test_frames","lossless","DSC_7576.NEF"));
+        string nef = SampleFiles.FindSample(Path.Combine("test_frames","lossless","DSC_7576.NEF"));
 
         IntPtr handle = LibRawNative.OpenRaw(nef, out int error);
         Assert.True(handle != IntPtr.Zero, $"lr_open failed, error={error}");
@@ -32,7 +32,4 @@ public class NativeSmokeTests
             LibRawNative.Close(handle);
         }
     }
-
-    /// <summary>Locates samples\&lt;name&gt; by walking up to the repo root.</summary>
-    private static string FindSample(string name) => SampleFiles.FindSample(name);
 }

@@ -1,6 +1,3 @@
-﻿using System;
-using System.IO;
-
 namespace Jsr4Z8.Core.Dng;
 
 /// <summary>

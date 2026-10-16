@@ -166,9 +166,9 @@ public class FinalizerTests
         Assert.InRange(TestTiff.U32(asn, 16) / 1e6, 0.557734 - 1e-5, 0.557734 + 1e-5);
     }
 
-    /// <summary>Final-review finding 5: the reference NEF's XMP packet (IFD0 tag 700,
-    /// verified present in samples\DSC_7576.NEF — 32,768-byte xpacket) must migrate
-    /// into the finalized DNG's IFD0 with its payload intact.</summary>
+    /// <summary>The reference NEF's XMP packet (IFD0 tag 700, verified present in
+    /// samples\DSC_7576.NEF — 32,768-byte xpacket) must migrate into the finalized
+    /// DNG's IFD0 with its payload intact.</summary>
     [Fact]
     public void Ifd0_XmpPacketMigratedFromReferenceNef()
     {
@@ -474,11 +474,9 @@ public class FinalizerTests
     [Fact]
     public void DecodeStream_MalformedStrip_IsContained_ReturnsErrorCode()
     {
-        // Regression lock for the ljd_decode_stream error containment fix:
-        // before it, libjpeg's default error_exit
-        // printed and called exit(EXIT_FAILURE) — this very call would have
-        // killed the test host. Garbage with no SOI marker must now come back
-        // as the documented error code without taking the process down.
+        // Regression lock for the ljd_decode_stream error containment contract
+        // (libjpeg error_exit neutralized via setjmp): garbage without an SOI marker
+        // must come back as the documented error code, never abort the process.
         var garbage = new byte[16];
         for (int i = 0; i < garbage.Length; i += 4)
         {

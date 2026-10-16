@@ -7,6 +7,7 @@ using Jsr4Z8.Core.Queue;
 using Jsr4Z8.UI.Services;
 using Jsr4Z8.UI.ViewModels;
 using Xunit;
+using static Jsr4Z8.Tests.QueueTestShared;
 
 namespace Jsr4Z8.Tests;
 
@@ -29,13 +30,6 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
 
     public QueueRunnerTests(TestTemp temp) => _temp = temp;
 
-    private static readonly string[] Frames =
-        Enumerable.Range(7576, 7).Select(i => $@"C:\Photos\DSC_{i}.NEF").ToArray();
-
-
-    /// <summary>Locates a stub .bat under fixtures\stub_backend\.</summary>
-    private static string StubPath(string name) => SampleFiles.FindUp(Path.Combine("fixtures", "stub_backend", name));
-
     /// <summary>The no-leftover invariant: the Jsr4Z8 temp root holds no job dir. An
     /// absent root satisfies it — under parallel-class load a cancel can race ahead
     /// of the job-dir creation, and "nothing on disk" is exactly the desired end state
@@ -44,13 +38,6 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
     {
         Assert.True(!Directory.Exists(jsrTempRoot) || Directory.GetDirectories(jsrTempRoot).Length == 0,
             $"job temp root must hold no job dir: {jsrTempRoot}");
-    }
-
-    /// <summary>Headless dispatcher: posts run inline (the tests then observe every
-    /// mutation synchronously, in arrival order).</summary>
-    private sealed class SyncDispatcher : IDispatcher
-    {
-        public void Post(Action action) => action();
     }
 
     /// <summary>One queue stack (engine + mediator) whose backend runs the given stub
@@ -67,12 +54,12 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
         {
             TempBase = temp.NewDir();
             Engine.TempBaseOverride = TempBase;
-            var bats = new ConcurrentQueue<string>(batNames.Select(StubPath));
+            var bats = new ConcurrentQueue<string>(batNames.Select(QueueTestShared.StubPath));
             Engine.ResolveBackendOverride = progress =>
             {
                 progress?.Report(1.0); // payload phase completes → 0-5% card progress
                 bats.TryDequeue(out string? bat);
-                return new TaskQueueRunner.BackendPayload(bat ?? StubPath("stub_backend.bat"));
+                return new TaskQueueRunner.BackendPayload(bat ?? QueueTestShared.StubPath("stub_backend.bat"));
             };
             Engine.FinalizeOverride = (backendDng, referenceNef, destDir) =>
             {
@@ -80,7 +67,7 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
                     FinalizeCalls.Add((backendDng, referenceNef, destDir));
                 return Path.Combine(destDir, "JSR_fake.dng");
             };
-            Mediator = new QueueMediator(Engine, new SyncDispatcher());
+            Mediator = new QueueMediator(Engine, new QueueTestShared.SyncDispatcher());
         }
 
         /// <summary>The Jsr4Z8 job-temp root under this harness's temp base (job dirs land inside).</summary>
@@ -89,23 +76,10 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
 
     /// <summary>A Ready card wired to the harness mediator (validation carries the PTC match).</summary>
     private static TaskGroupViewModel Card(QueueMediator runner) => new(
-        new TaskGroup(Frames),
+        new TaskGroup(QueueTestShared.Frames),
         new ValidationResult(true, Array.Empty<ValidationIssue>(), new PtcMatch(9512, true, "表值"),
             new Jsr4Z8.Core.Dark.DarkMatch(3200, 1005.89, 14.54, "preset")),
         runner);
-
-    /// <summary>Polls <paramref name="condition"/> until true or the deadline passes; true on the final check too.</summary>
-    private static async Task<bool> WaitAsync(Func<bool> condition, TimeSpan timeout)
-    {
-        DateTime deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline)
-        {
-            if (condition())
-                return true;
-            await Task.Delay(25);
-        }
-        return condition();
-    }
 
     // ---------------------------------------------------------------- engine: payload path
 
@@ -259,7 +233,7 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
 
             Assert.False(Directory.Exists(old), "8-day-old leftover must be swept");
             Assert.False(Directory.Exists(fresh), "1-day-old leftover must be swept too — no age threshold, only the sweep-start cutoff");
-            Assert.False(Directory.Exists(current), "no id exclusion: everything past the grace window goes");
+            Assert.False(Directory.Exists(current), "no id exclusion: everything predating the sweep start goes");
             Assert.Empty(Directory.GetDirectories(root));   // the root itself survives, emptied
         }
         finally
@@ -500,33 +474,10 @@ public class QueueMediatorTests : IClassFixture<TestTemp>
 
     public QueueMediatorTests(TestTemp temp) => _temp = temp;
 
-    private static readonly string[] Frames =
-        Enumerable.Range(7576, 7).Select(i => $@"C:\Photos\DSC_{i}.NEF").ToArray();
-
-
-    private sealed class SyncDispatcher : IDispatcher
-    {
-        public void Post(Action action) => action();
-    }
-
     private static TaskGroupViewModel Card(ITaskRunner runner, PtcMatch? ptc = null) => new(
-        new TaskGroup(Frames),
+        new TaskGroup(QueueTestShared.Frames),
         new ValidationResult(true, Array.Empty<ValidationIssue>(), ptc, new Jsr4Z8.Core.Dark.DarkMatch(3200, 1005.89, 14.54, "preset")),
         runner);
-
-    private static async Task<bool> WaitAsync(Func<bool> condition, TimeSpan timeout)
-    {
-        DateTime deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline)
-        {
-            if (condition())
-                return true;
-            await Task.Delay(25);
-        }
-        return condition();
-    }
-
-    private static string StubPath(string name) => SampleFiles.FindUp(Path.Combine("fixtures", "stub_backend", name));
 
     /// <summary>Engine pointed at one stub, no temp-dir assertions — pure event mapping.
     /// The finalizer is faked so the mapping test observes the mediator, not the real
@@ -538,13 +489,13 @@ public class QueueMediatorTests : IClassFixture<TestTemp>
         engine.ResolveBackendOverride = progress =>
         {
             progress?.Report(1.0); // payload phase completes → 0-5% card progress
-            return new TaskQueueRunner.BackendPayload(StubPath(bat));
+            return new TaskQueueRunner.BackendPayload(QueueTestShared.StubPath(bat));
         };
         engine.FinalizeOverride = (backendDng, referenceNef, destDir) => Path.Combine(destDir, "JSR_fake.dng");
         // Job dirs land under the engine's overridden temp base — per-run GUID under
         // the fixture, never a fixed %TEMP% name that would survive the run.
         engine.TempBaseOverride = tempBase;
-        return (new QueueMediator(engine, new SyncDispatcher(), progressGate: TimeSpan.Zero), tempBase);
+        return (new QueueMediator(engine, new QueueTestShared.SyncDispatcher(), progressGate: TimeSpan.Zero), tempBase);
     }
 
     [Fact]
@@ -594,5 +545,36 @@ public class QueueMediatorTests : IClassFixture<TestTemp>
         {
             try { Directory.Delete(tempBase, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
+    }
+}
+
+/// <summary>Shared plumbing of the two queue test classes: the 7-frame path set,
+/// stub locator, synchronous dispatcher and poll helper.</summary>
+internal static class QueueTestShared
+{
+    public static readonly string[] Frames =
+        Enumerable.Range(7576, 7).Select(i => $@"C:\Photos\DSC_{i}.NEF").ToArray();
+
+    /// <summary>Locates a stub .bat under fixtures\stub_backend\.</summary>
+    public static string StubPath(string name) => SampleFiles.FindUp(Path.Combine("fixtures", "stub_backend", name));
+
+    /// <summary>Headless dispatcher: posts run inline (tests observe every mutation
+    /// synchronously, in arrival order).</summary>
+    public sealed class SyncDispatcher : IDispatcher
+    {
+        public void Post(Action action) => action();
+    }
+
+    /// <summary>Polls <paramref name="condition"/> until true or the deadline passes; true on the final check too.</summary>
+    public static async Task<bool> WaitAsync(Func<bool> condition, TimeSpan timeout)
+    {
+        DateTime deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            if (condition())
+                return true;
+            await Task.Delay(25);
+        }
+        return condition();
     }
 }

@@ -15,7 +15,7 @@ public class RawMetadataTests
     [Fact]
     public void Read_SampleNef()
     {
-        RawMetadata m = RawMetadataReader.Read(FindSample(Path.Combine("test_frames", "lossless", "DSC_7576.NEF")));
+        RawMetadata m = RawMetadataReader.Read(SampleFiles.FindSample(Path.Combine("test_frames", "lossless", "DSC_7576.NEF")));
 
         Assert.Equal("NIKON CORPORATION", m.Make);
         Assert.Equal("NIKON Z 8", m.Model);
@@ -47,7 +47,7 @@ public class RawMetadataTests
     [Fact]
     public void Extract_SampleNef_HasExifPreviewsNefInfo()
     {
-        NefAssets a = NefAssetExtractor.Extract(FindSample(Path.Combine("test_frames", "lossless", "DSC_7576.NEF")));
+        NefAssets a = NefAssetExtractor.Extract(SampleFiles.FindSample(Path.Combine("test_frames", "lossless", "DSC_7576.NEF")));
 
         // EXIF source block covers IFD0 through the EXIF IFD, so it contains
         // the Make string data.
@@ -72,7 +72,7 @@ public class RawMetadataTests
     [Fact]
     public void Read_TruncatedNef_Throws()
     {
-        string src = FindSample(Path.Combine("test_frames", "lossless", "DSC_7576.NEF"));
+        string src = SampleFiles.FindSample(Path.Combine("test_frames", "lossless", "DSC_7576.NEF"));
         string dir = Path.Combine(Path.GetTempPath(), "jsr4z8-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
@@ -107,7 +107,4 @@ public class RawMetadataTests
             File.Delete(notRaw);
         }
     }
-
-    /// <summary>Locates samples\&lt;name&gt; by walking up from the test output directory to the repo root.</summary>
-    private static string FindSample(string name) => SampleFiles.FindSample(name);
 }

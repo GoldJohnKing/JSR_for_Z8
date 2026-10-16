@@ -193,9 +193,8 @@ public sealed class TaskQueueRunner
     /// sweep's own start. The live job dir of this instance is necessarily created
     /// after the sweep task is queued at app entry, so a slow multi-GB sweep iterating
     /// while the user starts the first run can never touch it; crash debris from any
-    /// earlier moment, down to one second before launch, is swept. (Replaces the
-    /// earlier two-minute grace window; cross-instance is the single-instance mutex's
-    /// job.)
+    /// earlier moment, down to one second before launch, is swept. (Cross-instance
+    /// safety is the single-instance mutex's job.)
     /// </summary>
     private static DateTime SweepStartUtc() => DateTime.UtcNow;
 

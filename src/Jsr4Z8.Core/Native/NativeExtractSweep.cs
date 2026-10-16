@@ -64,15 +64,14 @@ public static class NativeExtractSweep
     /// the bundle (the bundler only embeds .dll-named files — plain data files stay
     /// loose next to the exe — while the extracted content is never loaded, so it need
     /// not be a real PE). Its presence in a cache directory proves the cache is this
-    /// product's, whatever file name the exe runs under. Replaces the earlier
-    /// file-set fingerprint, which another LibRaw-based application could match.
+    /// product's, whatever file name the exe runs under.
     /// </summary>
     internal const string IdentityDllName = "jsr4z8.native-identity.dll";
 
     /// <summary>
     /// Files that must coexist in a bundle-id directory to claim a LEGACY app-name
-    /// directory (built before the VC++ runtime trio shipped, so
-    /// <see cref="ModernFingerprintFiles"/> cannot match): the P/Invoke pair only this
+    /// directory (built before the product shipped an identity marker, so
+    /// <see cref="IdentityDllName"/> cannot match): the P/Invoke pair only this
     /// product extracts together, gated by <see cref="ProductNamePrefix"/> because the
     /// predecessor Save_Z8 extracts the same pair under its own name.
     /// </summary>
@@ -201,7 +200,7 @@ public static class NativeExtractSweep
     /// Test seam, single traversal of <c>&lt;baseDir&gt;</c>'s app-name directories:
     /// <list type="bullet">
     /// <item>our own: delete every bundle-id directory that is not in
-    /// <paramref name="keep"/> and is older than <see cref="GraceWindow"/>;</item>
+    /// <paramref name="keep"/> and predates the sweep's own start;</item>
     /// <item>any other name provably belonging to this product: delete the whole
     /// directory. Proof is content — a child named like one of our current bundle ids
     /// (the SAME build under another file name) or carrying
@@ -260,7 +259,7 @@ public static class NativeExtractSweep
         }
     }
 
-    /// <summary>True when <paramref name="appDir"/> is provably this product's cache: it carries one of our current bundle ids (the same build under another file name), or it is named after our product and one of its bundle-id directories contains the <see cref="FingerprintFiles"/> pair (a previous version's cache).</summary>
+    /// <summary>True when <paramref name="appDir"/> is provably this product's cache: it carries one of our current bundle ids (the same build under another file name), or it is named after our product and one of its bundle-id directories contains the <see cref="LegacyFingerprintFiles"/> pair (a previous version's cache).</summary>
     private static bool IsOurs(string appDir, HashSet<string> currentIds) =>
         ContainsAnyChildNamed(appDir, currentIds) || IsProductCache(appDir);
 

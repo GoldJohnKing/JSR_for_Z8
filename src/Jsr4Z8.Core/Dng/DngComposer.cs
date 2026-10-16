@@ -1,8 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-
 namespace Jsr4Z8.Core.Dng;
 
 /// <summary>

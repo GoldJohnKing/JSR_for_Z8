@@ -137,8 +137,7 @@ public static class PayloadPacker
         // dead weight here.
         (ExclusionKind.ExactPath, "resources/jsr_v98_k14_backend.exe"),
         (ExclusionKind.ExactPath, "resources/jsr_fast_k14_backend.exe"),
-        // The ENTIRE on-disk _internal tree (subsumes the earlier Tcl/Tk, cv2-ffmpeg-DLL
-        // and wgpu-test-residue entries): jsr_backend.exe is a PyInstaller onefile build
+        // The ENTIRE on-disk _internal tree: jsr_backend.exe is a PyInstaller onefile build
         // that self-extracts its full embedded archive to %TEMP%\_MEI* on every launch
         // and never reads the on-disk tree (r03 numpy negative control + 16/16 _MEI
         // observations + r10 whole-tree smoke; probe 2026-10-16-payload-trim-probe.md §3).

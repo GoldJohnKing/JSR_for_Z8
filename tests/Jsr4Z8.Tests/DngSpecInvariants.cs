@@ -71,15 +71,13 @@ internal static class DngSpecInvariants
                 continue;
             List<TestTiff.IfdEntry> entries = TestTiff.ParseIfdEntries(file, off, out uint next);
 
-            // (a) strictly ascending tag order. Known product defect (found by
-            // this very suite, reported for a follow-up fix; tests-only change
-            // here): DngWriter.PreviewBlock emits preview SubIFDs unsorted —
-            // tag 513 lands between 262 and 277 instead of after 278. Lenient
-            // readers cope, but it violates the TIFF entry-order rule, so the
-            // exact sequence is PINNED for non-root preview IFDs (any change —
-            // fix or further drift — fails loudly) while every other IFD (the
-            // root IFD0 thumbnail included — it passes through the writer's
-            // sort) must be strictly ascending.
+            // (a) strictly ascending tag order. Known product defect: DngWriter's
+            // preview blocks emit entries unsorted — tag 513 lands between 262 and
+            // 277 instead of after 278. Lenient readers cope, but it violates the
+            // TIFF entry-order rule, so the exact sequence is PINNED for non-root
+            // preview IFDs (any change — fix or further drift — fails loudly) while
+            // every other IFD (the root IFD0 thumbnail included — it passes through
+            // the writer's sort) must be strictly ascending.
             bool isPreviewIFD = !isRoot && Find(entries, 254) is { } nst &&
                 TestTiff.U32(nst.Data, 0) == 1 && Find(entries, 513) != null;
             if (isPreviewIFD)

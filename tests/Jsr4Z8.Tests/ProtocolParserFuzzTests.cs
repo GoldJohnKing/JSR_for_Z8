@@ -10,12 +10,11 @@ namespace Jsr4Z8.Tests;
 /// the job hangs without a diagnosis). Property-style checks:
 ///  (a) every malformed/hostile line returns an event and never throws, and
 ///      parsing is deterministic (same line → equal event, twice);
-///  (b) determinism over every line of the real captured fixtures (direct bare-line
-///      captures and the legacy envelope captures alike);
+///  (b) determinism over every line of the real captured fixtures (direct
+///      bare-line captures and the Bridge-era envelope captures alike);
 ///  (c) lines starting with a known prefix family map to the right event kind
-///      (well-formed SRHQ progress → Log-with-progress; everything else —
-///      legacy ASSISTANT_* envelope text included, a second grammar the parser
-///      no longer has — → Unrecognized).
+///      (well-formed SRHQ progress → Log-with-progress; everything else,
+///      legacy ASSISTANT_* envelope text included, → Unrecognized).
 /// </summary>
 public class ProtocolParserFuzzTests
 {
@@ -44,9 +43,8 @@ public class ProtocolParserFuzzTests
         "ASSISTANT_JSR_RESULT|",
         "ASSISTANT_JSR_RESULT|{\"exit_code\":",
         "ASSISTANT_JSR_RESULT|{\"exit_code\":3",
-        // escaped unpaired surrogate: plain text to the bare-line parser (the JSON
-        // reader that used to reject some envelope payloads is gone with the
-        // envelopes); kept as hostile-UTF-8 residue.
+        // escaped unpaired surrogate: plain text to the bare-line parser;
+        // kept as hostile-UTF-8 residue.
         "ASSISTANT_JSR_RESULT|{\"exit_code\":0,\"state\":\"complete\",\"log\":\"\\uD800\"}",
         "ASSISTANT_JSR_RESULT|" + new string('Y', 10_000),
         "ASSISTANT_JSR_LOG|",
@@ -112,9 +110,9 @@ public class ProtocolParserFuzzTests
     [Fact]
     public void ParseLine_KnownPrefixFamilies_MapToRightEventKind()
     {
-        // Well-formed SRHQ progress → exact Log-with-progress; everything else —
-        // including legacy ASSISTANT_* envelope text (a second grammar the parser
-        // no longer has) → Unrecognized with the full line preserved.
+        // Well-formed SRHQ progress → exact Log-with-progress; everything else,
+        // including legacy ASSISTANT_* envelope text, → Unrecognized with the
+        // full line preserved.
         var v12 = Assert.IsType<Log>(ProtocolParser.ParseLine("SRHQ_V12_PROGRESS|42|stage"));
         Assert.NotNull(v12.Progress);
         Assert.Equal(42, v12.Progress!.Percent);

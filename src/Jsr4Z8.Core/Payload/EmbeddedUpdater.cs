@@ -3,8 +3,8 @@ namespace Jsr4Z8.Core.Payload;
 /// <summary>
 /// pack-payload 的换入裁决：把临时目录里刚打好的载荷对与 Core 项目当前嵌入对
 /// （src/Jsr4Z8.Core/Payload/Embedded）比对，manifest 字节一致则保留现有嵌入，
-/// 否则换入新对。发布脚本因此可以无条件调用打包器（build.bat Step 4），不再有
-/// “只看存在性跳过 → 换新 reference/ 后仍带旧载荷”的陷阱。
+/// 否则换入新对。发布脚本因此可以无条件调用打包器（build.bat Step 4），
+/// 新 reference/ 后端版自动被带上。
 /// </summary>
 public static class EmbeddedUpdater
 {

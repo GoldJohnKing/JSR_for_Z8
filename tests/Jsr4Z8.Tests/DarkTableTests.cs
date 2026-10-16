@@ -160,7 +160,7 @@ public class DarkTableTests
     [Fact]
     public void Regen_WritesExpectedCsv()
     {
-        string repoRoot = FindRepoRoot();
+        string repoRoot = SampleFiles.RepoRoot();
         string outDir = Path.Combine(Path.GetTempPath(), "jsr-regen-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(outDir);
         string manifestPath = Path.Combine(outDir, "manifest.json");
@@ -226,13 +226,5 @@ public class DarkTableTests
         }
         Assert.True(process.ExitCode == 0, $"regen-dark-table exited {process.ExitCode}: {output}");
         return output;
-    }
-
-    private static string FindRepoRoot()
-    {
-        for (string? dir = AppContext.BaseDirectory; dir is not null; dir = Path.GetDirectoryName(dir))
-            if (File.Exists(Path.Combine(dir, "JSR_for_Z8.sln")))
-                return dir;
-        throw new InvalidOperationException($"JSR_for_Z8.sln not found above {AppContext.BaseDirectory}.");
     }
 }

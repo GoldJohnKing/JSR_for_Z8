@@ -201,7 +201,7 @@ public class ProgressThrottleTests
     /// bare card replayed with the same unthrottled mapping EXACTLY, and stay well
     /// above the gated count.</summary>
     [Fact]
-    public void FixtureReplay_GateDisabled_MatchesOldUnthrottledBehavior()
+    public void FixtureReplay_GateDisabled_MatchesUnthrottledReplay()
     {
         string[] lines = FixtureLines();
 
@@ -233,6 +233,6 @@ public class ProgressThrottleTests
         Assert.Equal(bare.StageText, vm.StageText);
         Assert.Equal(baseline.Count, counter.Count);             // unthrottled behavior reproduced exactly
         Assert.True(counter.Count > 50,
-            $"expected the old per-line behavior to stay expensive, got {counter.Count}"); // measured: 197 progress lines → 88 transitions
+            $"expected the per-line behavior to stay expensive, got {counter.Count}"); // measured: 197 progress lines → 88 transitions
     }
 }

@@ -76,10 +76,10 @@ public class ProtocolTests
     [Fact]
     public void BuildArguments_NumberFormatting_InvariantAndOldFullwellRounding()
     {
-        // Rounding is the old BuildJson behavior carried over verbatim: fullwell =
-        // Math.Round(ptc.FullwellE, 1, AwayFromZero); RN/BL pass through as-is. The
-        // InvariantCulture shortest form drops a trailing ".0" (BL 1008 →
-        // "--black-level-dn 1008", table FW 9512 → "9512", not "9512.0").
+        // Rounding rule: fullwell = Math.Round(ptc.FullwellE, 1, AwayFromZero);
+        // RN/BL pass through as-is. The InvariantCulture shortest form drops a
+        // trailing ".0" (BL 1008 → "--black-level-dn 1008", table FW 9512 →
+        // "9512", not "9512.0").
         var group = new TaskGroup(new[] { @"D:\pics\a.NEF" });
         var dark = new DarkMatch(3200, BlackDn: 1008, ReadNoiseDn: 14.07, Source: "preset");
 
@@ -161,9 +161,9 @@ public class ProtocolTests
     [Fact]
     public void ParseLine_LegacyEnvelopeLine_YieldsUnrecognized()
     {
-        // The ASSISTANT_* envelopes were Bridge-added and are gone in the direct
-        // protocol; an old-envelope stream replayed through the parser must degrade
-        // to ordinary text (full line preserved), never a second grammar.
+        // The direct bare-line protocol has no ASSISTANT_* envelopes; an
+        // old-envelope stream replayed through the parser must degrade to ordinary
+        // text (full line preserved), never a second grammar.
         var log = Assert.IsType<Unrecognized>(ProtocolParser.ParseLine("ASSISTANT_JSR_LOG|SRHQ_V12_PROGRESS|57|Transformer 恢复"));
         Assert.Equal("ASSISTANT_JSR_LOG|SRHQ_V12_PROGRESS|57|Transformer 恢复", log.Text);
 

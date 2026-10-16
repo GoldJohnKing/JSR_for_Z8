@@ -352,7 +352,7 @@ public class ValidationTests
 
         Assert.False(r.CanRun);
         // Two honest findings: the ISO is outside the PTC bounds AND outside the
-        // preset dark table (no manual-dark fallback exists anymore).
+        // preset dark table (there is no manual-dark fallback).
         ValidationIssue issue = Assert.Single(r.Issues, i => i.Kind == IssueKind.PtcUnavailable);
         Assert.Equal(FrameNames[0], issue.File); // the reference frame defines the base ISO
         Assert.Contains("不受支持的 ISO：49", issue.MessageZh);

@@ -1,11 +1,5 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Jsr4Z8.Core.Dng;
 
@@ -251,8 +245,6 @@ public class DngWriter
                         if (y >= height) break;
                         long dst = (long)r * rowSamples;
                         Array.Copy(pixels, (long)(y * width + tx * TileSide) * samples, tileSrc, dst, copyW);
-                        // Compressed tiles keep the payload's native domain (CFA: 14-bit,
-                        // BL/WL tags 1008/15892 accordingly — same ADC convention).
                     }
                     long encoded;
                     unsafe
@@ -692,8 +684,8 @@ public class DngWriter
                 WriteBlob4Aligned(bw, fs, e.Blob!);
 
             // Pixel data: domain expansion (CFA uncompressed: ×4, clamped to u16) streamed
-            // straight to the file in bounded 128 KB chunks — replaces full-image
-            // intermediate copies. Compressed payloads keep native values (shift 0).
+            // straight to the file in bounded 128 KB chunks. Compressed payloads keep
+            // native values (shift 0).
             long pos = fs.Position;
             // Guard the write-position == layout-cursor invariant.
             if (pos < pixelOffset)
@@ -827,8 +819,7 @@ public class DngWriter
     }
 
     /// <summary>Writes a blob at the next 4-byte boundary, explicitly zero-filling the
-    /// ≤3-byte alignment gap so the emitted bytes are identical to the previous
-    /// MemoryStream-based layout (which zero-filled seek gaps implicitly).</summary>
+    /// ≤3-byte alignment gap.</summary>
     private static void WriteBlob4Aligned(BinaryWriter bw, FileStream fs, byte[] blob)
     {
         long pos = fs.Position;
