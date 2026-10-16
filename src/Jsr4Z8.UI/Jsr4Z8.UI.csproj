@@ -27,6 +27,15 @@
     <InternalsVisibleTo Include="Jsr4Z8.Tests" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Product identity marker for NativeExtractSweep: the single-file bundler only
+         embeds PE-named files (assemblies / native libraries), so the marker rides as
+         an 83-byte text file with a .dll name - never loaded, never a real PE, its
+         NAME is the identity. Checked into the project (not libs\) so every publish
+         carries it, dev builds included; the sweep claims .net\<exe>\<bundle-id>\
+         caches that contain it, whatever file name or version the exe runs under. -->
+    <None Include="jsr4z8.native-identity.dll" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- Native P/Invoke targets (build.bat Steps 2-3) plus the VC++ runtime DLLs
          they need (Step 3d: libraw.dll is linked /MD, and Windows ships no VC++
          redist) - all embedded into the single-file bundle at publish

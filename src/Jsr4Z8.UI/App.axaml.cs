@@ -6,6 +6,7 @@ using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Jsr4Z8.Core.Native;
 using Jsr4Z8.Core.Queue;
 using Jsr4Z8.UI.Services;
 using Jsr4Z8.UI.ViewModels;
@@ -50,6 +51,10 @@ public partial class App : Application
             // own job temp dir, so anything left under <TempBase>\Jsr4Z8 is crash debris —
             // background, fire-and-forget, never blocks or takes the launch down.
             _ = Task.Run(() => TaskQueueRunner.SweepTempRoot());
+            // Same reasoning for the .NET single-file native extraction dirs
+            // (%TEMP%\.net\<exe name>\<bundle-id>\): one per build, never pruned by the
+            // runtime and not reliably cleaned by Windows (Storage Sense ships off).
+            _ = Task.Run(NativeExtractSweep.Sweep);
             var runner = new QueueMediator(dispatcher: new AvaloniaDispatcher());
             // Group creation is inline: dropped
             // or picked NEF files become cards directly, posted onto the UI thread here.
