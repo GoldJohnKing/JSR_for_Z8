@@ -6,7 +6,7 @@ using Xunit;
 namespace Jsr4Z8.Tests;
 
 /// <summary>
-/// DngWriter — NefToDngConverter.Convert on samples/DSC_7576.NEF
+/// DngWriter — NefToDngConverter.Convert on samples/test_frames/lossless/DSC_7576.NEF
 /// must produce a complete lossless DNG whose structure reads back correctly
 /// (Save_Z8 tests/SaveZ8.Tests read-back pattern). Measured on that file:
 /// 3 embedded previews (160×120 / 1620×1080 / 8256×5504),

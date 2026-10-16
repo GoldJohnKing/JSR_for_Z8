@@ -2,14 +2,14 @@
 
 > 探针对象：现行嵌入载荷 Bridge-free 2.3.27（257 文件 / 406,018,492 B raw / manifest hash `063a6873…`，
 > 提取于 `%LOCALAPPDATA%\JSR4Z8\backend\063a6873028edc42\`）。
-> 工作区（脚本+日志，未提交）：`.superpowers/sdd/2026-10-16-jobobject-payload-trim/task2-static/`、`task2-smoke/`。
-> 结论先行：**jsr_backend.exe 是 PyInstaller onefile 自解压构建——每次启动把完整 1,416 文件档案（386,096,731 B）解压到 `%TEMP%\_MEI*` 并从那里运行，盘上 `_internal` 目录从不被读取。整个 `_internal`（185.1 MB）+ 从未 spawn 的工具/其 DLL 家族（19.1 MB）合计 ~204.1 MB（50.3%）可从载荷剥离（以 Task 3 单次完整验证兜底）。**
+> 工作区（脚本+日志，未提交）：`.superpowers/sdd/2026-10-16-jobobject-payload-trim/` 下静态/冒烟子目录。
+> 结论先行：**jsr_backend.exe 是 PyInstaller onefile 自解压构建——每次启动把完整 1,416 文件档案（386,096,731 B）解压到 `%TEMP%\_MEI*` 并从那里运行，盘上 `_internal` 目录从不被读取。整个 `_internal`（185.1 MB）+ 从未 spawn 的工具/其 DLL 家族（19.1 MB）合计 ~204.1 MB（50.3%）可从载荷剥离（以单次完整验证兜底）。**
 
 ## 1. 方法
 
 ### 1.1 静态分析（Phase A）
 
-对提取目录 `resources\jsr_backend.exe`（201,243,142 B）做四层交叉，脚本 `task2-static/static_probe{,2,3}.py`：
+对提取目录 `resources\jsr_backend.exe`（201,243,142 B）做四层交叉，静态探针脚本（工作区 static_probe{,2,3}.py）：
 
 1. **CArchive TOC 解析**：读 exe 尾部 MEI cookie（`MEI\014\013\012\013\016`，pkg_len=200,895,494，toc@200,813,150+82,256，pyver=310）→ 1,434 条目：5×`m`（引导模块）、11×`s`（入口 `backend` + 10 个 pyi_rth 运行时钩子）、1,416×`b`（二进制，压缩后合计 192.3 MB）、1×`z`（PYZ.pyz 8.46 MB）、1×`o`（`pyi-contents-directory _internal`）。
 2. **PYZ TOC**：1,448 个纯 Python 模块名清单。
@@ -75,7 +75,7 @@
 | r03-numpy | `_internal\numpy*`（28.0 MB） | 60.2 s 存活，结构一致 | **阴性对照失效 → 方法论转折触发器** |
 | r10-no-internal | **整个 `_internal`（185.1 MB / 216 文件）** | 60.4 s 存活，结构一致 | 一级证据：`_internal` 整树对本路径非必需（60 s 窗口内） |
 | r11-tools-dlls | raw_bridge.exe + jxl_worker.exe + 11 个 libjxl/mingw/lcms DLL（19.1 MB） | 60.2 s 存活，结构一致 | 一级证据：工具/DLL 家族非必需 |
-| r12-max-trim | r10+r11 全集（204.1 MB） | 60.2 s 存活，结构一致（64 行） | **Task 3 目标配置的 60 s 预验通过** |
+| r12-max-trim | r10+r11 全集（204.1 MB） | 60.2 s 存活，结构一致（64 行） | **目标配置的 60 s 预验通过** |
 
 原始 r02(PIL)/r04(lxml)/r05(cryptography)/r06-r09 等单项冒烟被方法论转折取代（单项改名对不读 `_internal` 的引擎无信息量），未执行；静态表（§2）承接其分类职责。每跑后副本 257 文件完整复原（`_REMOVED` 归零），本轮 6 个 `_MEI` 泄漏已清理（历史 10 个非本任务产物，未动）。
 
@@ -95,14 +95,14 @@
 
 附带效应（无需行动，记录备查）：每跑仍向 `%TEMP%` 解压 386 MB `_MEI`（现有行为，裁剪不改变）；正常退出自清理、强杀泄漏——取消/崩溃路径已由 Job Object 兜底与树杀覆盖。
 
-## 5. Task 3 完整验证需求（晚期级清单）
+## 5. 完整验证需求（晚期级清单）
 
 60 s 冒烟未覆盖的唯一区段是**尾部**（~340 s 全程的导出/收尾阶段——DNG 写出、`--out-format jpeg` 缩略、`V12 output:`/`DONE` 收尾）。因此：
 
 1. **单次完整直调 E2E**（用户已授权一次）：max-trim 配置（§4 全集剔除）跑完整 7 帧无损直调，断言退出码 0、`DONE total`、DNG 产物存在且 LibRaw 回读字节级比对照（或与现行 E2E 断言同构）；同跑校验 `_MEI` 自解压照常。若失败，按 §2 静态表回滚最小嫌疑项（首查 PIL/cv2/imagecodecs 的懒加载导出用法——`output_chain` 引用 cv2/PIL/tifffile，`dng_repack`/`native_dng` 引用 imagecodecs，均可能是晚期 import）。
 2. **排除清单扩项**（`PayloadPacker.ExcludedPayloadEntries`）：`(DirectoryPrefix, "resources/_internal/")` + 工具/DLL 家族 ExactPath×13；`PayloadTests` 排除断言同构扩项；manifest hash 变更自然触发嵌入对换新。
 3. **回归面**：selftest/包管理器排除/版本清剪三链（现有 PayloadTests 全量）+ 盘上抽查（提取目录无 `_internal`、28 文件）。
-4. **风险敞口（记录进 Task 3 报告）**：未来后端版本若改用盘上 `_internal`（contents-directory 复用真正生效或转 onedir-only），本结论失效——版本升级时以本工作区 `task2-static/static_probe*.py` 重跑静态+单轮 60 s 冒烟即可重证（r12 模板现成）。
+4. **风险敞口**：未来后端版本若改用盘上 `_internal`（contents-directory 复用真正生效或转 onedir-only），本结论失效——版本升级时以工作区 static_probe*.py 重跑静态+单轮 60 s 冒烟即可重证（r12 模板现成）。
 
 ## 6. 诚实分级声明
 
