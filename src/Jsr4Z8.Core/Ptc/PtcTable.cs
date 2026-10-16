@@ -1,5 +1,4 @@
-using System.Globalization;
-using System.Reflection;
+﻿using System.Globalization;
 
 namespace Jsr4Z8.Core.Ptc;
 
@@ -23,10 +22,11 @@ public sealed record PtcMatch(double FullwellE, bool Exact, string Source);
 /// </summary>
 public sealed class PtcTable
 {
-    private const double ExactTolerance = 1e-6;
+    private const double ExactTolerance = EmbeddedCsv.ExactTolerance;
     private const double SegmentSplitIso = 500.0;
 
-    private static readonly PtcTable DefaultInstance = FromCsv(ReadEmbeddedCsv());
+    private static readonly PtcTable DefaultInstance = FromCsv(
+        EmbeddedCsv.Read("Jsr4Z8.Core.Ptc.Embedded.ptc_z8.csv"));
 
     private readonly (double A, double B) _lowLine;   // log10(FWC) = A + B·log10(ISO)
     private readonly (double A, double B) _highLine;
@@ -120,15 +120,5 @@ public sealed class PtcTable
         }
         double b = sxy / sxx;
         return (my - b * mx, b);
-    }
-
-    private static string ReadEmbeddedCsv()
-    {
-        const string resourceName = "Jsr4Z8.Core.Ptc.Embedded.ptc_z8.csv";
-        Assembly assembly = typeof(PtcTable).Assembly;
-        using Stream stream = assembly.GetManifestResourceStream(resourceName)
-            ?? throw new InvalidOperationException($"Embedded resource not found: {resourceName}");
-        using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
     }
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using Jsr4Z8.Core.Native;
@@ -287,12 +287,8 @@ public static class BackendDngReader
             if (header[0] != 'I' || header[1] != 'I' || (header[2] | (header[3] << 8)) != 42)
                 throw new InvalidDataException(
                     "后端 DNG 不是小端 TIFF（tifffile 产物固定 II）");
-            If0Offset = U32(header, 4);
+            If0Offset = TiffBinary.U32(header, 4);
         }
-
-        /// <summary>Little-endian u32 at buffer position.</summary>
-        private static uint U32(ReadOnlySpan<byte> b, int off) =>
-            (uint)(b[off] | (b[off + 1] << 8) | (b[off + 2] << 16) | (b[off + 3] << 24));
 
         private void ReadAt(long offset, Span<byte> buffer)
         {
@@ -329,7 +325,7 @@ public static class BackendDngReader
         {
             Span<byte> b = stackalloc byte[4];
             ReadAt(offset, b);
-            return U32(b, 0);
+            return TiffBinary.U32(b, 0);
         }
 
         /// <summary>Parses one IFD into tag → raw entry values (u32 units:

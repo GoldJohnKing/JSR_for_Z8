@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using Jsr4Z8.Core.Native;
 
@@ -111,14 +111,8 @@ public static class RawMetadataReader
     {
         if (entry?.Data is not { Length: >= 8 })
             return 0;
-        uint num = le ? ReadUInt32(entry.Data, 0) : ReadUInt32BE(entry.Data, 0);
-        uint den = le ? ReadUInt32(entry.Data, 4) : ReadUInt32BE(entry.Data, 4);
+        uint num = le ? TiffBinary.U32(entry.Data, 0) : TiffBinary.U32BE(entry.Data, 0);
+        uint den = le ? TiffBinary.U32(entry.Data, 4) : TiffBinary.U32BE(entry.Data, 4);
         return den == 0 ? 0 : (double)num / den;
     }
-
-    private static uint ReadUInt32(byte[] d, int off) =>
-        (uint)(d[off] | (d[off + 1] << 8) | (d[off + 2] << 16) | (d[off + 3] << 24));
-
-    private static uint ReadUInt32BE(byte[] d, int off) =>
-        (uint)(d[off] << 24 | d[off + 1] << 16 | d[off + 2] << 8 | d[off + 3]);
 }

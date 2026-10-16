@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -128,10 +128,10 @@ public static class DngComposer
                 uint p = relOffset + 2 + (uint)(i * 12);
                 if (p + 12 > region.Length) break;
 
-                ushort tag = U16(region, p);
-                ushort type = U16(region, p + 2);
-                uint cnt = U32(region, p + 4);
-                uint val = U32(region, p + 8);
+                ushort tag = TiffBinary.U16(region, p);
+                ushort type = TiffBinary.U16(region, p + 2);
+                uint cnt = TiffBinary.U32(region, p + 4);
+                uint val = TiffBinary.U32(region, p + 8);
 
                 var e = new NefAssetExtractor.TiffEntry { Tag = tag, Type = type, Count = cnt, ValueOrOffset = val };
                 long size = (long)TiffConstants.SizeOfType(type) * cnt;
@@ -161,10 +161,5 @@ public static class DngComposer
             }
             return ifd;
         }
-
-        private static ushort U16(byte[] d, uint o) => (ushort)(d[o] | (d[o + 1] << 8));
-
-        private static uint U32(byte[] d, uint o) =>
-            (uint)(d[o] | (d[o + 1] << 8) | (d[o + 2] << 16) | (d[o + 3] << 24));
     }
 }

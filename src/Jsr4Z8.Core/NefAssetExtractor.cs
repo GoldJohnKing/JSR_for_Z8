@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -83,7 +83,7 @@ public class NefAssetExtractor
         var result = new ExtractedMetadata { IsLittleEndian = le };
 
         // Walk IFD chain
-        uint ifd0Offset = le ? ReadUInt32(data, 4) : ReadUInt32BE(data, 4);
+        uint ifd0Offset = le ? TiffBinary.U32(data, 4) : TiffBinary.U32BE(data, 4);
         var visited = new HashSet<uint>();
 
         var ifd0 = ParseIfd(data, ifd0Offset, le, visited, result.AllIfds, depth: 0);
@@ -179,7 +179,7 @@ public class NefAssetExtractor
         var ifd = new TiffIfd { Offset = offset };
         allIfds.Add(ifd);
 
-        int entryCount = (int)ReadUInt16(data, offset);
+        int entryCount = (int)TiffBinary.U16(data, offset);
         if (entryCount <= 0 || entryCount > 1024) return ifd;
 
         for (int i = 0; i < entryCount; i++)
@@ -187,10 +187,10 @@ public class NefAssetExtractor
             uint entryOffset = offset + 2 + (uint)(i * 12);
             if (entryOffset + 12 > data.Length) break;
 
-            ushort tag = ReadUInt16(data, entryOffset);
-            ushort type = ReadUInt16(data, entryOffset + 2);
-            uint count = le ? ReadUInt32(data, entryOffset + 4) : ReadUInt32BE(data, entryOffset + 4);
-            uint valueOrOffset = le ? ReadUInt32(data, entryOffset + 8) : ReadUInt32BE(data, entryOffset + 8);
+            ushort tag = TiffBinary.U16(data, entryOffset);
+            ushort type = TiffBinary.U16(data, entryOffset + 2);
+            uint count = le ? TiffBinary.U32(data, entryOffset + 4) : TiffBinary.U32BE(data, entryOffset + 4);
+            uint valueOrOffset = le ? TiffBinary.U32(data, entryOffset + 8) : TiffBinary.U32BE(data, entryOffset + 8);
 
             var entry = new TiffEntry { Tag = tag, Type = type, Count = count, ValueOrOffset = valueOrOffset };
 
@@ -215,8 +215,8 @@ public class NefAssetExtractor
                 {
                     for (uint k = 0; k < count; k++)
                     {
-                        uint subOff = le ? ReadUInt32(data, valueOrOffset + k * 4)
-                                         : ReadUInt32BE(data, valueOrOffset + k * 4);
+                        uint subOff = le ? TiffBinary.U32(data, valueOrOffset + k * 4)
+                                         : TiffBinary.U32BE(data, valueOrOffset + k * 4);
                         if (subOff > 0 && subOff < data.Length)
                             ifd.SubIfds.Add(ParseIfd(data, subOff, le, visited, allIfds, depth + 1));
                     }
@@ -278,15 +278,6 @@ public class NefAssetExtractor
         return (0, 0);
     }
 
-    // Utility
-    private static ushort ReadUInt16(byte[] d, uint off) =>
-        (ushort)(d[off] | (d[off + 1] << 8));
-
-    private static uint ReadUInt32(byte[] d, uint off) =>
-        (uint)(d[off] | (d[off + 1] << 8) | (d[off + 2] << 16) | (d[off + 3] << 24));
-
-    private static uint ReadUInt32BE(byte[] d, uint off) =>
-        (uint)(d[off] << 24 | d[off + 1] << 16 | d[off + 2] << 8 | d[off + 3]);
 }
 
 /// <summary>

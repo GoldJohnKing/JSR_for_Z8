@@ -1,5 +1,7 @@
 using Jsr4Z8.Core;
 using Jsr4Z8.Core.Dark;
+
+using static Jsr4Z8.Tests.MockMeta;
 using Jsr4Z8.Core.Model;
 using Xunit;
 
@@ -15,50 +17,10 @@ namespace Jsr4Z8.Tests;
 /// </summary>
 public class ValidationTests
 {
-    private const double BaseIso = 3200.0;
-
     private static readonly string[] FrameNames =
     {
         "DSC_7576.NEF", "DSC_7577.NEF", "DSC_7578.NEF", "DSC_7579.NEF",
         "DSC_7580.NEF", "DSC_7581.NEF", "DSC_7582.NEF",
-    };
-
-    private static RawMetadata Meta(
-        double iso = BaseIso,
-        string make = "NIKON CORPORATION",
-        string model = "NIKON Z 8") => new()
-    {
-        Make = make,
-        Model = model,
-        Iso = iso,
-        BlackLevel = 1008,
-        WhiteLevel = 16383,
-        BitsPerSample = 14,
-        Compression = 34713,
-        NefCompression = 3,
-        Width = 8280,
-        Height = 5520,
-        CamMul = new double[] { 1.785, 1.0, 1.793, 1.0 },
-        CfaPattern = new byte[] { 0, 1, 3, 2 },
-        ExposureTime = 0.01,
-        Aperture = 4.0,
-        DateTimeOriginal = "",
-    };
-
-    /// <summary>Mock reader: per-file overrides win, then the requested file (if any) throws,
-    /// everything else returns the group default metadata.</summary>
-    private static Func<string, RawMetadata> Reader(
-        double iso = BaseIso,
-        string make = "NIKON CORPORATION",
-        string model = "NIKON Z 8",
-        string? unreadable = null,
-        Dictionary<string, RawMetadata>? perFile = null) => path =>
-    {
-        if (unreadable != null && path == unreadable)
-            throw new RawReadException($"mock open failure (file={path})");
-        if (perFile != null && perFile.TryGetValue(path, out RawMetadata? m))
-            return m;
-        return Meta(iso, make, model);
     };
 
     private static TaskGroup Group() => new(FrameNames);
@@ -168,7 +130,7 @@ public class ValidationTests
     [Fact]
     public void UnreadableFrame_IssueNamesFile()
     {
-        ValidationResult r = TaskGroupValidator.Validate(Group(), Reader(unreadable: FrameNames[3]));
+        ValidationResult r = TaskGroupValidator.Validate(Group(), Reader(unreadable: new HashSet<string> { FrameNames[3] }));
 
         Assert.False(r.CanRun);
         ValidationIssue issue = Assert.Single(r.Issues);
@@ -184,7 +146,7 @@ public class ValidationTests
         // The reference frame itself unreadable: only the Unreadable issue — no ISO
         // comparison base, no PTC lookup, and (regression) no NullReferenceException
         // from a default tuple that the empty pattern would wrongly match.
-        ValidationResult r = TaskGroupValidator.Validate(Group(), Reader(unreadable: FrameNames[0]));
+        ValidationResult r = TaskGroupValidator.Validate(Group(), Reader(unreadable: new HashSet<string> { FrameNames[0] }));
 
         Assert.False(r.CanRun);
         ValidationIssue issue = Assert.Single(r.Issues);

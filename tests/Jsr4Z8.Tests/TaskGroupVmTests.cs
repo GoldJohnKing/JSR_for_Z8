@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using Jsr4Z8.Core;
+
+using static Jsr4Z8.Tests.MockMeta;
 using Jsr4Z8.Core.Model;
 using Jsr4Z8.Core.Ptc;
 using Jsr4Z8.UI.Services;
@@ -24,35 +26,6 @@ public class TaskGroupVmTests
     /// Frames and Frames2 as two separate cards.</summary>
     private static readonly string[] Frames2 =
         Enumerable.Range(7583, 7).Select(i => $@"C:\Photos\DSC_{i}.NEF").ToArray();
-
-    /// <summary>Mock Z8 metadata (same shape as TaskGroupCreatorTests): ISO3200, 14bit
-    /// lossless, 1/8000s, f/4.</summary>
-    private static RawMetadata Meta(
-        double iso = 3200, double exposure = 0.000125, double aperture = 4.0,
-        string dateTime = "") => new()
-    {
-        Make = "NIKON CORPORATION",
-        Model = "NIKON Z 8",
-        Iso = iso,
-        BlackLevel = 1008,
-        WhiteLevel = 16383,
-        BitsPerSample = 14,
-        Compression = 34713,
-        NefCompression = 3,
-        Width = 8280,
-        Height = 5520,
-        CamMul = new double[] { 1.785, 1, 1.793, 1 },
-        CfaPattern = new byte[] { 0, 1, 3, 2 },
-        ExposureTime = exposure,
-        Aperture = aperture,
-        DateTimeOriginal = dateTime,
-    };
-
-    /// <summary>Mock reader for the VM's <c>read</c> seam: per-file overrides win,
-    /// everything else reads as Meta().</summary>
-    private static Func<string, RawMetadata> Reader(
-        Dictionary<string, RawMetadata>? perFile = null) => path =>
-        perFile is not null && perFile.TryGetValue(path, out RawMetadata? m) ? m : Meta();
 
     private static readonly ValidationResult ValidResult = new(
         true, Array.Empty<ValidationIssue>(), new PtcMatch(9512, true, "表值"),

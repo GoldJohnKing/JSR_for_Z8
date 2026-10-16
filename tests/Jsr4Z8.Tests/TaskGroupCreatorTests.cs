@@ -1,5 +1,7 @@
 using Jsr4Z8.Core;
 using Jsr4Z8.Core.Dark;
+
+using static Jsr4Z8.Tests.MockMeta;
 using Jsr4Z8.Core.Model;
 using Jsr4Z8.Core.Ptc;
 using Jsr4Z8.UI.ViewModels;
@@ -22,41 +24,6 @@ public class TaskGroupCreatorTests
 {
     private static readonly string[] Frames =
         Enumerable.Range(7576, 7).Select(i => $@"C:\Photos\DSC_{i}.NEF").ToArray();
-
-    private static RawMetadata Meta(
-        double iso = 3200,
-        string make = "NIKON CORPORATION",
-        string model = "NIKON Z 8",
-        double exposure = 0.000125) => new()
-    {
-        Make = make,
-        Model = model,
-        Iso = iso,
-        BlackLevel = 1008,
-        WhiteLevel = 16383,
-        BitsPerSample = 14,
-        Compression = 34713,
-        NefCompression = 3,
-        Width = 8280,
-        Height = 5520,
-        CamMul = new double[] { 1.785, 1.0, 1.793, 1.0 },
-        CfaPattern = new byte[] { 0, 1, 3, 2 },
-        ExposureTime = exposure,   // 1/8000 s by default — equal across the set
-        Aperture = 4.0,
-        DateTimeOriginal = "",
-    };
-
-    /// <summary>Mock reader: per-file metadata overrides win, listed files throw RawReadException.</summary>
-    private static Func<string, RawMetadata> Reader(
-        Dictionary<string, RawMetadata>? perFile = null,
-        HashSet<string>? unreadable = null) => path =>
-    {
-        if (unreadable is not null && unreadable.Contains(path))
-            throw new RawReadException($"mock open failure (file={path})");
-        if (perFile is not null && perFile.TryGetValue(path, out RawMetadata? m))
-            return m;
-        return Meta();
-    };
 
     /// <summary>Per-file ExposureTime overrides for the whole Frames set, in file order.</summary>
     private static Dictionary<string, RawMetadata> Exposures(params double[] seconds) =>

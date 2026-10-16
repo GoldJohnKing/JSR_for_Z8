@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 
 namespace Jsr4Z8.Core.Dng;
@@ -86,20 +86,20 @@ public static class NikonLensCorrection
         if (tiffBase + 4 > nefInfo.Length) return null;
         if (nefInfo[tiffBase] != 0x49 || nefInfo[tiffBase + 1] != 0x49) return null; // II
 
-        uint ifdOff = U32(nefInfo, (uint)(tiffBase + 4));
+        uint ifdOff = TiffBinary.U32(nefInfo, (uint)(tiffBase + 4));
         uint o = (uint)(tiffBase + ifdOff);
         if (o + 2 > nefInfo.Length) return null;
-        int entries = U16(nefInfo, o);
+        int entries = TiffBinary.U16(nefInfo, o);
 
         byte[]? block5 = null, block6 = null, block7 = null, block8 = null;
         for (int i = 0; i < entries; i++)
         {
             uint p = o + 2 + (uint)(i * 12);
             if (p + 12 > nefInfo.Length) break;
-            ushort tag = U16(nefInfo, p);
-            ushort type = U16(nefInfo, p + 2);
-            uint count = U32(nefInfo, p + 4);
-            uint val = U32(nefInfo, p + 8);
+            ushort tag = TiffBinary.U16(nefInfo, p);
+            ushort type = TiffBinary.U16(nefInfo, p + 2);
+            uint count = TiffBinary.U32(nefInfo, p + 4);
+            uint val = TiffBinary.U32(nefInfo, p + 8);
             if (type != 7) continue; // undef blocks
 
             int typeSize = 1;
@@ -235,10 +235,7 @@ public static class NikonLensCorrection
 
     // ---------- little helpers ----------
 
-    private static ushort U16(byte[] d, uint o) => (ushort)(d[o] | (d[o + 1] << 8));
-    private static uint U32(byte[] d, uint o) =>
-        (uint)(d[o] | (d[o + 1] << 8) | (d[o + 2] << 16) | (d[o + 3] << 24));
-    private static int I32(byte[] d, int o) => unchecked((int)U32(d, (uint)o));
+    private static int I32(byte[] d, int o) => unchecked((int)TiffBinary.U32(d, (uint)o));
 
     private static byte[] Slice(byte[] d, uint off, int len)
     {

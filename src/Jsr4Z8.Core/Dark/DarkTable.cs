@@ -1,5 +1,4 @@
-using System.Globalization;
-using System.Reflection;
+﻿using System.Globalization;
 
 namespace Jsr4Z8.Core.Dark;
 
@@ -33,9 +32,10 @@ public sealed record DarkMatch(double Iso, double BlackDn, double ReadNoiseDn, s
 /// </summary>
 public sealed class DarkTable
 {
-    private const double ExactTolerance = 1e-6;
+    private const double ExactTolerance = EmbeddedCsv.ExactTolerance;
 
-    private static readonly DarkTable DefaultInstance = FromCsv(ReadEmbeddedCsv());
+    private static readonly DarkTable DefaultInstance = FromCsv(
+        EmbeddedCsv.Read("Jsr4Z8.Core.Dark.Embedded.dark_z8.csv"));
 
     private DarkTable(IReadOnlyList<DarkRow> rows) => Rows = rows;
 
@@ -104,14 +104,4 @@ public sealed class DarkTable
         Array.IndexOf(header, name) is int i && i >= 0
             ? i
             : throw new InvalidOperationException($"dark_z8.csv column not found: {name}");
-
-    private static string ReadEmbeddedCsv()
-    {
-        const string resourceName = "Jsr4Z8.Core.Dark.Embedded.dark_z8.csv";
-        Assembly assembly = typeof(DarkTable).Assembly;
-        using Stream stream = assembly.GetManifestResourceStream(resourceName)
-            ?? throw new InvalidOperationException($"Embedded resource not found: {resourceName}");
-        using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
-    }
 }
