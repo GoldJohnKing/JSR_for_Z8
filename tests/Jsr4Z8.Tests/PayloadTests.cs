@@ -891,4 +891,75 @@ public class PayloadTests : IClassFixture<TestTemp>
         Assert.True(EmbeddedUpdater.Apply(fresh, temp2));
         Assert.True(File.Exists(Path.Combine(fresh, PayloadPacker.PayloadFileName)));
     }
+
+    // ---------- 后端版本号（右上角 Jiangtherapee Bridge v… 显示的数据源） ----------
+
+    /// <summary>reference\Jiangtherapee-Bridge-2.3.27-Windows-x64 目录名 → "2.3.27"；
+    /// 打包期解析、写入 manifest，运行时 PayloadManager 读嵌入 manifest 显示——
+    /// reference/ 换新版后重打包即自动更新，无手填常量可漂移。</summary>
+    [Theory]
+    [InlineData("Jiangtherapee-Bridge-2.3.27-Windows-x64", "2.3.27")]
+    [InlineData("Jiangtherapee-Bridge-2.3.27", "2.3.27")]
+    [InlineData("Jiangtherapee-Bridge-10.1-Windows-x64", "10.1")]
+    [InlineData("jiangtherapee-bridge-2.3.27-windows-x64", "2.3.27")]   // 大小写不敏感（Windows 目录）
+    [InlineData("Jiangtherapee-Bridge-2.3.27.1-Windows-x64", "2.3.27.1")]
+    public void ParseBackendVersion_ReferenceDirNames(string dirName, string expected)
+        => Assert.Equal(expected, PayloadPacker.ParseBackendVersion(Path.Combine(@"D:\ref", dirName)));
+
+    [Theory]
+    [InlineData("Jiangtherapee-Bridge-v2.3.27-Windows-x64")]   // v 前缀不是数字段
+    [InlineData("Jiangtherapee-Bridge-Windows-x64")]           // 无版本段
+    [InlineData("some-random-guid-dir")]
+    [InlineData("")]
+    public void ParseBackendVersion_UnrecognizedNames_ReturnNull(string dirName)
+        => Assert.Null(PayloadPacker.ParseBackendVersion(Path.Combine(@"D:\ref", dirName)));
+
+    [Fact]
+    public void Pack_BackendVersion_ParsedFromSourceDirName_AndWrittenToManifest()
+    {
+        string src = MakeFakeTree();
+        string named = Path.Combine(Path.GetDirectoryName(src)!, "Jiangtherapee-Bridge-2.3.27-Windows-x64");
+        Directory.Move(src, named);
+
+        FakePayload payload = PackTree(named);
+
+        Assert.Equal("2.3.27", payload.Manifest.BackendVersion);
+        Assert.Contains("\"backendVersion\": \"2.3.27\"", File.ReadAllText(payload.ManifestJson));
+    }
+
+    [Fact]
+    public void Pack_BackendVersion_OmittedForUnrecognizedSourceDir()
+    {
+        FakePayload payload = PackFake();      // 源目录名是 GUID — 无版本可解析
+
+        Assert.Null(payload.Manifest.BackendVersion);
+        Assert.DoesNotContain("backendVersion", File.ReadAllText(payload.ManifestJson));
+    }
+
+    [Fact]
+    public void ReadManifestJson_LegacyManifestWithoutBackendVersion_ReadsNull()
+    {
+        string hash = new string('a', 64);
+        string legacy =
+            $$"""{"version":1,"hash":"{{hash}}","files":[{"path":"a.txt","sha256":"{{hash}}","length":1}]}""";
+
+        using var ms = new MemoryStream(Encoding.UTF8.GetBytes(legacy));
+
+        Assert.Null(PayloadPacker.ReadManifestJson(ms).BackendVersion);
+    }
+
+    [Fact]
+    public void TryReadBackendVersion_ReadsInjectedManifest_AndFailsSoft()
+    {
+        string hash = new string('a', 64);
+        string json =
+            $$"""{"version":1,"hash":"{{hash}}","backendVersion":"2.3.27","files":[{"path":"a.txt","sha256":"{{hash}}","length":1}]}""";
+
+        Assert.Equal("2.3.27", PayloadManager.TryReadBackendVersion(
+            () => new MemoryStream(Encoding.UTF8.GetBytes(json))));
+        // 资源缺席（快开发构建）／损坏（半写窗口）→ null，UI 整行隐藏，不抛
+        Assert.Null(PayloadManager.TryReadBackendVersion(() => null));
+        Assert.Null(PayloadManager.TryReadBackendVersion(
+            () => new MemoryStream(Encoding.UTF8.GetBytes("{ not json"))));
+    }
 }

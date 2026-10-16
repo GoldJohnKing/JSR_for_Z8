@@ -34,6 +34,24 @@
             <Setter Property="StrokeThickness" Value="1.8" />
         </Style>
 
+        <!-- ============ 行内链接（算法出处）：主题链接色 + 下划线，hover 三态 ============ -->
+        <Style Selector="Button.link-inline">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorLink}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.link-inline:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorLinkPointerover}" />
+        </Style>
+        <Style Selector="Button.link-inline:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Foreground" Value="{DynamicResource SemiColorLinkActive}" />
+        </Style>
+
         <!-- ============ 顶栏图标按钮（主题切换）============ -->
         <Style Selector="Button.icon-btn">
             <Setter Property="Background" Value="Transparent" />
@@ -101,15 +119,28 @@
                     <StackPanel VerticalAlignment="Center" Spacing="1">
                         <TextBlock Text="JSR for Z8" FontSize="19" FontWeight="Bold"
                                    Foreground="{DynamicResource SemiColorText0}" />
-                        <TextBlock Text="尼康 Z8 七帧 RAW 超分重建 · 内嵌 jsr_backend 计算引擎 · 输出 Adobe DNG"
-                                   FontSize="12" Foreground="{DynamicResource SemiColorText2}" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="尼康 Z8 七帧 RAW 超分重建 · 输出 Adobe DNG · 算法源自"
+                                       FontSize="12" Foreground="{DynamicResource SemiColorText2}" VerticalAlignment="Top" />
+                            <Button Classes="link-inline" Click="OnOpenAuthorRepo" VerticalAlignment="Top"
+                                    ToolTip.Tip="算法出处：github.com/y-g-jiang/Jiangtherapee-Super-Resolution-World-Best">
+                                <TextBlock Text="姜尧耕" TextDecorations="Underline" />
+                            </Button>
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding AppVersion, StringFormat='JSR for Z8 {0}'}"
-                               IsVisible="{Binding AppVersion, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}"
-                               FontSize="11" Foreground="{DynamicResource SemiColorText2}"
-                               TextAlignment="Right" VerticalAlignment="Center" />
+                    <!-- 版本组：本软件版本在上（Text2），内嵌后端载荷版本在下（Text3 略淡；打包期写入 manifest，重打包自动更新） -->
+                    <StackPanel VerticalAlignment="Center" Spacing="1">
+                        <TextBlock Text="{Binding AppVersion, StringFormat='JSR for Z8 {0}'}"
+                                   IsVisible="{Binding AppVersion, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}"
+                                   FontSize="11" Foreground="{DynamicResource SemiColorText2}"
+                                   TextAlignment="Right" />
+                        <TextBlock Text="{Binding BackendVersion, StringFormat='Jiangtherapee Bridge {0}'}"
+                                   IsVisible="{Binding BackendVersion, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}"
+                                   FontSize="11" Foreground="{DynamicResource SemiColorText3}"
+                                   TextAlignment="Right" />
+                    </StackPanel>
                     <Button x:Name="ThemeButton" Classes="icon-btn" Click="OnThemeToggle">
                         <Panel Width="16" Height="16">
                             <Path x:Name="ThemeMoonIcon" Data="{StaticResource Icon.Moon}"

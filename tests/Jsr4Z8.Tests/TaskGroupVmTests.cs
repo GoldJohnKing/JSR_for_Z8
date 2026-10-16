@@ -835,6 +835,17 @@ public class TaskGroupVmTests
         return new TaskGroupViewModel(created!.Group, created.Validation,
             metadata: created.Metadata, read: read);
     }
+
+    [Fact]
+    public void BackendVersion_DefaultsEmpty_ThenSettable()
+    {
+        var main = new MainViewModel();
+
+        Assert.Equal("", main.BackendVersion);
+
+        main.BackendVersion = "v2.3.27";          // MainWindow.OnOpened 赋值（同 AppVersion）
+        Assert.Equal("v2.3.27", main.BackendVersion);
+    }
 }
 
 /// <summary>ThemeService: default Dark (user choice C), cycle Dark→Light→Default→Dark.

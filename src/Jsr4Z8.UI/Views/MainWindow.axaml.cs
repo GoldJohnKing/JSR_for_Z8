@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using Avalonia.Controls;
@@ -6,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Jsr4Z8.Core.Payload;
 using Jsr4Z8.UI.Services;
 using Jsr4Z8.UI.ViewModels;
 
@@ -54,7 +56,10 @@ public partial class MainWindow : Window
     {
         base.OnOpened(e);
         if (ViewModel is { } vm)
+        {
             vm.AppVersion = ReadAppVersion();
+            vm.BackendVersion = ReadBackendVersion();
+        }
         ApplyThemeVisuals();
     }
 
@@ -69,6 +74,31 @@ public partial class MainWindow : Window
         catch
         {
             return "";
+        }
+    }
+
+    /// <summary>Backend payload version as "v2.3.27" from the embedded manifest's
+    /// backendVersion (written by pack-payload at build time — repacking a new
+    /// reference/ version updates it automatically); empty when absent/unreadable
+    /// (fast dev builds) so the top-right line hides.</summary>
+    private static string ReadBackendVersion() =>
+        PayloadManager.TryReadBackendVersion() is { Length: > 0 } v ? $"v{v.TrimStart('v')}" : "";
+
+    // ---------- 外部链接（算法出处） ----------
+
+    private void OnOpenAuthorRepo(object? sender, RoutedEventArgs e)
+        => OpenExternalUrl("https://github.com/y-g-jiang/Jiangtherapee-Super-Resolution-World-Best");
+
+    /// <summary>Shell-opens an external URL; never throws (display-only affordance).</summary>
+    private static void OpenExternalUrl(string url)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch
+        {
+            // 打不开浏览器不是主流程故障：静默降级（链接仅为署名展示）
         }
     }
 

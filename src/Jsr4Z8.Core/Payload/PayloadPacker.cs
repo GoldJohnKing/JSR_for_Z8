@@ -3,6 +3,8 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace Jsr4Z8.Core.Payload;
 
@@ -13,16 +15,22 @@ public sealed record PayloadManifestEntry(string Path, string Sha256, long Lengt
 /// Manifest of the packed backend payload. <see cref="Hash"/> is the SHA-256 over the
 /// ordinal-path-sorted concatenation of "path\nsha256\n" lines; <see cref="PayloadManager"/>
 /// extracts into a directory named by its first 16 hex chars, so a new payload version
-/// never collides with an old extraction.
+/// never collides with an old extraction. <see cref="BackendVersion"/> is the release
+/// distribution's version parsed from the source directory name (e.g.
+/// reference\Jiangtherapee-Bridge-2.3.27-Windows-x64 → "2.3.27") — display metadata
+/// only (the 右上角 Jiangtherapee Bridge v… line); it takes no part in <see cref="Hash"/> and is
+/// omitted from the JSON when unrecognized (null).
 /// </summary>
-public sealed record PayloadManifest(int Version, string Hash, IReadOnlyList<PayloadManifestEntry> Files);
+public sealed record PayloadManifest(
+    int Version, string Hash, IReadOnlyList<PayloadManifestEntry> Files, string? BackendVersion = null);
 
 /// <summary>One entry of the payload.bin index.</summary>
 public sealed record PayloadArchiveEntry(string Path, long RawLength, long CompressedLength);
 
 /// <summary>Summary of one <see cref="PayloadPacker.Pack"/> run.</summary>
 public sealed record PayloadPackResult(
-    int FileCount, long RawBytes, long PackedBytes, string ManifestHash, string ManifestPath);
+    int FileCount, long RawBytes, long PackedBytes, string ManifestHash, string ManifestPath,
+    string? BackendVersion = null);
 
 /// <summary>
 /// Packs the backend distribution into the payload pair (payload.bin +
@@ -78,6 +86,25 @@ public static class PayloadPacker
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
+
+    /// <summary>
+    /// 后端发行包版本号解析：源目录名 Jiangtherapee-Bridge-&lt;x.y[.z[…]]&gt;-… → "x.y[.z]"。
+    /// build.bat 自动选 reference\Jiangtherapee-Bridge-* 最高版目录打包，版本随目录名
+    /// 无人工环节直达 manifest（展示元数据，不入 Hash）。
+    /// </summary>
+    private static readonly Regex BackendVersionPattern = new(
+        @"^Jiangtherapee-Bridge-(\d+(?:\.\d+){1,3})",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    /// <summary>Directory-name version probe behind <see cref="Pack"/> (public for tests):
+    /// null when the name carries no recognizable x.y(.z) version segment.</summary>
+    public static string? ParseBackendVersion(string srcDir)
+    {
+        if (string.IsNullOrWhiteSpace(srcDir))
+            return null;
+        string name = Path.GetFileName(srcDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        return BackendVersionPattern.Match(name) is { Success: true } m ? m.Groups[1].Value : null;
+    }
 
     /// <summary>How one <see cref="ExcludedPayloadEntries"/> pattern matches a normalized ('/'-separated) relative path.</summary>
     private enum ExclusionKind
@@ -238,7 +265,7 @@ public static class PayloadPacker
                 Convert.ToHexString(SHA256.HashData(src)).ToLowerInvariant(),
                 src.Length));
         }
-        PayloadManifest manifest = BuildManifest(entries);
+        PayloadManifest manifest = BuildManifest(entries, ParseBackendVersion(srcDir));
 
         // Pass 2: compress bodies to a spill file, capturing each compressedLen
         // (headers precede bodies, so lengths must be known before payload.bin is written).
@@ -298,7 +325,8 @@ public static class PayloadPacker
             entries.Sum(e => e.Length),
             new FileInfo(payloadPath).Length,
             manifest.Hash,
-            manifestPath);
+            manifestPath,
+            manifest.BackendVersion);
     }
 
     /// <summary>manifest 相对路径 → 打包源文件：jsr_backend_runtime\ 前缀条目取自引擎树，其余取自源树。</summary>
@@ -308,10 +336,10 @@ public static class PayloadPacker
             : Path.Combine(srcDir, relPath);
 
     /// <summary>Builds the manifest from entries: files ordinal-sorted by path, hash computed per the format contract.</summary>
-    private static PayloadManifest BuildManifest(IEnumerable<PayloadManifestEntry> entries)
+    private static PayloadManifest BuildManifest(IEnumerable<PayloadManifestEntry> entries, string? backendVersion)
     {
         PayloadManifestEntry[] sorted = entries.OrderBy(e => e.Path, StringComparer.Ordinal).ToArray();
-        return new PayloadManifest(CurrentManifestVersion, ComputeManifestHash(sorted), sorted);
+        return new PayloadManifest(CurrentManifestVersion, ComputeManifestHash(sorted), sorted, backendVersion);
     }
 
     /// <summary>SHA-256 over the ordinal-path-sorted concatenation of "path\nsha256\n" lines (lowercase hex).</summary>
@@ -352,7 +380,7 @@ public static class PayloadPacker
         }
         return new PayloadManifest(dto.Version, dto.Hash!, dto.Files!
             .Select(f => new PayloadManifestEntry(f.Path, f.Sha256!, f.Length))
-            .ToArray());
+            .ToArray(), dto.BackendVersion);
     }
 
     private static bool IsHex(char c) => Uri.IsHexDigit(c);
@@ -499,12 +527,17 @@ public static class PayloadPacker
     {
         public int Version { get; set; }
         public string? Hash { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? BackendVersion { get; set; }
+
         public List<ManifestFileDto>? Files { get; set; }
 
         public static ManifestDto From(PayloadManifest manifest) => new()
         {
             Version = manifest.Version,
             Hash = manifest.Hash,
+            BackendVersion = manifest.BackendVersion,
             Files = manifest.Files.Select(ManifestFileDto.From).ToList(),
         };
     }

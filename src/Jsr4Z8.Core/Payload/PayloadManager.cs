@@ -90,6 +90,29 @@ public sealed class PayloadManager
     /// </summary>
     internal Action<string, string>? DirectoryMoveHook { get; set; }
 
+    /// <summary>
+    /// 嵌入载荷的后端版本号（右上角 Jiangtherapee Bridge v… 行的数据源），如 "2.3.27"；
+    /// 版本由 pack-payload 从 reference\Jiangtherapee-Bridge-&lt;ver&gt;-… 目录名解析写入
+    /// manifest（backendVersion 字段），重打包即自动更新。缺资源（快开发构建）或
+    /// 解析失败 → null（UI 整行隐藏），永不抛——纯展示元数据不值得启动路径冒险。
+    /// </summary>
+    public static string? TryReadBackendVersion() => TryReadBackendVersion(
+        () => typeof(PayloadManager).Assembly.GetManifestResourceStream(ManifestResourceName));
+
+    /// <summary>Test seam behind <see cref="TryReadBackendVersion()"/>: manifest stream opener injectable.</summary>
+    internal static string? TryReadBackendVersion(Func<Stream?> openManifest)
+    {
+        try
+        {
+            using Stream? stream = openManifest();
+            return stream is null ? null : PayloadPacker.ReadManifestJson(stream).BackendVersion;
+        }
+        catch
+        {
+            return null;   // 展示性元数据：任何读取/解析失败一律降级为 null
+        }
+    }
+
     /// <summary>Returns the verified backend root directory, extracting or self-healing it as needed. progress reports 0..1 over raw bytes written during extraction.</summary>
     public string EnsureExtracted(IProgress<double>? progress = null)
     {

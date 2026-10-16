@@ -69,6 +69,11 @@ public partial class MainViewModel : ObservableObject
     /// window's OnOpened, empty before that. Pure view-supporting surface.</summary>
     [ObservableProperty] private string _appVersion = "";
 
+    /// <summary>后端载荷版本 for the top-right corner's second line ("v2.3.27"，显示为
+    /// Jiangtherapee Bridge v2.3.27)；由窗口 OnOpened 从嵌入 manifest 的 backendVersion 字段
+    /// 读取赋值（pack-payload 打包期写入，重打包自动更新），空 = 隐藏整行。</summary>
+    [ObservableProperty] private string _backendVersion = "";
+
     /// <summary>Derived card counts for the overview bar — refresh with every card State
     /// change and every Tasks collection change.</summary>
     public int ReadyCount => Tasks.Count(t => t.State == TaskState.Ready);
