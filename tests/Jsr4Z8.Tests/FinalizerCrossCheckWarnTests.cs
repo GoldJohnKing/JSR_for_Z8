@@ -75,17 +75,16 @@ public class FinalizerCrossCheckWarnTests
     /// <paramref name="drift"/> per component from the reference cam_mul-derived
     /// values (fixture ASN = [0.560175, 1.0, 0.557734], denominators 10⁶).
     ///
-    /// Injection detail (pinned 2026-10-14): the fixture's 3-RATIONAL entry is
-    /// REWRITTEN IN PLACE to Count=6 pointing at a 48-byte blob appended at the
-    /// word-aligned EOF — six rationals, the drifted values twice. Why six:
-    /// BackendDngReader's TIFF walker currently under-reads RATIONAL arrays (it
-    /// takes cnt u32s, not 2·cnt), so a count-3 entry yields too few pairs and
-    /// the reader reports AsShotNeutral = null (a known product defect, out of
-    /// scope for a tests-only change — the finalizer then falls back to
-    /// 1/cam_mul, which coincides with the fixture's values). With Count=6 the
-    /// current reader pairs the first six u32s (= the drifted values) and a
-    /// future fixed reader takes the first three of its six pairs (= the same
-    /// drifted values) — the injection survives the reader fix either way.
+    /// The fixture's 3-RATIONAL entry is REWRITTEN IN PLACE to Count=6 pointing at a
+    /// 48-byte blob appended at the word-aligned EOF — six rationals, the drifted
+    /// values twice. Count=6 because BackendDngReader's TIFF walker under-reads
+    /// RATIONAL arrays (it takes cnt u32s, not 2·cnt), so a count-3 entry yields too
+    /// few pairs and the reader reports AsShotNeutral = null (known product defect;
+    /// the finalizer then falls back to 1/cam_mul, which coincides with the
+    /// fixture's values). With Count=6 the current reader pairs the first six u32s
+    /// (= the drifted values) and a future fixed reader takes the first three of its
+    /// six pairs (= the same drifted values) — the injection survives the reader fix
+    /// either way.
     /// </summary>
     private static void PatchAsShotNeutralDrift(string src, string dst, double drift)
     {

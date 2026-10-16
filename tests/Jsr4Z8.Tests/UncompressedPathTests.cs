@@ -31,7 +31,6 @@ public class UncompressedPathTests
             H = h,
             Samples = 1,
             IsCfa = true,
-            CfaPattern = "RGGB",
         };
         // LibRaw 2×2 filter codes (0=R, 1/3=G, 2=B) → DNG CFAPattern colors (0=R, 1=G, 2=B).
         byte[] cfaColors = Array.ConvertAll(cfa, c => c switch { 0 => (byte)0, 2 => (byte)2, _ => (byte)1 });

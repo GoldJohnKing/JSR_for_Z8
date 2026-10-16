@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace Jsr4Z8.Tests;
 
 /// <summary>Repo-relative file locator for tests: walks up from the test output
@@ -37,4 +39,14 @@ internal static class SampleFiles
 
     /// <summary>Locates a file under samples\.</summary>
     public static string FindSample(string name) => FindUp(Path.Combine("samples", name));
+
+    /// <summary>Text-file lines: split on '\n', drop the trailing empty element,
+    /// trim one '\r' (CRLF-pipe tolerance).</summary>
+    internal static string[] ReadTextLines(string relativePath)
+    {
+        string[] lines = File.ReadAllText(FindUp(relativePath), Encoding.UTF8).Split('\n');
+        if (lines.Length > 0 && lines[^1].Length == 0)
+            lines = lines[..^1];
+        return Array.ConvertAll(lines, l => l.EndsWith('\r') ? l[..^1] : l);
+    }
 }

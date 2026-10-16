@@ -1,4 +1,3 @@
-using System.Text;
 using Jsr4Z8.Core.Backend;
 using Jsr4Z8.Core.Dark;
 using Jsr4Z8.Core.Model;
@@ -18,24 +17,9 @@ namespace Jsr4Z8.Tests;
 /// </summary>
 public class ProtocolTests
 {
-    /// <summary>Fixture stdout lines: split on '\n', drop the trailing terminator element, trim one '\r'.</summary>
-    private static string[] ReadFixtureLines(string name)
-    {
-        string? dir = AppContext.BaseDirectory;
-        for (int i = 0; i < 10 && dir != null; i++)
-        {
-            string candidate = Path.Combine(dir, "fixtures", "protocol", name);
-            if (File.Exists(candidate))
-            {
-                string[] lines = File.ReadAllText(candidate, Encoding.UTF8).Split('\n');
-                if (lines.Length > 0 && lines[^1].Length == 0)
-                    lines = lines[..^1]; // the final '\n' terminates the last line, it is not a line of its own
-                return Array.ConvertAll(lines, l => l.EndsWith('\r') ? l[..^1] : l);
-            }
-            dir = Path.GetDirectoryName(dir);
-        }
-        throw new InvalidOperationException($"Fixture not found: fixtures\\protocol\\{name} (searched upwards from {AppContext.BaseDirectory})");
-    }
+    /// <summary>Fixture stdout lines (CRLF-pipe tolerant).</summary>
+    private static string[] ReadFixtureLines(string name) =>
+        SampleFiles.ReadTextLines(Path.Combine("fixtures", "protocol", name));
 
     private static string FirstLineStartingWith(string fixture, string prefix) =>
         ReadFixtureLines(fixture).First(l => l.StartsWith(prefix, StringComparison.Ordinal));
@@ -156,7 +140,7 @@ public class ProtocolTests
     [Fact]
     public void ParseLine_NonProtocolLines_PassThroughUnrecognized()
     {
-        // Controller ruling: the engine's first-line "PTC {...}" echo is an ordinary
+        // The engine's first-line "PTC {...}" echo is an ordinary
         // log line, as are FRAME echo lines, plain chatter and the DONE tail.
         var ptc = Assert.IsType<Unrecognized>(ProtocolParser.ParseLine(FirstLineStartingWith("direct_success.log", "PTC ")));
         Assert.StartsWith("PTC {", ptc.Text);
@@ -207,7 +191,7 @@ public class ProtocolTests
         Assert.Equal(197, progress.Count);
         Assert.DoesNotContain(lines, l => l.Contains("ASSISTANT", StringComparison.Ordinal));
 
-        // The run ends on the terminal V12 line; the PTC echo is line 1 (ruling 3).
+        // The run ends on the terminal V12 line; the PTC echo is line 1.
         Assert.Contains(events, e => e is Log { Progress: { Percent: 100, Stage: "导出完成" } });
         Assert.IsType<Unrecognized>(events[0]);
         Assert.StartsWith("PTC ", lines[0]);

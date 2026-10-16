@@ -147,7 +147,7 @@ public class E2eTests
     /// <summary>Polls tasklist until the image disappears; seconds taken, or -1 past the
     /// limit. taskkill /T /F initiates termination but a force-killed GPU process stays
     /// in the tasklist snapshot for seconds while the driver releases its VRAM —
-    /// measured 2026-10-14: alive right at the 已停止 card, gone within seconds. The
+    /// measured: alive right at the 已停止 card, gone within seconds. The
     /// acceptance criterion is "no leftover shortly after", hence a bounded wait.</summary>
     private static async Task<double> WaitProcessGoneSeconds(string image, TimeSpan limit)
     {

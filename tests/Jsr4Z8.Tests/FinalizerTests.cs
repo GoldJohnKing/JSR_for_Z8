@@ -309,14 +309,10 @@ public class FinalizerTests
     [Fact]
     public void RawTiles_AreGenuinelyCompressed()
     {
-        // Brief originally asked 体积 < 输入的 20% (plan "-90%" premise). Measured
-        // 2026-10-13: the ROI fixture's 9.43 MB LJ strips are real data (zero
-        // padding; the plan's "31 MB in 341 MB" reading came from a truncated
-        // StripByteCounts list), so the pixel rewrite cannot shrink 5:1, and the
-        // reference NEF's ~5 MB of preview JPEGs are embedded by requirement.
-        // Honest compression-sanity bound instead (supervisor-approved): the raw
+        // Compression sanity: the fixture's LJ strips are real data (zero
+        // padding), so the pixel rewrite cannot shrink 5:1. Honest bound: the raw
         // SubIFD's tile payload must stay well below the uncompressed payload
-        // (backend tifffile ratio 49.9%, ours measured ≈50% with PSV=4).
+        // (backend tifffile ratio 49.9%, ours ≈50% with PSV=4).
         var (final, _) = Finalized.Value;
         byte[] file = File.ReadAllBytes(final);
         var ifd0 = TestTiff.ParseIfd(file, TestTiff.U32(file, 4));

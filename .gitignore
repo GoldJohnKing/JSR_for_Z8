@@ -14,7 +14,9 @@ tmp*/
 reference
 
 # Generated release payload pair (~393 MB) — produced by tools/pack-payload, embedded at release build
+# (tmp-* siblings = crashed pack-run leftovers, normally deleted by the packer's finally)
 src/Jsr4Z8.Core/Payload/Embedded/
+src/Jsr4Z8.Core/Payload/Embedded.tmp-*/
 
 # VS / Rider
 *.user

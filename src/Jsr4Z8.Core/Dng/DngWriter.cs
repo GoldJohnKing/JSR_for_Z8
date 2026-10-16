@@ -167,110 +167,110 @@ public class DngWriter
         {
             if (strips)
             {
-            if (options.RawStreams is { Count: > 0 } passthrough)
-            {
-                // Passthrough seam: the caller's
-                // pre-encoded strip bytes (the backend's own LJ streams) are
-                // emitted verbatim — no encode. The writer still declares
-                // RowsPerStrip=128, so the stream boundaries must be 128-row
-                // bands (short final band); a foreign strip grid would make
-                // the emitted file incoherent, hence the count guard.
-                int expectedStrips = (height + StripRows - 1) / StripRows;
-                if (passthrough.Count != expectedStrips)
-                    throw new ArgumentException(
-                        $"RawStreams passthrough: {passthrough.Count} streams != ceil(H/{StripRows})={expectedStrips} " +
-                        "— boundaries incompatible with the writer's RowsPerStrip", nameof(options));
-                streams = new List<byte[]>(passthrough);
+                if (options.RawStreams is { Count: > 0 } passthrough)
+                {
+                    // Passthrough seam: the caller's
+                    // pre-encoded strip bytes (the backend's own LJ streams) are
+                    // emitted verbatim — no encode. The writer still declares
+                    // RowsPerStrip=128, so the stream boundaries must be 128-row
+                    // bands (short final band); a foreign strip grid would make
+                    // the emitted file incoherent, hence the count guard.
+                    int expectedStrips = (height + StripRows - 1) / StripRows;
+                    if (passthrough.Count != expectedStrips)
+                        throw new ArgumentException(
+                            $"RawStreams passthrough: {passthrough.Count} streams != ceil(H/{StripRows})={expectedStrips} " +
+                            "— boundaries incompatible with the writer's RowsPerStrip", nameof(options));
+                    streams = new List<byte[]>(passthrough);
+                }
+                else
+                {
+                    // Encoder geometry: one strip = full image width × band rows, the
+                    // interleaved samples as channels (RGB: width × 3).
+                    uint encCols = (uint)width;
+                    uint encChannels = (uint)samples;
+                    int n = (height + StripRows - 1) / StripRows;
+                    var stripArr = new byte[n][];
+                    // Per-thread scratch buffers: band rows (interleaved samples) and the
+                    // encoded-stream capacity (2× input bytes, the tile convention).
+                    // Encoding is pure/deterministic per strip, so parallel scheduling
+                    // yields byte-identical output to sequential.
+                    var srcBuf = new ThreadLocal<ushort[]>(() => new ushort[(long)width * StripRows * samples]);
+                    var outBuf = new ThreadLocal<byte[]>(() => new byte[(long)width * StripRows * samples * 4]);
+                    Parallel.For(0, n, i =>
+                    {
+                        int rows = Math.Min(StripRows, height - i * StripRows);   // final band = remainder
+                        var stripSrc = srcBuf.Value!;
+                        var stripOut = outBuf.Value!;
+                        Array.Copy(pixels, (long)i * StripRows * width * samples, stripSrc, 0,
+                            (long)rows * width * samples);
+                        long encoded;
+                        unsafe
+                        {
+                            fixed (ushort* sp = stripSrc)
+                            fixed (byte* op = stripOut)
+                            {
+                                encoded = Native.DngLjpegNative.lje_encode_tile(sp, (uint)rows, encCols,
+                                    encChannels, 16, op, (nuint)stripOut.Length, predictor);
+                            }
+                        }
+                        if (encoded <= 0)
+                            throw new IOException($"lossless JPEG strip encode failed (strip {i}, code {encoded})");
+                        stripArr[i] = stripOut[..(int)encoded];
+                    });
+                    srcBuf.Dispose();
+                    outBuf.Dispose();
+                    streams = new List<byte[]>(stripArr);
+                }
             }
             else
             {
-            // Encoder geometry: one strip = full image width × band rows, the
-            // interleaved samples as channels (RGB: width × 3).
-            uint encCols = (uint)width;
-            uint encChannels = (uint)samples;
-            int n = (height + StripRows - 1) / StripRows;
-            var stripArr = new byte[n][];
-            // Per-thread scratch buffers: band rows (interleaved samples) and the
-            // encoded-stream capacity (2× input bytes, the tile convention).
-            // Encoding is pure/deterministic per strip, so parallel scheduling
-            // yields byte-identical output to sequential.
-            var srcBuf = new ThreadLocal<ushort[]>(() => new ushort[(long)width * StripRows * samples]);
-            var outBuf = new ThreadLocal<byte[]>(() => new byte[(long)width * StripRows * samples * 4]);
-            Parallel.For(0, n, i =>
-            {
-                int rows = Math.Min(StripRows, height - i * StripRows);   // final band = remainder
-                var stripSrc = srcBuf.Value!;
-                var stripOut = outBuf.Value!;
-                Array.Copy(pixels, (long)i * StripRows * width * samples, stripSrc, 0,
-                    (long)rows * width * samples);
-                long encoded;
-                unsafe
+                // Encoder geometry: per-component width × component count must equal
+                // the samples per tile row (CFA: TileSide/2 × 2; RGB: TileSide × 3).
+                uint encCols = isCfa ? (uint)TileSide / 2 : (uint)TileSide;
+                uint encChannels = isCfa ? 2 : (uint)samples;
+                int tilesX = (width + TileSide - 1) / TileSide;
+                int tilesY = (height + TileSide - 1) / TileSide;
+                int n = tilesX * tilesY;
+                var tileArr = new byte[n][];
+                // Per-thread scratch buffers: tile rows (interleaved samples) and the
+                // encoded-stream capacity. Encoding is pure/deterministic per tile,
+                // so parallel scheduling yields byte-identical output to sequential.
+                var srcBuf = new ThreadLocal<ushort[]>(() => new ushort[TileSide * TileSide * samples]);
+                var outBuf = new ThreadLocal<byte[]>(() => new byte[256 * 1024 * samples]);
+                Parallel.For(0, n, i =>
                 {
-                    fixed (ushort* sp = stripSrc)
-                    fixed (byte* op = stripOut)
+                    int tx = i % tilesX, ty = i / tilesX;
+                    var tileSrc = srcBuf.Value!;
+                    var tileOut = outBuf.Value!;
+                    Array.Clear(tileSrc, 0, tileSrc.Length);
+                    int rowSamples = TileSide * samples;
+                    int copyW = Math.Min(TileSide, width - tx * TileSide) * samples;
+                    for (int r = 0; r < TileSide; r++)
                     {
-                        encoded = Native.DngLjpegNative.lje_encode_tile(sp, (uint)rows, encCols,
-                            encChannels, 16, op, (nuint)stripOut.Length, predictor);
+                        int y = ty * TileSide + r;
+                        if (y >= height) break;
+                        long dst = (long)r * rowSamples;
+                        Array.Copy(pixels, (long)(y * width + tx * TileSide) * samples, tileSrc, dst, copyW);
+                        // Compressed tiles keep the payload's native domain (CFA: 14-bit,
+                        // BL/WL tags 1008/15892 accordingly — same ADC convention).
                     }
-                }
-                if (encoded <= 0)
-                    throw new IOException($"lossless JPEG strip encode failed (strip {i}, code {encoded})");
-                stripArr[i] = stripOut[..(int)encoded];
-            });
-            srcBuf.Dispose();
-            outBuf.Dispose();
-            streams = new List<byte[]>(stripArr);
-            }
-            }
-            else
-            {
-            // Encoder geometry: per-component width × component count must equal
-            // the samples per tile row (CFA: TileSide/2 × 2; RGB: TileSide × 3).
-            uint encCols = isCfa ? (uint)TileSide / 2 : (uint)TileSide;
-            uint encChannels = isCfa ? 2 : (uint)samples;
-            int tilesX = (width + TileSide - 1) / TileSide;
-            int tilesY = (height + TileSide - 1) / TileSide;
-            int n = tilesX * tilesY;
-            var tileArr = new byte[n][];
-            // Per-thread scratch buffers: tile rows (interleaved samples) and the
-            // encoded-stream capacity. Encoding is pure/deterministic per tile,
-            // so parallel scheduling yields byte-identical output to sequential.
-            var srcBuf = new ThreadLocal<ushort[]>(() => new ushort[TileSide * TileSide * samples]);
-            var outBuf = new ThreadLocal<byte[]>(() => new byte[256 * 1024 * samples]);
-            Parallel.For(0, n, i =>
-            {
-                int tx = i % tilesX, ty = i / tilesX;
-                var tileSrc = srcBuf.Value!;
-                var tileOut = outBuf.Value!;
-                Array.Clear(tileSrc, 0, tileSrc.Length);
-                int rowSamples = TileSide * samples;
-                int copyW = Math.Min(TileSide, width - tx * TileSide) * samples;
-                for (int r = 0; r < TileSide; r++)
-                {
-                    int y = ty * TileSide + r;
-                    if (y >= height) break;
-                    long dst = (long)r * rowSamples;
-                    Array.Copy(pixels, (long)(y * width + tx * TileSide) * samples, tileSrc, dst, copyW);
-                    // Compressed tiles keep the payload's native domain (CFA: 14-bit,
-                    // BL/WL tags 1008/15892 accordingly — same ADC convention).
-                }
-                long encoded;
-                unsafe
-                {
-                    fixed (ushort* sp = tileSrc)
-                    fixed (byte* op = tileOut)
+                    long encoded;
+                    unsafe
                     {
-                        encoded = Native.DngLjpegNative.lje_encode_tile(sp, TileSide,
-                            encCols, encChannels, 16, op, (nuint)tileOut.Length, predictor);
+                        fixed (ushort* sp = tileSrc)
+                        fixed (byte* op = tileOut)
+                        {
+                            encoded = Native.DngLjpegNative.lje_encode_tile(sp, TileSide,
+                                encCols, encChannels, 16, op, (nuint)tileOut.Length, predictor);
+                        }
                     }
-                }
-                if (encoded <= 0)
-                    throw new IOException($"lossless JPEG tile encode failed (code {encoded})");
-                tileArr[i] = tileOut[..(int)encoded];
-            });
-            srcBuf.Dispose();
-            outBuf.Dispose();
-            streams = new List<byte[]>(tileArr);
+                    if (encoded <= 0)
+                        throw new IOException($"lossless JPEG tile encode failed (code {encoded})");
+                    tileArr[i] = tileOut[..(int)encoded];
+                });
+                srcBuf.Dispose();
+                outBuf.Dispose();
+                streams = new List<byte[]>(tileArr);
             }
         }
 

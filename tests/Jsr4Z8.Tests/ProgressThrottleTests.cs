@@ -1,4 +1,3 @@
-using System.Text;
 using Jsr4Z8.Core.Backend;
 using Jsr4Z8.Core.Model;
 using Jsr4Z8.Core.Ptc;
@@ -21,7 +20,7 @@ namespace Jsr4Z8.Tests;
 ///     from per-line to a gate-bounded count;
 /// (3) with the gate disabled (TimeSpan.Zero ⇒ every update passes — the unthrottled
 ///     behavior), the change count matches a bare unthrottled card replay exactly;
-/// (d) non-progress lines produce NO UI change at all (no card log surface —
+/// (4) non-progress lines produce NO UI change at all (no card log surface —
 ///     ChangeCounter stays flat across plain traffic). A synthetic test
 /// pins the gate boundaries precisely. Windows-host tests.
 /// </summary>
@@ -83,23 +82,8 @@ public class ProgressThrottleTests
         public void Dispose() => _vm.PropertyChanged -= OnChanged;
     }
 
-    private static string[] FixtureLines()
-    {
-        string? dir = AppContext.BaseDirectory;
-        for (int i = 0; i < 10 && dir != null; i++)
-        {
-            string candidate = Path.Combine(dir, "fixtures", "protocol", "direct_success.log");
-            if (File.Exists(candidate))
-            {
-                string[] lines = File.ReadAllText(candidate, Encoding.UTF8).Split('\n');
-                if (lines.Length > 0 && lines[^1].Length == 0)
-                    lines = lines[..^1];
-                return Array.ConvertAll(lines, l => l.EndsWith('\r') ? l[..^1] : l);
-            }
-            dir = Path.GetDirectoryName(dir);
-        }
-        throw new InvalidOperationException($"Fixture not found: fixtures\\protocol\\direct_success.log (searched upwards from {AppContext.BaseDirectory})");
-    }
+    private static string[] FixtureLines() =>
+        SampleFiles.ReadTextLines(Path.Combine("fixtures", "protocol", "direct_success.log"));
 
     /// <summary>Maps one parsed protocol event onto the queue event the mediator consumes
     /// (BackendRunner's own mapping: Log/Unrecognized → LogLine — Started/Finished
@@ -136,12 +120,12 @@ public class ProgressThrottleTests
 
         // Still within the gate (150 ms since the forward): a plain log line must NOT
         // flush the pending update — and with no card log surface it produces no UI
-        // change at all (d): zero ChangeCounter increments.
+        // change at all (4): zero ChangeCounter increments.
         clock.Advance(TimeSpan.FromMilliseconds(100));
         mediator.Handle(vm, new BackendLogLine("plain traffic", null));
         Assert.Equal(24, vm.Progress);
         Assert.Equal("阶段A", vm.StageText);
-        Assert.Equal(afterFirst, counter.Count);               // (d): non-progress line ⇒ no UI change
+        Assert.Equal(afterFirst, counter.Count);               // (4): non-progress line ⇒ no UI change
 
         // Gate reopened (210 ms since the forward): plain traffic lands the LATEST
         // coalesced update — the final state was kept, not dropped.

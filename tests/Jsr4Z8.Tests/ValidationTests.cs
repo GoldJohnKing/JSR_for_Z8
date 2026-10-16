@@ -8,7 +8,7 @@ using Xunit;
 namespace Jsr4Z8.Tests;
 
 /// <summary>
-/// TaskGroup + TaskGroupValidator — 8-file consistency validation.
+/// TaskGroup + TaskGroupValidator — task-group consistency validation.
 /// Negative cases inject a mock reader via the Validate(TaskGroup, Func&lt;string,RawMetadata&gt;)
 /// seam; the positive case reads the real sample frames DSC_7576..7582 with
 /// RawMetadataReader (all Z 8 at ISO 3200 → exact PTC hit 1102.2 e⁻). Non-finite ISO is
@@ -228,9 +228,8 @@ public class ValidationTests
     [Fact]
     public void HeStarUniformGroup_AutoMatchesHeStarPresetRow()
     {
-        // HE* (14) darks were measured into their own preset rows (2026-10-14
-        // measurement; the dark sample files were since retired — rows live in the
-        // preset table): close to HE but not interchangeable at low ISO
+        // HE* (14) darks carry their own preset rows: close to HE but not
+        // interchangeable at low ISO
         // — a uniform HE* group auto-matches by (14, ISO) without a dark file.
         var heStar = new Dictionary<string, RawMetadata>();
         foreach (string name in FrameNames)
@@ -264,7 +263,7 @@ public class ValidationTests
     }
 
     [Theory]
-    [InlineData(5408, 3608)]  // DX 1.5× crop — crop-blind matching (2026-10-15)
+    [InlineData(5408, 3608)]  // DX 1.5× crop — crop-blind matching
     [InlineData(8280, 4656)]  // 16:9 crop — full FX width, short window
     [InlineData(6900, 5520)]  // 5:4 crop — full FX height, narrow window
     public void AnyUniformCropWindow_RunsOnFxRows(int width, int height)
@@ -400,7 +399,7 @@ public class ValidationTests
     [Fact]
     public void BracketedShutterSevenFrames_CanRun()
     {
-        // 需求 1（校验侧）：快门不在一致性维度内 — 七帧包围曝光（1/1000..1/8000
+        // 快门不在一致性维度内 — 七帧包围曝光（1/1000..1/8000
         // 半档递进）只要机型/ISO/位深/压缩/画幅 五维一致即可全部运行，无任何 issue。
         double[] shutters =
         {

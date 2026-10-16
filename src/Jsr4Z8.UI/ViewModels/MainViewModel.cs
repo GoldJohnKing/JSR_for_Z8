@@ -97,7 +97,7 @@ public partial class MainViewModel : ObservableObject
     /// otherwise — with the creator's per-path metadata so hover texts and cache-backed
     /// edits need no re-read. The main drop flow creates cards immediately through
     /// <see cref="AddFilesAsync"/> instead (the card validates itself); this is the
-    /// test/legacy seeding entry. Cards share this
+    /// test seeding entry. Cards share this
     /// VM's runner (the queue mediator; NullTaskRunner headless).</summary>
     public void AddValidated(TaskGroup group, ValidationResult validation,
         IReadOnlyDictionary<string, RawMetadata>? metadata = null) =>

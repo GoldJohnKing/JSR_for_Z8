@@ -64,8 +64,8 @@ public class BackendRunnerTests : IClassFixture<TestTemp>
         Assert.True(started.Start.Pid > 0);
 
         // Bare progress lines flow through the parser: V12 percent/stage, and the
-        // export-phase ETA mapped onto 95..100 ("DNG 导出"). The PTC echo (ruling 3)
-        // and the DONE tail are ordinary lines with Progress null.
+        // export-phase ETA mapped onto 95..100 ("DNG 导出"). The PTC echo and the
+        // DONE tail are ordinary lines with Progress null.
         Assert.Contains(events, e => e is LogLine { Progress: { Percent: 42, Stage: "模拟阶段" } });
         Assert.Contains(events, e => e is LogLine { Progress: { Percent: 99, Stage: "DNG 导出" } });
         Assert.Contains(events, e => e is LogLine { Text: var t, Progress: null } && t.StartsWith("PTC ", StringComparison.Ordinal));

@@ -254,7 +254,7 @@ public partial class TaskGroupViewModel : ObservableObject
         _ => "无法执行",
     };
 
-    /// <summary>Drives the progress bar row visibility (mockup ② shows it only while running).</summary>
+    /// <summary>Drives the progress bar row visibility (shown only while Running).</summary>
     public bool IsRunning => State == TaskState.Running;
 
     /// <summary>Bottom state-bar value: the live percent while Running, a full bar

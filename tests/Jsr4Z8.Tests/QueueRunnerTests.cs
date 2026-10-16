@@ -410,7 +410,7 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
             Assert.True(await WaitAsync(() => vm1.State == TaskState.Failed, TimeSpan.FromSeconds(3)),
                 "current task must be stopped within 3s of the queue-level cancel");
             Assert.Contains("已停止", vm1.ErrorText);
-            Assert.Equal("已停止", vm1.StageText);       // stopped-task ruling: Failed state, 已停止 stage
+            Assert.Equal("已停止", vm1.StageText);       // stopped run: Failed state, 已停止 stage
             Assert.True(vm1.RetryCommand.CanExecute(null)); // Retry stays available
 
             Assert.True(await WaitAsync(() => main.ActiveQueueCts == null, TimeSpan.FromSeconds(5)), "queue loop never exited");

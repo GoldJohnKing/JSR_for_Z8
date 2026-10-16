@@ -14,8 +14,8 @@ namespace Jsr4Z8.Tests;
 /// Headless ViewModel tests for the card-flow main window
 /// (MainViewModel + TaskGroupViewModel state machine). The VMs carry pure state
 /// only — no Avalonia dispatcher dependency — so they are testable in xUnit
-/// without a UI thread. ThemeService lives here too (same brief file list):
-/// its Apply() must be a no-op when no Avalonia Application exists.
+/// without a UI thread. ThemeService tests live here too: its Apply() must be
+/// a no-op when no Avalonia Application exists.
 /// </summary>
 public class TaskGroupVmTests
 {
@@ -175,14 +175,14 @@ public class TaskGroupVmTests
         Assert.False(main.StartAllCommand.CanExecute(null));
     }
 
-    /// <summary>State-machine mockup: Ready→Start+Remove; Running→Stop only;
+    /// <summary>Per-state command surface: Ready→Start+Remove; Running→Stop only;
     /// Done→OpenFolder+Remove; Failed→Retry+Remove; Blocked→Remove only.</summary>
     [Fact]
     public void CommandAvailability_PerState()
     {
         var ready = To(TaskState.Ready);
         Assert.True(ready.StartCommand.CanExecute(null));
-        Assert.True(ready.RemoveCommand.CanExecute(null));   // mockup ① shows ✕移除 on Ready
+        Assert.True(ready.RemoveCommand.CanExecute(null));   // ✕移除 shows on Ready
         Assert.False(ready.StopCommand.CanExecute(null));
         Assert.False(ready.RetryCommand.CanExecute(null));
         Assert.False(ready.OpenFolderCommand.CanExecute(null));
@@ -190,7 +190,7 @@ public class TaskGroupVmTests
         var running = To(TaskState.Running);
         Assert.True(running.StopCommand.CanExecute(null));
         Assert.False(running.StartCommand.CanExecute(null));
-        Assert.False(running.RemoveCommand.CanExecute(null)); // mockup ② shows only ■停止
+        Assert.False(running.RemoveCommand.CanExecute(null)); // Running shows only ■停止
         Assert.False(running.RetryCommand.CanExecute(null));
         Assert.False(running.OpenFolderCommand.CanExecute(null));
 
@@ -272,7 +272,7 @@ public class TaskGroupVmTests
         Assert.Contains("对齐", vm.StateText);
     }
 
-    /// <summary>Bottom state bar (F2): the bar is always visible — it tracks Progress
+    /// <summary>Bottom state bar: the bar is always visible — it tracks Progress
     /// only while Running and reads a full bar (the state color fills 100% width) in
     /// every other state. The XAML state→color mapping is compile-verified only.</summary>
     [Fact]
@@ -413,8 +413,8 @@ public class TaskGroupVmTests
         Assert.Null(vm.Dark);
     }
 
-    /// <summary>Controller conflict scan 4: case-variant and exact duplicate paths —
-    /// plus non-NEF strays — never create duplicate frames (OrdinalIgnoreCase dedupe
+    /// <summary>Case-variant and exact duplicate paths — plus non-NEF strays —
+    /// never create duplicate frames (OrdinalIgnoreCase dedupe
     /// vs the existing set; a fully filtered payload is a no-op that keeps the card
     /// Ready without even touching the reader).</summary>
     [Fact]
@@ -430,7 +430,7 @@ public class TaskGroupVmTests
         Assert.Equal(Frames[0], vm.Group.ReferencePath);
     }
 
-    /// <summary>Manual-star fallback (user ruling): X-ing the starred frame hands the
+    /// <summary>Manual-star fallback: X-ing the starred frame hands the
     /// reference back to the automatic exposure-middle rule (here equal exposures →
     /// natural first), no dangling manual reference.</summary>
     [Fact]
@@ -470,7 +470,7 @@ public class TaskGroupVmTests
         Assert.True(raised);
     }
 
-    /// <summary>Controller conflict scan 1: Running/Done/Failed cards are locked —
+    /// <summary>Running/Done/Failed cards are locked —
     /// AddFilesAsync/RemoveFile/SetReference are all no-ops there (the frame set,
     /// reference and state survive untouched).</summary>
     [Fact]
@@ -521,7 +521,7 @@ public class TaskGroupVmTests
         Assert.Contains("光圈 —", missing);
         Assert.Contains("拍摄时间 —", missing);
 
-        // F4: 未读取（既无缓存也无失败记录）→ 空文本（尚未读盘，不是失败）；
+        // 未读取（既无缓存也无失败记录）→ 空文本（尚未读盘，不是失败）；
         // 无法读取 只属于记录过读取失败的路径（ReadCached_FallbackReadFailure_
         // RecordsAndRethrows 钉死该分支）。
         Assert.Equal(string.Empty, vm.FrameChips[6].InfoText);
@@ -848,7 +848,7 @@ public class TaskGroupVmTests
     }
 }
 
-/// <summary>ThemeService: default Dark (user choice C), cycle Dark→Light→Default→Dark.
+/// <summary>ThemeService: default Dark, cycle Dark→Light→Default→Dark.
 /// Headless-safe: with no Avalonia Application running, Cycle/Apply must not throw.</summary>
 public class ThemeServiceTests
 {

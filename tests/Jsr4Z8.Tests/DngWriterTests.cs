@@ -32,7 +32,7 @@ public class DngWriterTests
     [Fact]
     public void LjeSelftest_EncoderRoundTripIsClean()
     {
-        // Encoder sanity FIRST (brief): native encode+decode self-test, 0 mismatches.
+        // Encoder sanity FIRST: native encode+decode self-test, 0 mismatches.
         Assert.Equal(0L, DngLjpegNative.lje_selftest());
     }
 

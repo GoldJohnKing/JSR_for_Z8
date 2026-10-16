@@ -11,8 +11,7 @@ namespace Jsr4Z8.Tests;
 /// (BackendDngReader → ljd_decode_stream/libjpeg-turbo) and lock the result
 /// against precomputed constants: pixel count, per-channel min/max/mean and a
 /// cheap FNV-1a hash over every 997th sample. The constants encode OUR
-/// decoder's correct reading of the foreign stream as measured on 2026-10-14
-/// (generator run against commit 2609273, 141/141 green). If a future
+/// decoder's correct reading of the foreign stream as committed. If a future
 /// encoder/decoder change breaks foreign-stream compatibility — predictor
 /// handling, interleaving, endianness, anything — the hash moves and these
 /// tests scream, catching it before a user's six-minute GPU run ends in an

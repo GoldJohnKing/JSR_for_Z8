@@ -28,7 +28,6 @@ internal static class NefToDngConverter
                 H = height,
                 Samples = 1,
                 IsCfa = true,
-                CfaPattern = "RGGB",
             };
             DngComposer.Compose(payload, meta, assets, destDngPath, new DngWriteOptions
             {

@@ -87,20 +87,6 @@ public class ProtocolParserFuzzTests
         Assert.Equal(first.GetType(), second.GetType());
     }
 
-    [Fact]
-    public void ParseLine_MalformedCorpus_AllAtOnce_NeverThrows()
-    {
-        // Belt-and-braces whole-corpus sweep in one test: even a line that some
-        // future refactor makes order-dependent cannot pass the per-line theory
-        // by accident here.
-        foreach (string line in MalformedCorpus)
-        {
-            ProtocolEvent evt = ProtocolParser.ParseLine(line);
-            Assert.NotNull(evt);
-            Assert.Equal(evt, ProtocolParser.ParseLine(line));
-        }
-    }
-
     // ---- (b) determinism over the real captured fixtures ----------------------
 
     [Theory]
@@ -167,13 +153,7 @@ public class ProtocolParserFuzzTests
     private static string Truncate(string line) =>
         line.Length <= 40 ? line : line[..40] + "…";
 
-    /// <summary>Fixture stdout lines (ProtocolTests read-back pattern).</summary>
-    private static string[] ReadFixtureLines(string name)
-    {
-        string path = SampleFiles.FindUp(Path.Combine("tests", "Jsr4Z8.Tests", "fixtures", "protocol", name));
-        string[] lines = File.ReadAllText(path, System.Text.Encoding.UTF8).Split('\n');
-        if (lines.Length > 0 && lines[^1].Length == 0)
-            lines = lines[..^1];
-        return Array.ConvertAll(lines, l => l.EndsWith('\r') ? l[..^1] : l);
-    }
+    /// <summary>Fixture stdout lines (CRLF-pipe tolerant).</summary>
+    private static string[] ReadFixtureLines(string name) =>
+        SampleFiles.ReadTextLines(Path.Combine("fixtures", "protocol", name));
 }

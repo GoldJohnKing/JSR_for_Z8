@@ -230,7 +230,7 @@ public class TaskGroupCreatorTests
     private static MainViewModel MainVm() => new();
 
     /// <summary>Integration-style (the production reader is the only read path here):
-    /// a valid drop becomes one Ready card — F4: the card is created immediately and
+    /// a valid drop becomes one Ready card — the card is created immediately and
     /// validates itself (the Loading flight settles before the await returns) — and
     /// the derived counts follow the card's state changes.</summary>
     [Fact]
@@ -252,7 +252,7 @@ public class TaskGroupCreatorTests
         Assert.Equal(1, main.DoneCount);
     }
 
-    /// <summary>F4 即时建卡：默认 inline post 下 AddFilesAsync 的同步段恰好推进到
+    /// <summary>即时建卡：默认 inline post 下 AddFilesAsync 的同步段恰好推进到
     /// ValidateAsync 的首个 await（在建卡之后），因此调用返回的 Task 尚未完成时卡
     /// 已入列且处于校验中（Loading 覆盖层的数据源）——本测试钉死这一顺序；释放门阀
     /// 后落就绪。read 缝用 TCS 门阀挡住后台读取（注入式 read 缝，同卡片 VM 一致）。</summary>
@@ -285,7 +285,7 @@ public class TaskGroupCreatorTests
         Assert.Equal(1, main.ReadyCount);
     }
 
-    /// <summary>派生计数 (F4)：ValidatingCount = Tasks.Count(t => t.IsValidating)，
+    /// <summary>派生计数：ValidatingCount = Tasks.Count(t => t.IsValidating)，
     /// 随卡属性通知即时刷新 —— 校验中=1（状态行 正在校验 1 组新建任务…），校验中的卡
     /// 被移除即回落 0（派生语义下无需手工递减，飞行中的卡移除也不会悬死状态行）。</summary>
     [Fact]
@@ -359,8 +359,8 @@ public class TaskGroupCreatorTests
         Assert.Equal(2, main.ReadyCount);
         Assert.Equal(0, main.ValidatingCount);
         Assert.Equal(string.Empty, main.StatusText);
-        // Final-review F7: completion order across the concurrent flights is not
-        // deterministic — compare as a set (sorted), not by Tasks[0]/Tasks[1] slots:
+        // Completion order across the concurrent flights is not deterministic —
+        // compare as a set (sorted), not by Tasks[0]/Tasks[1] slots:
         // both reference paths present, exactly once each.
         string[] references = main.Tasks
             .Select(t => Path.GetFileName(t.Group.ReferencePath))

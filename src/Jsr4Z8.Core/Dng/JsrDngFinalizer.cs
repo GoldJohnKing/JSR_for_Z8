@@ -96,7 +96,6 @@ public static class JsrDngFinalizer
             H = backend.H,
             Samples = backend.Samples,
             IsCfa = false,
-            CfaPattern = null,
         };
         var options = new DngWriteOptions
         {

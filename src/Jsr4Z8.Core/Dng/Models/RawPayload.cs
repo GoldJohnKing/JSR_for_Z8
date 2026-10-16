@@ -19,8 +19,4 @@ public sealed record RawPayload
     public required int Samples { get; init; }
 
     public required bool IsCfa { get; init; }
-
-    /// <summary>2×2 mosaic phase, row-major, chars from {R,G,B} (e.g. "RGGB");
-    /// null when <see cref="IsCfa"/> is false.</summary>
-    public string? CfaPattern { get; init; }
 }

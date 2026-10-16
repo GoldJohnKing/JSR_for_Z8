@@ -49,7 +49,7 @@ public class DarkTableTests
     {
         var table = DarkTable.LoadDefault();
 
-        // Controller-verified reference values derived from the backend manifest:
+        // Reference values derived from the backend manifest:
         // black = nominal black_dn; RN = √mean(the 4 per-phase temporal_variance_dn2), 2 decimals.
         AssertRow(table, 3, 3200, 1008, 14.07);
         AssertRow(table, 13, 3200, 1008, 15.10);
@@ -152,7 +152,7 @@ public class DarkTableTests
     }
 
     /// <summary>
-    /// The regenerator is exercised as the real CLI (process mode, per the brief):
+    /// The regenerator is exercised as the real CLI (process mode):
     /// a mini manifest goes in, the exact CSV rows come out — compression mapping
     /// 0→3 / 3→14 / 4→13, RN = √mean(per-phase temporal_variance_dn2) at 2 decimals,
     /// rows sorted by (nef_compression, iso), header records the manifest's SHA-256.

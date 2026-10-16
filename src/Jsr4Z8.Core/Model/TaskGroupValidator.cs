@@ -4,7 +4,7 @@ using Jsr4Z8.Core.Dark;
 using Jsr4Z8.Core.Ptc;
 namespace Jsr4Z8.Core.Model;
 
-/// <summary>Kind of an 8-file consistency violation in a <see cref="TaskGroup"/>.</summary>
+/// <summary>Kind of a task-group consistency violation in a <see cref="TaskGroup"/>.</summary>
 public enum IssueKind
 {
     /// <summary>Make is not Nikon at all (e.g. a Canon body in the group).</summary>

@@ -232,13 +232,13 @@ public class PayloadTests : IClassFixture<TestTemp>
         Directory.CreateDirectory(Path.Combine(root, "resources", "z8_presets"));
         Directory.CreateDirectory(Path.Combine(root, "ThirdPartySources"));
 
-        // 预解包夹具（Task1，2026-10-16）：合成微型 onefile 引擎（4 个 b 条目 + z/m/s/o 各 1）——
+        // 预解包夹具：合成微型 onefile 引擎（4 个 b 条目 + z/m/s/o 各 1）——
         // PackTree 经 EnginePreextractor 解出 resources\jsr_backend_runtime\ 树入载荷。
         File.WriteAllBytes(Path.Combine(root, "resources", "jsr_backend.exe"), BuildMiniOnefile(StandardMiniEntries()));
         File.WriteAllText(Path.Combine(root, "resources", "licenses", "notice.txt"), "fake third-party license text");
         File.WriteAllText(Path.Combine(root, "THIRD_PARTY_NOTICES.md"), "# fake notices");
 
-        // Excluded from the payload by the packer's exclusion list (user ruling 2026-10-15):
+        // Excluded from the payload by the packer's exclusion list:
         // present in the fake tree so every Pack call exercises the filter.
         File.WriteAllText(Path.Combine(root, "resources", "jsr_v98_k14_backend.exe"), "k14 engine");
         File.WriteAllText(Path.Combine(root, "resources", "_internal", "_tcl_data", "x.enc"), "tcl data");
@@ -246,9 +246,8 @@ public class PayloadTests : IClassFixture<TestTemp>
         File.WriteAllText(Path.Combine(root, "resources", "z8_presets", "Z8_0_ISO000064.dng"), "preset-dark dng");
 
         // Everything below must be excluded from the payload.
-        // The retired top-level Bridge shell: excluded by ExactPath (直调后顶层壳不再
-        // 携带——用户裁定 2026-10-15); present in the fake tree so every Pack call
-        // exercises the anti-regression filter.
+        // The retired top-level Bridge shell: excluded by ExactPath (直调后顶层壳不携带);
+        // present in the fake tree so every Pack call exercises the anti-regression filter.
         File.WriteAllText(Path.Combine(root, "Jiangtherapee Bridge.exe"), "the retired Bridge shell");
         File.WriteAllText(Path.Combine(root, "README.md"), "readme");
         File.WriteAllText(Path.Combine(root, "DeepSeek助手使用说明.md"), "说明");
@@ -320,12 +319,12 @@ public class PayloadTests : IClassFixture<TestTemp>
         Assert.DoesNotContain(
             payload.Manifest.Files,
             f => f.Path.Replace('\\', '/') == "resources/jsr_backend.exe");
-        // The top-level Bridge shell no longer ships (user ruling 2026-10-15): the GUI
+        // The top-level Bridge shell is not packed: the GUI
         // invokes the engine directly, so only the resources/ tree is packed.
         Assert.DoesNotContain(
             payload.Manifest.Files,
             f => f.Path.Replace('\\', '/') == "Jiangtherapee Bridge.exe");
-        // The notices are no longer packed (user ruling 2026-10-15): licenses ship inside resources/.
+        // The notices are not packed: licenses ship inside resources/.
         Assert.DoesNotContain(
             payload.Manifest.Files,
             f => f.Path.Replace('\\', '/') == "THIRD_PARTY_NOTICES.md");
@@ -435,7 +434,7 @@ public class PayloadTests : IClassFixture<TestTemp>
         // _internal 整树规则：不再有逐文件例外——任意 _internal 内容均被前缀排除。
         Assert.True(PayloadPacker.IsExcluded("resources/_internal/cv2/opencv_world4700.dll"));
         Assert.True(PayloadPacker.IsExcluded("resources\\_internal\\numpy\\core\\_multiarray.pyd"));
-        // 预解包替代（Task1）：onefile exe 两种分隔符拼写均被 ExactPath 挡住。
+        // 预解包替代：onefile exe 两种分隔符拼写均被 ExactPath 挡住。
         Assert.True(PayloadPacker.IsExcluded("resources/jsr_backend.exe"));
         Assert.True(PayloadPacker.IsExcluded("resources\\jsr_backend.exe"));
     }
@@ -524,7 +523,7 @@ public class PayloadTests : IClassFixture<TestTemp>
     }
 
     /// <summary>
-    /// 薄变换（Task1 thin-archive）：Extract 管线在树内 exe 拷贝后即施加（源 onefile 零触碰）；
+    /// 薄变换：Extract 管线在树内 exe 拷贝后即施加（源 onefile 零触碰）；
     /// ThinTransform 独立 seam 同效；确定性（同输入同输出字节）+ 幂等（重复施加不变）；
     /// 边界形态：末位条目即 b（体窗口恰抵 TOC 起点）——末窗右越界一字节即破坏 TOC 断言。
     /// </summary>
@@ -583,7 +582,7 @@ public class PayloadTests : IClassFixture<TestTemp>
     }
 
     /// <summary>
-    /// 升级链语义（Task1）：源引擎 onefile 内容变 → 预解包树变 → manifest 哈希变（EmbeddedUpdater
+    /// 升级链语义：源引擎 onefile 内容变 → 预解包树变 → manifest 哈希变（EmbeddedUpdater
     /// 依 manifest 字节比对自决换入）；同引擎重打包 → 哈希不变（staging 确定性）。
     /// </summary>
     [Fact]
