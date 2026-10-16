@@ -235,10 +235,10 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
 
     /// <summary>Startup sweep: failed/stopped runs delete their job dir themselves,
     /// so anything left under the Jsr4Z8 temp root is debris from a crashed/killed
-    /// process — the sweep deletes ALL of it once past the grace window (any fabricated
-    /// mtime older than 2 minutes is swept).</summary>
+    /// process — the sweep deletes ALL of it that predates its own start (any
+    /// fabricated mtime in the past is swept; there is no age threshold).</summary>
     [Fact]
-    public void SweepTempRoot_DeletesAllLeftovers_OlderThanGraceWindow()
+    public void SweepTempRoot_DeletesAllLeftovers_PredatingSweepStart()
     {
         string tempBase = _temp.NewDir();
         string root = Path.Combine(tempBase, "Jsr4Z8");
@@ -258,7 +258,7 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
             TaskQueueRunner.SweepTempRoot(tempBase);
 
             Assert.False(Directory.Exists(old), "8-day-old leftover must be swept");
-            Assert.False(Directory.Exists(fresh), "1-day-old leftover must be swept too — no age cutoff beyond the grace window");
+            Assert.False(Directory.Exists(fresh), "1-day-old leftover must be swept too — no age threshold, only the sweep-start cutoff");
             Assert.False(Directory.Exists(current), "no id exclusion: everything past the grace window goes");
             Assert.Empty(Directory.GetDirectories(root));   // the root itself survives, emptied
         }
@@ -268,30 +268,31 @@ public class QueueRunnerTests : IClassFixture<TestTemp>
         }
     }
 
-    /// <summary>The sweep skips dirs whose LastWriteTimeUtc is within
-    /// the grace window — the same-instance race where a slow multi-GB sweep is still
-    /// iterating when the user starts the first run seconds after launch (the fresh job
-    /// dir must survive). A dir older than the window is swept.</summary>
+    /// <summary>The sweep only deletes dirs predating its own start — the same-instance
+    /// race where a slow multi-GB sweep is still iterating when the user starts the
+    /// first run seconds after launch (that live job dir is created after the sweep
+    /// began and must survive). Debris from any earlier moment is swept.</summary>
     [Fact]
-    public void SweepTempRoot_GraceWindow_KeepsFreshDir_SweepsOlder()
+    public void SweepTempRoot_StartCutoff_KeepsDirCreatedAfterStart_SweepsOlder()
     {
         string tempBase = _temp.NewDir();
         string root = Path.Combine(tempBase, "Jsr4Z8");
-        string fresh = Path.Combine(root, "just-created-job");   // keeps its real (current) mtime
+        string live = Path.Combine(root, "live-job");            // created after the sweep started
         string old = Path.Combine(root, Guid.NewGuid().ToString("N"));
-        foreach (string dir in new[] { fresh, old })
+        foreach (string dir in new[] { live, old })
         {
             Directory.CreateDirectory(dir);
             File.WriteAllText(Path.Combine(dir, "job.log"), "{}");
         }
         Directory.SetLastWriteTimeUtc(old, DateTime.UtcNow - TimeSpan.FromDays(8));
+        Directory.SetLastWriteTimeUtc(live, DateTime.UtcNow.AddSeconds(30));   // "created" after the sweep's start
         try
         {
             TaskQueueRunner.SweepTempRoot(tempBase);
 
-            Assert.True(Directory.Exists(fresh), "dir written within the grace window must be kept");
-            Assert.False(Directory.Exists(old), "dir older than the grace window must be swept");
-            Assert.Equal(new[] { fresh }, Directory.GetDirectories(root));   // exactly the fresh one remains
+            Assert.True(Directory.Exists(live), "dir created after the sweep started must be kept");
+            Assert.False(Directory.Exists(old), "dir predating the sweep start must be swept");
+            Assert.Equal(new[] { live }, Directory.GetDirectories(root));   // exactly the live one remains
         }
         finally
         {

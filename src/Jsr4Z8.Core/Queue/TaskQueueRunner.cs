@@ -188,18 +188,22 @@ public sealed class TaskQueueRunner
 
     private string TempBase => TempBaseOverride ?? Path.GetTempPath();
 
-    /// <summary>Sweep grace window: dirs under the Jsr4Z8 temp root
-    /// whose LastWriteTimeUtc is newer than this before the sweep's own clock are
-    /// skipped. The same-instance race: a slow multi-GB sweep may still be iterating
-    /// when the user starts the first run seconds after launch — the fresh job dir
-    /// must survive it (cross-instance is the app's single-instance mutex's job).</summary>
-    private static readonly TimeSpan SweepGraceWindow = TimeSpan.FromMinutes(2);
+    /// <summary>
+    /// Cutoff rule: a job dir is deletable only when its LastWriteTimeUtc predates the
+    /// sweep's own start. The live job dir of this instance is necessarily created
+    /// after the sweep task is queued at app entry, so a slow multi-GB sweep iterating
+    /// while the user starts the first run can never touch it; crash debris from any
+    /// earlier moment, down to one second before launch, is swept. (Replaces the
+    /// earlier two-minute grace window; cross-instance is the single-instance mutex's
+    /// job.)
+    /// </summary>
+    private static DateTime SweepStartUtc() => DateTime.UtcNow;
 
     /// <summary>Startup sweep: deletes every &lt;TempBase&gt;\Jsr4Z8\&lt;dir&gt; whose
-    /// LastWriteTimeUtc is older than <see cref="SweepGraceWindow"/>. Failed/stopped
-    /// runs delete their job dir themselves (失败即删), so anything still under the
-    /// root is debris from a crashed/killed process. Best effort — every IO error is
-    /// swallowed, never fatal to a launch. The app wires it once at entry.</summary>
+    /// LastWriteTimeUtc predates the sweep's own start. Failed/stopped runs delete
+    /// their job dir themselves (失败即删), so anything still under the root is debris
+    /// from a crashed/killed process. Best effort — every IO error is swallowed, never
+    /// fatal to a launch. The app wires it once at entry.</summary>
     public static void SweepTempRoot() => SweepUnder(Path.Combine(Path.GetTempPath(), "Jsr4Z8"));
 
     /// <summary>Test seam: the sweep against an explicit temp base (hermetic
@@ -213,7 +217,7 @@ public sealed class TaskQueueRunner
         {
             if (!Directory.Exists(root))
                 return;
-            DateTime cutoff = DateTime.UtcNow - SweepGraceWindow;
+            DateTime cutoff = SweepStartUtc();
             foreach (string dir in Directory.EnumerateDirectories(root))
             {
                 DateTime lastWrite;
