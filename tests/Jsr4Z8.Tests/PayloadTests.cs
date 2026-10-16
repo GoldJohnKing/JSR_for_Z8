@@ -316,7 +316,7 @@ public class PayloadTests : IClassFixture<TestTemp>
                 "resources\\licenses\\notice.txt",
             }.OrderBy(p => p, StringComparer.Ordinal),
             payload.Manifest.Files.Select(f => f.Path).OrderBy(p => p, StringComparer.Ordinal));
-        // 源 onefile exe 必须出载荷（ExactPath 排除；树内已有逐字节一致的引擎本体拷贝）。
+        // 源 onefile exe 必须出载荷（ExactPath 排除；树内已有薄化的引擎本体拷贝）。
         Assert.DoesNotContain(
             payload.Manifest.Files,
             f => f.Path.Replace('\\', '/') == "resources/jsr_backend.exe");
@@ -572,7 +572,7 @@ public class PayloadTests : IClassFixture<TestTemp>
 
     /// <summary>打包级断言：载荷 staging 树内的引擎 exe 即薄化副本；源树 onefile 保持原样（只读）。</summary>
     [Fact]
-    public void Pack_StagedEngineExe_IsThinCopy_SourceOnfileUntouched()
+    public void Pack_StagedEngineExe_IsThinCopy_SourceOnefileUntouched()
     {
         string src = MakeFakeTree();
         FakePayload payload = PackTree(src);
