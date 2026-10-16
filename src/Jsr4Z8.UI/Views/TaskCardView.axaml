@@ -203,7 +203,7 @@
             <Setter Property="Padding" Value="5,2" />
         </Style>
         <Style Selector="Border.ev-pill TextBlock">
-            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontSize" Value="11" />
             <Setter Property="Foreground" Value="{DynamicResource SemiColorText1}" />
         </Style>
         <!-- 基准帧的 EV 胶囊：基准★同款黄底高亮（在基础 ev-pill 样式之后声明，
@@ -301,7 +301,7 @@
             <!-- 头行：基准帧名 + 状态胶囊 + 动作（按状态由 CanExecute 自动启停） -->
             <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="14,12,14,10">
                 <TextBlock Text="{Binding ReferenceName, StringFormat='基准 {0}'}"
-                           FontSize="13.5" FontWeight="SemiBold" MaxWidth="240"
+                           FontSize="14" FontWeight="SemiBold" MaxWidth="240"
                            Foreground="{DynamicResource SemiColorText0}" VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ReferenceName}" />
                 <Border Grid.Column="1" Classes="pill" Margin="10,0,0,0" VerticalAlignment="Center">
@@ -412,7 +412,7 @@
             </ItemsControl>
 
             <!-- 元信息行：待输出/已输出文件名 -->
-            <TextBlock Text="{Binding MetaText}" FontSize="11.5"
+            <TextBlock Text="{Binding MetaText}" FontSize="12"
                        Foreground="{DynamicResource SemiColorText2}"
                        Margin="14,6,14,8" TextWrapping="Wrap"
                        IsVisible="{Binding MetaText, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />

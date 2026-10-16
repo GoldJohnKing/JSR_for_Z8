@@ -9,4 +9,12 @@
              Locale=zh-CN switches Semi's built-in control strings to Chinese. -->
         <semi:SemiTheme Locale="zh-CN" />
     </Application.Styles>
+
+    <!-- 字体统一：覆盖 Semi 的 DefaultFontFamily（Inter 打头+系统回退）为单一中文字族，
+         中/英/数字同源同度量；窗口/弹层(ToolTip)经 DynamicResource 一并生效 -->
+    <Application.Resources>
+        <ResourceDictionary>
+            <FontFamily x:Key="DefaultFontFamily">Microsoft YaHei UI</FontFamily>
+        </ResourceDictionary>
+    </Application.Resources>
 </Application>

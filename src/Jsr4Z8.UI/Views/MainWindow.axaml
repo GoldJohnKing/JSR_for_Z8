@@ -197,7 +197,7 @@
                                                    Foreground="{DynamicResource SemiColorText1}"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                                     </Border>
-                                    <TextBlock Text="拖入或选择 7 张 RAW" FontSize="11.5"
+                                    <TextBlock Text="拖入或选择 7 张 RAW" FontSize="12"
                                                Foreground="{DynamicResource SemiColorText3}" VerticalAlignment="Center" />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -207,7 +207,7 @@
                                                    Foreground="{DynamicResource SemiColorText1}"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                                     </Border>
-                                    <TextBlock Text="自动校验 · 一键开始" FontSize="11.5"
+                                    <TextBlock Text="自动校验 · 一键开始" FontSize="12"
                                                Foreground="{DynamicResource SemiColorText3}" VerticalAlignment="Center" />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -217,7 +217,7 @@
                                                    Foreground="{DynamicResource SemiColorText1}"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                                     </Border>
-                                    <TextBlock Text="在基准帧旁得到 JSR DNG" FontSize="11.5"
+                                    <TextBlock Text="在基准帧旁得到 JSR DNG" FontSize="12"
                                                Foreground="{DynamicResource SemiColorText3}" VerticalAlignment="Center" />
                                 </StackPanel>
                             </StackPanel>
@@ -304,7 +304,7 @@
                         <Viewbox Width="15" Height="15">
                             <Path Classes="icon-white" Data="{StaticResource Icon.Zap}" />
                         </Viewbox>
-                        <TextBlock Text="全部开始" FontSize="13.5" />
+                        <TextBlock Text="全部开始" FontSize="14" />
                     </StackPanel>
                 </Button>
             </Grid>
