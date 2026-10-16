@@ -15,8 +15,8 @@
 
 | 动作 | 命令（Windows host） |
 |---|---|
-| 全量测试 | `dotnet test --nologo`（当前 **282/282 全绿**；黑场标定恒为预置表匹配——见 §5 决策 3） |
-| 一键发布 | `build.bat` → `out\Jsr4Z8_v<版本>.exe`（单文件实测 440,567,896 B（440.6MB，MiB 口径 420.1）；预解包载荷实测：**1,444 文件/原始 587,974,158 B（560.7MiB）/payload.bin 393,487,154 B（375.3MiB）/manifest hash 9382ed09d9739092**；构成=引擎本体拷贝 201,243,142 B（不可压，DEFLATE 后 190.8MiB）+CArchive 树余 1,416 文件 386,096,731 B→压缩 193,108,942 B（184.2MiB）+licenses/元数据 27 文件 634,285 B；端到端注入实证 docs/superpowers/notes/2026-10-16-meipass2-experiment.md；Step 4 恒跑 pack-payload：预解包 onefile 引擎入 `resources\jsr_backend_runtime\`，自动选 reference/ 下最高版本，manifest 哈希比对自决换入，无需手动删 payload.*） |
+| 全量测试 | `dotnet test --nologo`（当前 **285/285 全绿**；黑场标定恒为预置表匹配——见 §5 决策 3） |
+| 一键发布 | `build.bat` → `out\Jsr4Z8_v<版本>.exe`（单文件实测 249,288,792 B（249.3MB，MiB 口径 237.8）；预解包载荷实测：**1,444 文件/原始 587,974,158 B（560.7MiB）/payload.bin 202,208,052 B（192.8MiB）/manifest hash 5c78910676d79955**；构成=引擎本体**薄拷贝** 201,243,142 B（b 体清零的打包期变换，长度不变、盘上树零影响、DEFLATE 后 8,813,230 B；原件=reference/ onefile 未动；无三变量 spawn 即响亮失败，见评估文档）+CArchive 树余 1,416 文件 386,096,731 B→压缩 193,108,942 B（184.2MiB）+licenses/元数据 27 文件 634,285 B；薄档案评估与端到端实证 docs/superpowers/notes/2026-10-16-thin-archive-probe.md（注入契约实证 …/2026-10-16-meipass2-experiment.md）；Step 4 恒跑 pack-payload：预解包 onefile 引擎入 `resources\jsr_backend_runtime\`，自动选 reference/ 下最高版本，manifest 哈希比对自决换入，无需手动删 payload.*） |
 | 无头自检 | `out\Jsr4Z8_v*.exe --selftest [file.nef]`（释放/校验载荷+验树内引擎 `resources\jsr_backend_runtime\jsr_backend.exe`+LibRaw 冒烟） |
 | E2E（真 GPU，~6min/全幅） | cmd 脚本内 `set JSR4Z8_E2E=1` + `dotnet test --filter FullyQualifiedName~E2eTests.<名>`；门控见 `tests/Jsr4Z8.Tests/E2eTests.cs`；**完整 E2E 默认不跑，仅用户明示要求时运行** |
 | 诊断工具 | `tools/finalize-variant/`（离线调用融合器：crop/passthrough/featureSet 剥离矩阵，ACR 排障利器） |
@@ -29,13 +29,13 @@
 Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐)
    └─ QueueMediator(单飞+IDispatcher UI 线程编组+进度节流200ms)
         └─ TaskQueueRunner(顺序队列: 释放载荷→临时目录→BuildArguments argv→BackendRunner(直调)→JsrDngFinalizer)
-             ├─ PayloadManager: exe 内嵌载荷(裸DEFLATE+逐文件SHA-256 manifest) → %LOCALAPPDATA%\JSR4Z8\backend\<hash>\（resources\ 源树 27 文件+预解包引擎树 resources\jsr_backend_runtime\ 1,417 文件含引擎本体拷贝，合计 1,444 文件/587,974,158 B）释放+逐文件SHA校验+自愈+旧版本目录清理（实测首释 2.3s/复验 0.8s）
+             ├─ PayloadManager: exe 内嵌载荷(裸DEFLATE+逐文件SHA-256 manifest) → %LOCALAPPDATA%\JSR4Z8\backend\<hash>\（resources\ 源树 27 文件+预解包引擎树 resources\jsr_backend_runtime\ 1,417 文件含引擎本体薄拷贝（b 体清零，长度不变），合计 1,444 文件/587,974,158 B）释放+逐文件SHA校验+自愈+旧版本目录清理（实测首释 2.3s/复验 0.8s）
              ├─ BackendRunner: 直调树内 resources\jsr_backend_runtime\jsr_backend.exe（注入 _PYI_* 三元组，见 §4）→ stdout 裸行协议解析(ProtocolParser) → taskkill /T 树杀取消
              └─ JsrDngFinalizer: 后端裸DNG → 解码像素 → DngComposer(复刻自Save_Z8) 重写
                   （EXIF/GPS/XMP/三级预览搬迁、镜头校正Opcode、无损JPEG Compress=7、LinearRaw 16bit×3通道）
 ```
 
-- `src/Jsr4Z8.Core`：RawMetadataReader(LibRaw)、NefAssetExtractor(TiffIfdExtractor 复刻)、Ptc(双段log-log拟合)、Dark(Embedded/dark_z8.csv 102行=34档ISO×3压缩（后端 z8_presets manifest 离线导出） 预置黑场表：双键(压缩,ISO)精确匹配不插值——ISO500=DCG切换点；画幅不参与匹配)、TaskGroupValidator(五维一致性：机型/ISO/位深/压缩/画幅 两两校验+预置黑场双键匹配，画像外=CaptureFormatUnsupported"拍摄格式不支持"；无手动黑场路径；曝光包围：仅快门速度不同的 7 帧合法，UI 层默认取中间曝光为基准帧)、Backend(argv 构建器 BuildArguments+裸行协议+直调执行器)、Dng(写盘器)、Payload(白名单=resources/ 树减排除清单+打包期预解包引擎树映射 resources\jsr_backend_runtime\（tools/pack-payload EnginePreextractor：CArchive b 条目→树+引擎本体逐字节拷贝）；排除：顶层 Bridge.exe/K14 引擎/onefile 整体 jsr_backend.exe（ExactPath 防回潮）/_internal 整树（引擎从不读盘上树）/raw_bridge+jxl_worker 工具与其 libjxl-DLL 家族（从未 spawn）/z8_presets；THIRD_PARTY_NOTICES.md 不打包)、Queue。
+- `src/Jsr4Z8.Core`：RawMetadataReader(LibRaw)、NefAssetExtractor(TiffIfdExtractor 复刻)、Ptc(双段log-log拟合)、Dark(Embedded/dark_z8.csv 102行=34档ISO×3压缩（后端 z8_presets manifest 离线导出） 预置黑场表：双键(压缩,ISO)精确匹配不插值——ISO500=DCG切换点；画幅不参与匹配)、TaskGroupValidator(五维一致性：机型/ISO/位深/压缩/画幅 两两校验+预置黑场双键匹配，画像外=CaptureFormatUnsupported"拍摄格式不支持"；无手动黑场路径；曝光包围：仅快门速度不同的 7 帧合法，UI 层默认取中间曝光为基准帧)、Backend(argv 构建器 BuildArguments+裸行协议+直调执行器)、Dng(写盘器)、Payload(白名单=resources/ 树减排除清单+打包期预解包引擎树映射 resources\jsr_backend_runtime\（tools/pack-payload EnginePreextractor：CArchive b 条目→树+引擎本体薄拷贝（b 体清零，薄档案形态））；排除：顶层 Bridge.exe/K14 引擎/onefile 整体 jsr_backend.exe（ExactPath 防回潮）/_internal 整树（引擎从不读盘上树）/raw_bridge+jxl_worker 工具与其 libjxl-DLL 家族（从未 spawn）/z8_presets；THIRD_PARTY_NOTICES.md 不打包)、Queue。
 - `external/`：git submodule ×2（y-g-jiang/LibRaw@nikon-he-production、libjpeg-turbo）——**唯一允许的源码依赖方式**；.NET 库一律 NuGet 锁版本（Avalonia 11.2.2 / Semi.Avalonia 11.2.1.10 / CT.Mvvm 8.3.2，与 Save_Z8 对齐）。
 - 复刻纪律：Save_Z8 代码（`D:\GitRepos\Save_Z8`，作者自有项目）按「复刻源文件+保留头注」方式移植，**不**作为 submodule。参考产物：`D:\GitRepos\Save_Z8\samples\DSC_7576_fixed.dng`（ACR 实证可开的 CFA 对照基准）。
 

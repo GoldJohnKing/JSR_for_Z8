@@ -121,6 +121,8 @@ PS 5.1 `-Redirect*` 丢环境陷阱）；PS `Start-Process -PassThru` 持 cmd �
 3. 门禁：`PayloadTests` 期望尺寸/条目更新；升级链冒烟断言（无新 `_MEI` + 20s 内出进度）；披露注释（§5.3）。
 4. 预期收益：payload.bin 393,487,154 → ~202,205,337 B（−48.6%）；单文件发布 440.6 → ~249.3 MB（估计口径见 §4）。
 
+**已实施（2026-10-16，feat/thin-archive）**：EnginePreextractor 打包期薄拷贝上线并实测——payload.bin 393,487,154 → **202,208,052 B**（−48.6%）、发布 exe 440,567,896 → **249,288,792 B**（−43.4%）、树内 exe sha256 `b0ddafd0…`（=§1.1 thin-b 同体，长度 201,243,142 不变）；完整 7 帧契约跑绿（exit 0/DNG 358,130,979 B/result.json COMPLETE/零 `_MEI`/单实例/树不变）；无三变量裸 spawn 实测 <1s 即死：`[PYI-…:ERROR] Failed to extract MSVCP140.dll: decompression resulted in return code -3!`、退出码 −1、遗留一个含 0 字节文件的 `_MEI` 目录（已清理）——§5.4 推断闭合（退出码为 −1 非 e1b 的 0xC0000409：失败点在引导期 C 级解压，早于 Python fail-fast）。
+
 ## 7. 失败模式速查（实测签名）
 
 | 症状 | 根因 | 实测 |
