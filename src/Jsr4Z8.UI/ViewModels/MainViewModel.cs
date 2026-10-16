@@ -197,11 +197,19 @@ public partial class MainViewModel : ObservableObject
     /// <summary>Card state changes drive the derived counts (and through them the
     /// status line) — a card finishing flips DoneCount without touching the collection.
     /// IsValidating changes land here too, re-deriving ValidatingCount (both
-    /// directions — flight started and flight landed).</summary>
+    /// directions — flight started and flight landed). A State change ALSO re-raises
+    /// the queue button's CanExecuteChanged: Avalonia's Button caches CanExecute and
+    /// re-queries it only on this event, and a validation flight landing Ready (or a
+    /// run starting/finishing) changes <see cref="CanStartAll"/> WITHOUT any Tasks
+    /// collection change — without the notify, 快速两连拖 (both cards land Ready after
+    /// the last Add already happened) leaves 全部开始 cached-disabled forever.</summary>
     private void OnCardPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(TaskGroupViewModel.State) or nameof(TaskGroupViewModel.IsValidating))
+        {
             RefreshCounts();
+            StartAllCommand.NotifyCanExecuteChanged();
+        }
     }
 
     private void OnRunnerBusyChanged(object? sender, EventArgs e)

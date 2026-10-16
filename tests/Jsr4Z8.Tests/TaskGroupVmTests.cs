@@ -20,6 +20,11 @@ public class TaskGroupVmTests
     private static readonly string[] Frames =
         Enumerable.Range(7576, 7).Select(i => $@"C:\Photos\DSC_{i}.NEF").ToArray();
 
+    /// <summary>A second, disjoint 7-frame set — the 快速两连拖 regression drops
+    /// Frames and Frames2 as two separate cards.</summary>
+    private static readonly string[] Frames2 =
+        Enumerable.Range(7583, 7).Select(i => $@"C:\Photos\DSC_{i}.NEF").ToArray();
+
     /// <summary>Mock Z8 metadata (same shape as TaskGroupCreatorTests): ISO3200, 14bit
     /// lossless, 1/8000s, f/4.</summary>
     private static RawMetadata Meta(
@@ -148,6 +153,40 @@ public class TaskGroupVmTests
         Assert.True(fresh.GoFailed("x"));     // Ready → Failed is valid (immediate run error)
         Assert.Equal(TaskState.Failed, fresh.State);
         Assert.True(fresh.GoRunning());        // Failed → Running is the retry edge
+    }
+
+    /// <summary>快速两连拖回归：第二组在第一组校验未完成时拖入（两组同时校验），
+    /// 两组落地 Ready 之后不再有任何 Tasks 集合变化 —— Avalonia Button 缓存 CanExecute
+    /// 并只在命令的 CanExecuteChanged 时重查，所以卡片 State 变化必须通知
+    /// StartAllCommand，否则“全部开始”按钮的缓存停留在 false，永远死灰。慢速路径
+    /// （先等第一组 Ready 再拖第二组）靠第二次 Tasks.Add 的集合通知“意外”救活，
+    /// 掩盖了该缺陷。</summary>
+    [Fact]
+    public async Task StartAll_CanExecuteNotified_WhenFastDroppedFlightsBothLandReady()
+    {
+        var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Func<string, RawMetadata> read = _ =>
+        {
+            gate.Task.Wait();
+            return Meta();
+        };
+        var main = new MainViewModel(read: read);
+
+        Task drop1 = main.AddFilesAsync(Frames);    // 卡 1 即时入列，校验飞行阻塞在 gate
+        Task drop2 = main.AddFilesAsync(Frames2);   // 第一组仍在校验中 → 第二组也入列
+
+        Assert.Equal(2, main.Tasks.Count);                              // 两卡都已建
+        Assert.All(main.Tasks, t => Assert.True(t.IsValidating));       // 两组同时校验
+
+        int raised = 0;   // Avalonia Button 重查 CanExecute 的唯一信号
+        main.StartAllCommand.CanExecuteChanged += (_, _) => raised++;
+
+        gate.SetResult(true);
+        await Task.WhenAll(drop1, drop2);
+
+        Assert.All(main.Tasks, t => Assert.Equal(TaskState.Ready, t.State)); // 两组都合法
+        Assert.True(main.StartAllCommand.CanExecute(null));
+        Assert.True(raised > 0);                                        // 缺陷：State 落地不通知 → 0
     }
 
     [Fact]
