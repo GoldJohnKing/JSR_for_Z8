@@ -13,7 +13,9 @@ namespace Jsr4Z8.Tests;
 /// parent, same-argv child + unnamed grandchild in the tree), so cancellation
 /// must keep the whole-tree kill (taskkill /T /F), Started is the runner's own
 /// synthesis, and every streamed line must land in the run log file. stub_env.bat
-/// instead echoes the _PYI_* spawn-injection triple for its character-exact lock.
+/// instead echoes the _PYI_* spawn-injection triple for its character-exact lock,
+/// plus its own %~f0 for the same-path lock (evaluation fact A: _PYI_ARCHIVE_FILE
+/// must equal the spawned exe's own path — a foreign archive is silently ignored).
 /// Windows-host tests: the stubs are .bat files driven through the same Process
 /// path the real engine executable uses.
 /// </summary>
@@ -157,6 +159,42 @@ public class BackendRunnerTests : IClassFixture<TestTemp>
         Assert.Contains(events, e => e is LogLine { Progress: null } l && l.Text == "_PYI_APPLICATION_HOME_DIR=" + treeDir);
         Assert.Contains(events, e => e is LogLine { Progress: null } l && l.Text == "_PYI_PARENT_PROCESS_LEVEL=0");
         Assert.IsType<Finished>(events[^1]);
+    }
+
+    /// <summary>Fact A lock (evaluation docs/superpowers/notes/2026-10-16-thin-archive-probe.md
+    /// 机制事实 #2): a _PYI_ARCHIVE_FILE pointing at anything other than the SPAWNED exe's
+    /// own path is silently ignored — the bootloader's reset block then self-extracts the
+    /// parent's real archive (per-run %TEMP% _MEI), which is exactly the regression this
+    /// deployment form exists to prevent. stub_env.bat echoes its own %~f0 next to the
+    /// triple: echo-vs-echo string equality (no C#-side path recomputation) proves the
+    /// injected archive IS the process we spawned, and the home dir is that exe's own
+    /// directory. Complements the character-exact lock above (values vs. experiment
+    /// recipe); either breaking independently names its own fact.</summary>
+    [Fact]
+    public async Task SpawnInjectsPyiTriple_ArchiveFileEqualsSpawnedExeOwnPath_StubEnvEcho()
+    {
+        BackendRunSpec spec = NewSpec("stub_env.bat");
+        var events = new List<RunnerEvent>();
+
+        RunnerResult result = await new BackendRunner().RunAsync(spec, events.Add, CancellationToken.None);
+
+        Assert.True(result.Success, $"Message: {result.Message}");
+        string selfPath = EchoValue(events, "_PYI_SELF_PATH=");
+        Assert.Equal(selfPath, EchoValue(events, "_PYI_ARCHIVE_FILE="));
+        Assert.Equal(Path.GetDirectoryName(selfPath), EchoValue(events, "_PYI_APPLICATION_HOME_DIR="));
+        Assert.IsType<Finished>(events[^1]);
+    }
+
+    /// <summary>The value behind the stub's single "&lt;prefix&gt;&lt;value&gt;" echo line —
+    /// Assert.Single also locks that the stub echoed it exactly once.</summary>
+    private static string EchoValue(List<RunnerEvent> events, string prefix)
+    {
+        string[] values = events
+            .OfType<LogLine>()
+            .Where(l => l.Progress is null && l.Text.StartsWith(prefix, StringComparison.Ordinal))
+            .Select(l => l.Text[prefix.Length..])
+            .ToArray();
+        return Assert.Single(values);
     }
 
     [Fact]

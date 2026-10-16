@@ -38,8 +38,9 @@ public sealed record PayloadPackResult(
 /// longer embedded whole (预解包替代——2026-10-16 用户裁定，docs/superpowers/notes/
 /// 2026-10-16-meipass2-experiment.md 为证): tools/pack-payload pre-extracts its embedded
 /// PyInstaller CArchive (EnginePreextractor) into a staged tree that <see cref="Pack"/>
-/// maps under resources\jsr_backend_runtime\ — byte-identical jsr_backend.exe copy
-/// included, the runtime engine source (the _PYI_* triple runs the tree's exe against
+/// maps under resources\jsr_backend_runtime\ — thinned jsr_backend.exe copy at the
+/// tree root included (see the disclosure on the whitelist's onefile entry), the
+/// runtime engine source (the _PYI_* triple runs the tree's exe against
 /// the tree: zero %TEMP% _MEI). The onefile exe itself is an ExactPath exclusion so a
 /// whitelist regression cannot smuggle it back in; so is the top-level
 /// "Jiangtherapee Bridge.exe" shell. assistant 单形态 7 帧锁定 →
@@ -67,7 +68,7 @@ public static class PayloadPacker
     /// <summary>
     /// 载荷内预解包引擎树的目录前缀（相对后端根；正斜杠拼写与排除清单约定一致，组路径时按 OS 分隔符）。
     /// <see cref="Pack"/> 把调用方预解包好的引擎树（EnginePreextractor.Extract 输出）整树映射到其下，
-    /// 含树根逐字节一致的 jsr_backend.exe 本体拷贝。运行时契约（计划
+    /// 含树根薄化的 jsr_backend.exe 本体拷贝（b 体清零，见排除清单同款披露）。运行时契约（计划
     /// docs/superpowers/plans/2026-10-16-preextract-payload.md）：
     /// _PYI_ARCHIVE_FILE=&lt;释放根&gt;\resources\jsr_backend_runtime\jsr_backend.exe、
     /// _PYI_APPLICATION_HOME_DIR=&lt;释放根&gt;\resources\jsr_backend_runtime。
@@ -108,7 +109,9 @@ public static class PayloadPacker
     {
         // 预解包替代——2026-10-16 用户裁定，实验文档为证（docs/superpowers/notes/2026-10-16-meipass2-experiment.md）：
         // onefile exe 不再整体入载荷。打包期 EnginePreextractor（tools/pack-payload）把其内嵌
-        // CArchive 解成文件树（含 exe 本体拷贝）经 resources\jsr_backend_runtime\ 前缀入载荷，
+        // CArchive 解成文件树（含薄化 exe 本体拷贝——随包引擎 exe 为薄化改造副本：b 体清零，
+        // 打包期变换；原件=reference/ 树 onefile exe 未动；评估 docs/superpowers/notes/
+        // 2026-10-16-thin-archive-probe.md 为证）经 resources\jsr_backend_runtime\ 前缀入载荷，
         // 运行时 _PYI_* 三元组直跑树内引擎——零 %TEMP% _MEI。本 ExactPath 挡住 onefile 整体重嵌回潮。
         (ExclusionKind.ExactPath, "resources/jsr_backend.exe"),
         // Top-level Bridge shell: the GUI invokes the engine directly,
