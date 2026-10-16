@@ -45,7 +45,7 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐)
   `jsr_backend.exe --output-dir <jobDir> --out-prefix <jobId> --dng-compression auto --raw-frame <f1> … --raw-frame <f7> --developer-mode --read-noise-dn <RN> --black-level-dn <BL> --full-well-electrons <FW> --deghost off --out-dng on --out-png off --out-tiff off --out-format jpeg --jpeg-quality 95 --camera-profile-source libraw`
   **无 request.json、无 cfg 目录、无预览链**（§7 无 cfg/无预览真机直调 exit 0 实证）；**memory 预算彻底不传 = 不限额**；FW=PTC 匹配值 1 位小数，RN/BL=预置黑场表值（`tests/…/ProtocolTests.cs` 逐开关锁定）。
 - **stdout 协议（裸行，无信封）**：引擎 stdout 即协议本体，零 `ASSISTANT_*` 信封（那是 Bridge 外加的，已随直调消失）；结构行仅 `SRHQ_V12_PROGRESS|int|阶段` 与导出期 `SRHQ_ETA_PROGRESS|dng|done|total`（映射 95+5*done/total，尾三行 = `SRHQ_V12_PROGRESS|100|导出完成` → `V12 output: <dir>` → `DONE total <s>s`，P100 恰一次）；其余（`PTC {…}` 回显、`SRHQ_V12_FRAME|…`、Proxy 噪声）按原文透传；stderr 不参与协议（诊断回溯走 stderr，成功时 0 字节）。夹具：`tests/Jsr4Z8.Tests/fixtures/protocol/direct_success.log`（真实直调日志）。
-- **取消**：引擎每次调用自重复为父子双实例（~2s 间隔，实际工作在子进程，父转述退出码），树内还可能出现未名孙进程——必须 `taskkill /T /F` 杀整棵树（持有自己 spawn 的父 pid 即可）。
+- **取消**：引擎每次调用自重复为父子双实例（~2s 间隔，实际工作在子进程，父转述退出码），树内还可能出现未名孙进程——必须 `taskkill /T /F` 杀整棵树（持有自己 spawn 的父 pid 即可）。崩溃兜底：主进程启动即加入 kill-on-close Job Object，异常退出时 OS 自动终止全部子进程；正常取消仍为 taskkill /T 树杀。
 - **后端产物**：`<outputDir>/<prefix>_V15_3_5_K7_<ts>/<同名>.dng` + 辅助文件；失败残留 `.partial` 目录（成功 glob 需排除）。退出码取父实例（正常完成 0）。
 - **后端 DNG 形态**：LinearRaw(34892) 16bit×3通道、无 EXIF/预览/校正、BL=0/WL=65535、尺寸=输入 raw 填充尺寸×2（8280×5520→16560×11040）。
 - **PTC**：`Ptc/Embedded/ptc_z8.csv`（自原包提取）；表内 ISO 直取 1/alpha，表外双段 **log-log 最小二乘**（<500 / ≥500 两段）——字面线性拟合违反计划自身留一检验且 ISO499 得负满阱，勿改回。

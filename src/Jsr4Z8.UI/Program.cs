@@ -11,6 +11,9 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // 崩溃兜底——主进程死亡时 OS 终止全部子进程树；正常取消仍走 taskkill /T。
+        JobObject.TryEnableKillOnCloseForCurrentProcess();
+
         // Headless release self-test (also proves native DLLs resolve from the
         // single-file bundle): Jsr4Z8.UI.exe --selftest [file.nef]
         if (args.Length is 1 or 2 && args[0] == "--selftest")
