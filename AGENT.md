@@ -90,4 +90,4 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐)
 - 活性契约参考（argv 探测/裸行协议/直调实证，硬契约的事实出处）：`docs/superpowers/notes/2026-10-15-jsr-backend-argv-probe.md`
 - 注入契约/预解包实证（_PYI_* 三元组机制、零 _MEI、持久目录只读性）：`docs/superpowers/notes/2026-10-16-meipass2-experiment.md`
 - 排障/修复报告（ACR 攻坚全程）：`.superpowers/sdd-postrelease-fix*.md`（fix1-11）
-- 样例：`samples/test_frames/`（`lossless`=DSC_7576-7582 七帧无损等曝光组；`he_compressed`=DSC_7652-7658 七帧 HE 组；`unequal_exposure`=DSC_7855-7861 七帧不等曝光/包围组（1/3EV 快门梯 1/200…1/50，中间曝光 1/100 为基准帧），均未入 git；黑场标定无样本文件——预置黑场表来源为后端 z8_presets manifest 离线导出，见 §5 决策 3）；后端原包：`reference/` 下 2.3.25 与 2.3.27 两树均在（均勿改一字节）；载荷取 2.3.27（build.bat 自动选最高版本；黑场表/argv 契约随版重验）
+- 样例：`samples/test_frames/`（`lossless`=DSC_7576-7582 七帧无损等曝光组；`he_compressed`=DSC_7652-7658 七帧 HE 组；`unequal_exposure`=DSC_7855-7861 七帧不等曝光/包围组（1/3EV 快门梯 1/200…1/50，中间曝光 1/100 为基准帧），均未入 git；黑场标定无样本文件——预置黑场表来源为后端 z8_presets manifest 离线导出，见 §5 决策 3）；后端原包：`reference/` 下仅 2.3.27 一树在（2.3.25 已移除）；勿改一字节；载荷取 2.3.27（build.bat 自动选最高版本；黑场表/argv 契约随版重验）

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Extract the Nikon Z8 rows from the reference PTC index into the embedded resource.
 
-Reads reference/Jiangtherapee-Bridge-2.3.25-Windows-x64/resources/_internal/ptc_index.csv,
+Reads reference/Jiangtherapee-Bridge-2.3.27-Windows-x64/resources/_internal/ptc_index.csv,
 keeps the rows with brand==Nikon and model==Z8 (12 ISO entries), and writes them with the
 original column set to src/Jsr4Z8.Core/Ptc/Embedded/ptc_z8.csv, which Jsr4Z8.Core embeds
 (LogicalName Jsr4Z8.Core.Ptc.Embedded.ptc_z8.csv).
@@ -15,7 +15,7 @@ Usage: python3 tools/extract-ptc.py   (paths resolve relative to the repo root)
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-SRC = REPO / "reference/Jiangtherapee-Bridge-2.3.25-Windows-x64/resources/_internal/ptc_index.csv"
+SRC = REPO / "reference/Jiangtherapee-Bridge-2.3.27-Windows-x64/resources/_internal/ptc_index.csv"
 DST = REPO / "src/Jsr4Z8.Core/Ptc/Embedded/ptc_z8.csv"
 BRAND, MODEL = "Nikon", "Z8"
 

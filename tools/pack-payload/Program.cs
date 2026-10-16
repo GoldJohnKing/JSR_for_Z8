@@ -6,7 +6,7 @@ using Jsr4Z8.Tools;
 // The release script (build.bat Step 4) invokes:
 //   pack-payload <srcDir> <embeddedDir>
 // with embeddedDir = src/Jsr4Z8.Core/Payload/Embedded/ — the pair is NOT committed
-// (payload.bin is ~200 MB); the Core csproj embeds both files as resources when present.
+// (payload.bin is ~393 MB); the Core csproj embeds both files as resources when present.
 //
 // Pack flow (Task1 预解包，2026-10-16 用户裁定): pre-extract the onefile engine
 // (resources\jsr_backend.exe) via EnginePreextractor into a temp staging dir, then
