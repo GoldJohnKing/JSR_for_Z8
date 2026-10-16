@@ -12,7 +12,7 @@ REM           libs\dng_ljpeg.dll       (lossless-JPEG tile encoder wrapper)
 REM           src\Jsr4Z8.Core\Payload\Embedded\payload.bin + payload.manifest.json
 REM                                     (backend payload pair, Step 4; gitignored)
 REM           out\Jsr4Z8_v^<Version^>.exe (single-file, self-contained, native DLLs
-REM                                     + ~493 MB backend payload embedded)
+REM                                     + ~202 MB backend payload embedded)
 REM Layout (normalized by Directory.Build.props):
 REM   build\obj\<Project>            intermediates
 REM   build\bin\<Project>\<Config>   build outputs (dev debugging)
@@ -137,7 +137,7 @@ dotnet run --project tools\pack-payload -- "%PAYLOAD_SRC%" "%PAYLOAD_EMBED%"
 if errorlevel 1 (echo ERROR: payload packing failed & exit /b 1)
 REM --- Step 5: single-file publish (Release, self-contained, payload embedded) ---
 cd /d %ROOT%
-echo [5/6] Publishing single-file exe (embeds + compresses ~493 MB payload, takes a few minutes)...
+echo [5/6] Publishing single-file exe (embeds + compresses ~202 MB payload, takes a few minutes)...
 REM Clear any inherited Platform env var (e.g. x64 from a VS developer prompt): MSBuild
 REM would otherwise treat it as a global platform and break the Any CPU publish below.
 set Platform=

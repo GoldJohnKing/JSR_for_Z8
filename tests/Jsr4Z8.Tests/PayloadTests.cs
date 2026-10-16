@@ -6,7 +6,7 @@ namespace Jsr4Z8.Tests;
 /// <summary>
 /// Task 10: payload pack → extract → verify → self-heal pipeline, using the SAME
 /// PayloadPacker code the release packer tool (tools/pack-payload) uses. The tests
-/// build a minimal fake payload (2 packed files) in temp dirs — the real ~500 MB
+/// build a minimal fake payload (2 packed files) in temp dirs — the real ~202 MB
 /// backend payload is never committed or embedded into test builds (Task 15 packs
 /// it at release time). Windows-host tests: the manager writes/renames/deletes real
 /// directories.
@@ -139,6 +139,9 @@ public class PayloadTests : IClassFixture<TestTemp>
         File.WriteAllText(Path.Combine(root, "resources", "_internal", "tk86t.dll"), "tk");
         File.WriteAllText(Path.Combine(root, "resources", "_internal", "_tk_data", "y.enc"), "tk data");
         File.WriteAllText(Path.Combine(root, "resources", "_internal", "wgpu", "__pyinstaller", "conftest.py"), "# test residue");
+        // _internal 整树排除的夹具实体（无“保留兄弟”例外）：两文件随树一并被排除。
+        File.WriteAllText(Path.Combine(root, "resources", "_internal", "cv2", "__init__.py"), "cv2 package");
+        File.WriteAllText(Path.Combine(root, "resources", "_internal", "keep.dll"), "_internal residue");
         // Post-trim payload shape (probe 2026-10-16-payload-trim-probe.md §4): the whole
         // on-disk _internal tree goes (onefile self-extraction), together with the
         // never-spawned tool exes and their libjxl/mingw DLL family — while the engine's
