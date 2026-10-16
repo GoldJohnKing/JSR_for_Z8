@@ -32,11 +32,17 @@ public sealed record PayloadPackResult(
 /// (fake 2-file payloads in temp dirs) both go through it — the real ~202 MB payload is
 /// never committed or embedded into test builds.
 ///
-/// Scanned from &lt;srcDir&gt; (byte-exact constraint): the resources/ tree minus the
-/// exclusion list (<see cref="IsExcluded"/>) — the direct-invoke
-/// engine resources\jsr_backend.exe is the required entry point (the top-level
-/// "Jiangtherapee Bridge.exe" shell is not shipped; it is kept as an ExactPath
-/// exclusion so a whitelist regression cannot smuggle it back in). assistant 单形态 7 帧锁定 →
+/// Scanned from &lt;srcDir&gt; (byte-exact constraint) plus a pre-extracted engine tree
+/// supplied by the caller: the resources/ tree minus the exclusion list
+/// (<see cref="IsExcluded"/>) — the onefile engine resources\jsr_backend.exe is no
+/// longer embedded whole (预解包替代——2026-10-16 用户裁定，docs/superpowers/notes/
+/// 2026-10-16-meipass2-experiment.md 为证): tools/pack-payload pre-extracts its embedded
+/// PyInstaller CArchive (EnginePreextractor) into a staged tree that <see cref="Pack"/>
+/// maps under resources\jsr_backend_runtime\ — byte-identical jsr_backend.exe copy
+/// included, the runtime engine source (the _PYI_* triple runs the tree's exe against
+/// the tree: zero %TEMP% _MEI). The onefile exe itself is an ExactPath exclusion so a
+/// whitelist regression cannot smuggle it back in; so is the top-level
+/// "Jiangtherapee Bridge.exe" shell. assistant 单形态 7 帧锁定 →
 /// K14 引擎不携带；manual 标定 → z8_presets 不携带；onefile 自解压实证后 _internal 整树
 /// 剥离（含先前单列的 Tcl/Tk、ffmpeg 视频 DLL、wgpu 测试残留），连同从未 spawn 的
 /// raw_bridge/jxl_worker 工具及其 libjxl/mingw DLL 家族（探针 2026-10-16 §3/§4）；
@@ -57,6 +63,19 @@ public static class PayloadPacker
     public const string PayloadFileName = "payload.bin";
     public const string ManifestFileName = "payload.manifest.json";
     public const int CurrentManifestVersion = 1;
+
+    /// <summary>
+    /// 载荷内预解包引擎树的目录前缀（相对后端根；正斜杠拼写与排除清单约定一致，组路径时按 OS 分隔符）。
+    /// <see cref="Pack"/> 把调用方预解包好的引擎树（EnginePreextractor.Extract 输出）整树映射到其下，
+    /// 含树根逐字节一致的 jsr_backend.exe 本体拷贝。运行时契约（计划
+    /// docs/superpowers/plans/2026-10-16-preextract-payload.md）：
+    /// _PYI_ARCHIVE_FILE=&lt;释放根&gt;\resources\jsr_backend_runtime\jsr_backend.exe、
+    /// _PYI_APPLICATION_HOME_DIR=&lt;释放根&gt;\resources\jsr_backend_runtime。
+    /// </summary>
+    public const string EngineRuntimeDir = "resources/jsr_backend_runtime";
+
+    /// <summary>OS 分隔符形态的引擎树前缀（manifest 路径解析用；枚举组路径见 <see cref="EnumerateSourceFiles"/>）。</summary>
+    private static readonly string EngineRuntimeOSDir = EngineRuntimeDir.Replace('/', Path.DirectorySeparatorChar);
 
     private const uint Magic = 0x3142_504A; // little-endian bytes spell "JPB1"
     private const int MaxFiles = 1_000_000;
@@ -87,7 +106,12 @@ public static class PayloadPacker
     /// </summary>
     private static readonly (ExclusionKind Kind, string Pattern)[] ExcludedPayloadEntries =
     {
-        // Top-level Bridge shell: the GUI invokes resources\jsr_backend.exe directly,
+        // 预解包替代——2026-10-16 用户裁定，实验文档为证（docs/superpowers/notes/2026-10-16-meipass2-experiment.md）：
+        // onefile exe 不再整体入载荷。打包期 EnginePreextractor（tools/pack-payload）把其内嵌
+        // CArchive 解成文件树（含 exe 本体拷贝）经 resources\jsr_backend_runtime\ 前缀入载荷，
+        // 运行时 _PYI_* 三元组直跑树内引擎——零 %TEMP% _MEI。本 ExactPath 挡住 onefile 整体重嵌回潮。
+        (ExclusionKind.ExactPath, "resources/jsr_backend.exe"),
+        // Top-level Bridge shell: the GUI invokes the engine directly,
         // so the shell is dead weight — this ExactPath entry keeps a future whitelist
         // regression from smuggling it back in. 直调后顶层壳不携带。
         (ExclusionKind.ExactPath, "Jiangtherapee Bridge.exe"),
@@ -159,40 +183,66 @@ public static class PayloadPacker
 
     /// <summary>
     /// The payload's source file list: every file under resources/ (recursive) except the
-    /// exclusion list (<see cref="IsExcluded"/>), each as a path relative to
-    /// <paramref name="srcDir"/>. The direct-invoke engine (resources\jsr_backend.exe) is
-    /// the required entry point — throws if it or the resources/ dir is missing.
-    /// THIRD_PARTY_NOTICES.md and the top-level Bridge shell are not packed
+    /// exclusion list (<see cref="IsExcluded"/>), plus the pre-extracted engine runtime tree
+    /// (<paramref name="engineTreeDir"/> — EnginePreextractor.Extract output) mapped under
+    /// resources\jsr_backend_runtime\. Throws if the extraction source
+    /// (resources\jsr_backend.exe), the staged tree, or the staged engine copy
+    /// (resources\jsr_backend_runtime\jsr_backend.exe — the runtime contract entry point)
+    /// is missing. THIRD_PARTY_NOTICES.md and the top-level Bridge shell are not packed
     /// (third-party licenses ship inside resources/licenses/).
     /// </summary>
-    public static IReadOnlyList<string> EnumerateSourceFiles(string srcDir)
+    public static IReadOnlyList<string> EnumerateSourceFiles(string srcDir, string engineTreeDir)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(srcDir);
+        ArgumentException.ThrowIfNullOrWhiteSpace(engineTreeDir);
         string resources = Path.Combine(srcDir, "resources");
         string engine = Path.Combine(resources, "jsr_backend.exe");
         if (!Directory.Exists(resources))
             throw new DirectoryNotFoundException($"后端源目录缺少必需目录: {resources}");
         if (!File.Exists(engine))
-            throw new DirectoryNotFoundException($"后端源目录缺少直调引擎: {engine}");
+            throw new DirectoryNotFoundException($"后端源目录缺少预解包源引擎: {engine}");
+        if (!Directory.Exists(engineTreeDir))
+            throw new DirectoryNotFoundException($"预解包引擎树目录不存在: {engineTreeDir}");
+        string stagedEngine = Path.Combine(engineTreeDir, "jsr_backend.exe");
+        if (!File.Exists(stagedEngine))
+            throw new FileNotFoundException($"预解包引擎树缺少引擎本体拷贝（运行时契约入口）: {stagedEngine}");
 
         var files = new List<string>();
         foreach (string file in Directory.EnumerateFiles(resources, "*", SearchOption.AllDirectories))
         {
             string rel = Path.GetRelativePath(srcDir, file);
+            // 保留命名空间：引擎树映射前缀只允许来自 engineTreeDir——源树同名路径会被
+            // ResolveSourceFile 误读到 staging，此处直接拒绝而不是静默错字节。
+            if (rel.StartsWith(EngineRuntimeOSDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException($"源树占用预解包保留前缀 {EngineRuntimeOSDir}\\: {rel}");
+            if (!IsExcluded(rel))
+                files.Add(rel);
+        }
+        foreach (string file in Directory.EnumerateFiles(engineTreeDir, "*", SearchOption.AllDirectories))
+        {
+            string rel = Path.Combine(EngineRuntimeOSDir, Path.GetRelativePath(engineTreeDir, file));
             if (!IsExcluded(rel))
                 files.Add(rel);
         }
         return files;
     }
 
-    /// <summary>Packs <paramref name="srcDir"/> into payload.bin + payload.manifest.json under <paramref name="outDir"/>.</summary>
-    public static PayloadPackResult Pack(string srcDir, string outDir)
+    /// <summary>
+    /// Packs <paramref name="srcDir"/> plus the pre-extracted engine tree
+    /// <paramref name="engineTreeDir"/> (mapped under resources\jsr_backend_runtime\) into
+    /// payload.bin + payload.manifest.json under <paramref name="outDir"/>. The staged tree
+    /// is produced by the caller (tools/pack-payload: EnginePreextractor.Extract on
+    /// resources\jsr_backend.exe) — same exe bytes ⇒ same staged tree ⇒ same manifest
+    /// bytes (deterministic).
+    /// </summary>
+    public static PayloadPackResult Pack(string srcDir, string outDir, string engineTreeDir)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(srcDir);
         ArgumentException.ThrowIfNullOrWhiteSpace(outDir);
+        ArgumentException.ThrowIfNullOrWhiteSpace(engineTreeDir);
         Directory.CreateDirectory(outDir);
 
-        IReadOnlyList<string> files = EnumerateSourceFiles(srcDir)
+        IReadOnlyList<string> files = EnumerateSourceFiles(srcDir, engineTreeDir)
             .OrderBy(p => p, StringComparer.Ordinal)
             .ToArray();
 
@@ -200,7 +250,7 @@ public static class PayloadPacker
         var entries = new List<PayloadManifestEntry>(files.Count);
         foreach (string rel in files)
         {
-            using FileStream src = File.OpenRead(Path.Combine(srcDir, rel));
+            using FileStream src = File.OpenRead(ResolveSourceFile(srcDir, engineTreeDir, rel));
             entries.Add(new PayloadManifestEntry(
                 rel,
                 Convert.ToHexString(SHA256.HashData(src)).ToLowerInvariant(),
@@ -222,7 +272,7 @@ public static class PayloadPacker
                     long start = bodies.Position;
                     // using BLOCKS (not declarations): the delta must be read after the
                     // DeflateStream is disposed and has flushed its internal buffer.
-                    using (FileStream src = File.OpenRead(Path.Combine(srcDir, files[i])))
+                    using (FileStream src = File.OpenRead(ResolveSourceFile(srcDir, engineTreeDir, files[i])))
                     using (Stream deflate = new DeflateStream(bodies, CompressionLevel.Optimal, leaveOpen: true))
                     {
                         src.CopyTo(deflate);
@@ -269,6 +319,12 @@ public static class PayloadPacker
             payloadPath,
             manifestPath);
     }
+
+    /// <summary>manifest 相对路径 → 打包源文件：jsr_backend_runtime\ 前缀条目取自引擎树，其余取自源树。</summary>
+    private static string ResolveSourceFile(string srcDir, string engineTreeDir, string relPath) =>
+        relPath.StartsWith(EngineRuntimeOSDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            ? Path.Combine(engineTreeDir, relPath[(EngineRuntimeOSDir.Length + 1)..])
+            : Path.Combine(srcDir, relPath);
 
     /// <summary>Builds the manifest from entries: files ordinal-sorted by path, hash computed per the format contract.</summary>
     private static PayloadManifest BuildManifest(IEnumerable<PayloadManifestEntry> entries)
