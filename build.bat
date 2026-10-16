@@ -12,7 +12,7 @@ REM           libs\dng_ljpeg.dll       (lossless-JPEG tile encoder wrapper)
 REM           src\Jsr4Z8.Core\Payload\Embedded\payload.bin + payload.manifest.json
 REM                                     (backend payload pair, Step 4; gitignored)
 REM           out\Jsr4Z8_v^<Version^>.exe (single-file, self-contained, native DLLs
-REM                                     + ~202 MB backend payload embedded)
+REM                                     + ~393 MB backend payload embedded)
 REM Layout (normalized by Directory.Build.props):
 REM   build\obj\<Project>            intermediates
 REM   build\bin\<Project>\<Config>   build outputs (dev debugging)

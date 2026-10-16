@@ -50,7 +50,7 @@ internal static class Program
                 Console.WriteLine("JSR for Z8 selftest");
                 Console.WriteLine($"  libraw: {LibRawNative.GetVersion()}");
 
-                Console.WriteLine("  载荷: 提取/校验嵌入后端（首次约 202 MB，请稍候）...");
+                Console.WriteLine("  载荷: 提取/校验嵌入后端（首次约 588 MB，请稍候）...");
                 string backend = new PayloadManager().EnsureExtracted(new ConsoleProgress());
 
                 string engineExe = Path.Combine(backend, TaskQueueRunner.EngineRelativePath);
