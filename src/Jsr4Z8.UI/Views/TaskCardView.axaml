@@ -21,8 +21,8 @@
         <StreamGeometry x:Key="Icon.External">M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3</StreamGeometry>
         <StreamGeometry x:Key="Icon.Trash">M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6</StreamGeometry>
         <StreamGeometry x:Key="Icon.FolderPlus">M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2zM12 11v6M9 14h6</StreamGeometry>
-        <StreamGeometry x:Key="Icon.Star">M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z</StreamGeometry>
-        <StreamGeometry x:Key="Icon.X">M18 6 6 18M6 6l12 12</StreamGeometry>
+        <StreamGeometry x:Key="Icon.Star">M10 15.27L16.18 20l-1.64-8.03L20 7.24l-7.19-.61L10 0 7.19 6.63 0 7.24l5.46 4.73L3.82 20z</StreamGeometry>
+        <StreamGeometry x:Key="Icon.X">M0 0l8 8M8 0L0 8</StreamGeometry>
         <StreamGeometry x:Key="Icon.Loader">M12 2v4M12 18v4M4.93 4.93l2.83 2.83M14.24 14.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M14.24 9.76l2.83-2.83</StreamGeometry>
     </UserControl.Resources>
 
@@ -131,9 +131,9 @@
         <Style Selector="Border.chip.reference">
             <Setter Property="Background" Value="{DynamicResource SemiColorPrimary}" />
         </Style>
+        <!-- 基准态白字仅改颜色不改字重（SemiBold 会让文件名/±EV 变宽 → 芯片宽度抖动、行错位） -->
         <Style Selector="Border.chip.reference TextBlock">
             <Setter Property="Foreground" Value="White" />
-            <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
 
         <!-- 芯片内迷你动作按钮（★设基准 / ✕移除）：行尾动作的芯片内微缩版，透明扁平常显 -->
@@ -181,6 +181,10 @@
         <Style Selector="Button.chip-action Path.x-icon">
             <Setter Property="Stroke" Value="{DynamicResource SemiColorText3}" />
             <Setter Property="StrokeThickness" Value="1.7" />
+        </Style>
+        <!-- ✕ 专属：几何已按 (0,0) 8×8 归零 + Viewbox 8，局部描边 1.1 ≈ 旧视觉 1.7×12/18 -->
+        <Style Selector="Button.chip-action Path.x-icon">
+            <Setter Property="StrokeThickness" Value="1.1" />
         </Style>
         <Style Selector="Border.chip.reference Path.x-icon">
             <Setter Property="Stroke" Value="White" />
@@ -397,7 +401,7 @@
                                 <Button Classes="chip-action chip-x" ToolTip.Tip="移除此帧"
                                         Command="{ReflectionBinding $parent[views:TaskCardView].DataContext.RemoveFileCommand}"
                                         CommandParameter="{Binding}">
-                                    <Viewbox Width="12" Height="12">
+                                    <Viewbox Width="8" Height="8">
                                         <Path Classes="x-icon" Data="{StaticResource Icon.X}" />
                                     </Viewbox>
                                 </Button>
