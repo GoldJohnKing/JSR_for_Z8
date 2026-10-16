@@ -9,10 +9,13 @@ REM           libs\libraw.lib          (import lib for the wrapper)
 REM           libs\libraw_wrapper.dll  (C wrapper for P/Invoke)
 REM           libs\jpeg-static.lib     (libjpeg-turbo static, linked into dng_ljpeg.dll)
 REM           libs\dng_ljpeg.dll       (lossless-JPEG tile encoder wrapper)
+REM           libs\msvcp140.dll        (VC++ runtime, Step 3d: libraw.dll is /MD and
+REM           libs\vcruntime140.dll     Windows ships no VC++ redist - the three DLLs
+REM           libs\vcruntime140_1.dll   ride along app-local next to libraw.dll)
 REM           src\Jsr4Z8.Core\Payload\Embedded\payload.bin + payload.manifest.json
 REM                                     (backend payload pair, Step 4; gitignored)
-REM           out\Jsr4Z8_v^<Version^>.exe (single-file, self-contained, native DLLs
-REM                                     + ~202 MB backend payload embedded)
+REM           out\JSR4Z8_v^<Version^>.exe (single-file, self-contained, native DLLs
+REM                                     + VC++ runtime + ~202 MB backend payload embedded)
 REM Layout (normalized by Directory.Build.props):
 REM   build\obj\<Project>            intermediates
 REM   build\bin\<Project>\<Config>   build outputs (dev debugging)
@@ -126,6 +129,37 @@ if errorlevel 1 (echo ERROR: dng_ljpeg build failed & exit /b 1)
 del /q %LIBS%\dng_ljpeg.exp %LIBS%\dng_ljpeg.lib 2>nul
 echo      dng_ljpeg.dll built OK
 
+REM --- Step 3d: VC++ runtime DLLs, app-local (always re-staged: ~0.9 MB raw, and a
+REM     stale copy from another VS toolset must never survive into the bundle) ---
+REM libraw.dll is linked /MD (external\libraw\Makefile.msvc), so it imports
+REM MSVCP140 / VCRUNTIME140 / VCRUNTIME140_1 at load time. Windows ships neither;
+REM VC++ redist is only present if some other program installed it. They are staged
+REM into libs\ so the csproj glob embeds them into the single-file bundle; the host
+REM extracts them into the SAME directory as libraw.dll, and coreclr loads native
+REM libraries with LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR, so the imports resolve from
+REM there. Toolset-matched copies (VCToolsRedistDir is set by vcvarsall above).
+echo [3d] Staging VC++ runtime DLLs (app-local deployment)...
+if not defined VCToolsRedistDir (
+    echo ERROR: VCToolsRedistDir not set - vcvarsall did not run correctly.
+    exit /b 1
+)
+REM for /d, not a wildcard inside the path: cmd only expands wildcards in the last component.
+set CRT_DIR=
+for /d %%D in ("!VCToolsRedistDir!x64\Microsoft.VC*.CRT") do if not defined CRT_DIR set CRT_DIR=%%~fD
+if not defined CRT_DIR (
+    echo ERROR: no x64 VC++ runtime directory under "!VCToolsRedistDir!x64" - incomplete VS install?
+    exit /b 1
+)
+for %%F in (msvcp140.dll vcruntime140.dll vcruntime140_1.dll) do (
+    if exist "%LIBS%\%%F" del /q "%LIBS%\%%F"
+    copy /y "!CRT_DIR!\%%F" "%LIBS%\%%F" >nul
+    if not exist "%LIBS%\%%F" (
+        echo ERROR: %%F missing in "!CRT_DIR!" - incomplete VS install?
+        exit /b 1
+    )
+)
+echo      VC++ runtime DLLs staged OK
+
 REM --- Step 4: pack backend payload into Core embedded resources (pack-payload self-decides by manifest hash) ---
 if not defined PAYLOAD_SRC (
     echo ERROR: reference\Jiangtherapee-Bridge-* not found - extract the backend distribution there first.
@@ -156,20 +190,20 @@ if "%VER%"=="" (
 )
 if exist "%OUT%" rmdir /s /q "%OUT%"
 mkdir "%OUT%"
-copy /y "%PUB%\Jsr4Z8.UI.exe" "%OUT%\Jsr4Z8_v%VER%.exe" >nul
+copy /y "%PUB%\Jsr4Z8.UI.exe" "%OUT%\JSR4Z8_v%VER%.exe" >nul
 if errorlevel 1 (echo ERROR: staging to out\ failed & exit /b 1)
 
 set SIZE_MB=0
-for %%F in ("%OUT%\Jsr4Z8_v%VER%.exe") do (
+for %%F in ("%OUT%\JSR4Z8_v%VER%.exe") do (
     set /a SIZE_MB=%%~zF/1048576
-    echo       %OUT%\Jsr4Z8_v%VER%.exe = %%~zF bytes ^(!SIZE_MB! MB^)
+    echo       %OUT%\JSR4Z8_v%VER%.exe = %%~zF bytes ^(!SIZE_MB! MB^)
 )
 
 echo.
 echo ============================================================
 echo  BUILD SUCCESSFUL
-echo  Distributable: %OUT%\Jsr4Z8_v%VER%.exe  (single file, !SIZE_MB! MB)
-echo  Selftest:      out\Jsr4Z8_v%VER%.exe --selftest [file.nef]
+echo  Distributable: %OUT%\JSR4Z8_v%VER%.exe  (single file, !SIZE_MB! MB)
+echo  Selftest:      out\JSR4Z8_v%VER%.exe --selftest [file.nef]
 echo  NOTE: the packed payload remains in src\Jsr4Z8.Core\Payload\Embedded\
 echo        and slows every Core build. Restore fast dev builds with
 echo        del src\Jsr4Z8.Core\Payload\Embedded\payload.bin src\Jsr4Z8.Core\Payload\Embedded\payload.manifest.json

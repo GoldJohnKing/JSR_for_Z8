@@ -27,8 +27,11 @@
     <InternalsVisibleTo Include="Jsr4Z8.Tests" />
   </ItemGroup>
   <ItemGroup>
-    <!-- Native P/Invoke targets (build.bat Steps 2-3); embedded into the
-         single-file bundle at publish (IncludeNativeLibrariesForSelfExtract). -->
+    <!-- Native P/Invoke targets (build.bat Steps 2-3) plus the VC++ runtime DLLs
+         they need (Step 3d: libraw.dll is linked /MD, and Windows ships no VC++
+         redist) - all embedded into the single-file bundle at publish
+         (IncludeNativeLibrariesForSelfExtract) and extracted to one directory,
+         where the loader resolves libraw.dll's MSVCP140/VCRUNTIME140 imports. -->
     <None Include="..\..\libs\*.dll" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
