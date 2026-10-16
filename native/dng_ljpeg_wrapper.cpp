@@ -1,4 +1,4 @@
-// native/dng_ljpeg_wrapper.cpp - Lossless JPEG (ITU T.81 process 14 / SOF3) tile
+﻿// native/dng_ljpeg_wrapper.cpp - Lossless JPEG (ITU T.81 process 14 / SOF3) tile
 // encoder for DNG Compression=7 output, built on libjpeg-turbo 3.2 (16-bit
 // lossless support). Emits one independent JPEG stream per tile, matching the
 // profile of Adobe DNG Converter -c: PSV=1, Pt=0, 16-bit precision, 2

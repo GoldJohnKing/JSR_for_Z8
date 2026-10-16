@@ -1,4 +1,4 @@
-// native/libraw_wrapper.cpp — Minimal C wrapper around LibRaw for P/Invoke from C#
+﻿// native/libraw_wrapper.cpp — Minimal C wrapper around LibRaw for P/Invoke from C#
 // Ported from Save_Z8 native/libraw_wrapper.cpp (extern C surface identical;
 // lr_get_make/lr_get_model/lr_get_iso added for JSR for Z8 metadata reads —
 // Make/Model return the VERBATIM TIFF IFD0 tags, like the original JSR
