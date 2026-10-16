@@ -84,10 +84,13 @@ public partial class MainWindow : Window
     private static string ReadBackendVersion() =>
         PayloadManager.TryReadBackendVersion() is { Length: > 0 } v ? $"v{v.TrimStart('v')}" : "";
 
-    // ---------- 外部链接（算法出处） ----------
+    // ---------- 外部链接（算法出处 / GitHub 仓库） ----------
 
     private void OnOpenAuthorRepo(object? sender, RoutedEventArgs e)
         => OpenExternalUrl("https://github.com/y-g-jiang/Jiangtherapee-Super-Resolution-World-Best");
+
+    private void OnOpenGitHub(object? sender, RoutedEventArgs e)
+        => OpenExternalUrl("https://github.com/GoldJohnKing/JSR_for_Z8");
 
     /// <summary>Shell-opens an external URL; never throws (display-only affordance).</summary>
     private static void OpenExternalUrl(string url)

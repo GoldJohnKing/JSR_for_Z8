@@ -21,6 +21,7 @@
         <StreamGeometry x:Key="Icon.Zap">M13 2 3 14h9l-1 8 10-12h-9l1-8z</StreamGeometry>
         <StreamGeometry x:Key="Icon.Moon">M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z</StreamGeometry>
         <StreamGeometry x:Key="Icon.Sun">M7 12a5 5 0 1 0 10 0a5 5 0 1 0-10 0M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42</StreamGeometry>
+        <StreamGeometry x:Key="Icon.GitHub">M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22</StreamGeometry>
     </Window.Resources>
 
     <Window.Styles>
@@ -141,6 +142,11 @@
                                    FontSize="11" Foreground="{DynamicResource SemiColorText3}"
                                    TextAlignment="Right" />
                     </StackPanel>
+                    <Button Classes="icon-btn" Click="OnOpenGitHub" ToolTip.Tip="GitHub 仓库">
+                        <Viewbox Width="16" Height="16">
+                            <Path Classes="icon" Data="{StaticResource Icon.GitHub}" />
+                        </Viewbox>
+                    </Button>
                     <Button x:Name="ThemeButton" Classes="icon-btn" Click="OnThemeToggle">
                         <Panel Width="16" Height="16">
                             <Path x:Name="ThemeMoonIcon" Data="{StaticResource Icon.Moon}"
