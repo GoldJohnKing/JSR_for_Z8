@@ -139,10 +139,21 @@ public class PayloadTests : IClassFixture<TestTemp>
         File.WriteAllText(Path.Combine(root, "resources", "_internal", "tk86t.dll"), "tk");
         File.WriteAllText(Path.Combine(root, "resources", "_internal", "_tk_data", "y.enc"), "tk data");
         File.WriteAllText(Path.Combine(root, "resources", "_internal", "wgpu", "__pyinstaller", "conftest.py"), "# test residue");
-        // Kept siblings: the exclusions are surgical, never subtree-wide (the engine
-        // itself comes from MakeFakeTree — it is the packer's required source).
-        File.WriteAllText(Path.Combine(root, "resources", "_internal", "cv2", "__init__.py"), "cv2 stays");
-        File.WriteAllText(Path.Combine(root, "resources", "_internal", "keep.dll"), "_internal stays");
+        // Post-trim payload shape (probe 2026-10-16-payload-trim-probe.md §4): the whole
+        // on-disk _internal tree goes (onefile self-extraction), together with the
+        // never-spawned tool exes and their libjxl/mingw DLL family — while the engine's
+        // own two metadata jsons stay (KEEP list: 0-literal refs but tiny and vendor-shipped).
+        File.WriteAllText(Path.Combine(root, "resources", "jsr_backend_manifest.json"), "{} manifest");
+        File.WriteAllText(Path.Combine(root, "resources", "jsr_options.json"), "{} options");
+        File.WriteAllText(Path.Combine(root, "resources", "raw_bridge.exe"), "bridge tool");
+        File.WriteAllText(Path.Combine(root, "resources", "jxl_worker.exe"), "jxl tool");
+        foreach (string dll in new[]
+        {
+            "libjxl.dll", "libjxl_cms.dll", "libjxl_threads.dll",
+            "libhwy.dll", "libbrotlicommon.dll", "libbrotlidec.dll", "libbrotlienc.dll",
+            "libstdc++-6.dll", "libgcc_s_seh-1.dll", "libwinpthread-1.dll", "liblcms2-2.dll",
+        })
+            File.WriteAllText(Path.Combine(root, "resources", dll), "dll");
 
         FakePayload payload = PackTree(root);
         string[] paths = payload.Manifest.Files.Select(f => f.Path.Replace('\\', '/')).ToArray();
@@ -160,6 +171,23 @@ public class PayloadTests : IClassFixture<TestTemp>
             "resources/_internal/cv2/opencv_videoio_ffmpeg500_64.dll",
             "resources/_internal/wgpu/__pyinstaller/conftest.py",
             "resources/z8_presets/Z8_0_ISO000064.dng",
+            // _internal 整树排除——cv2 包与任意驻留文件不再有“保留兄弟”例外。
+            "resources/_internal/cv2/__init__.py",
+            "resources/_internal/keep.dll",
+            // 从未 spawn 的工具与其 libjxl/mingw DLL 家族。
+            "resources/raw_bridge.exe",
+            "resources/jxl_worker.exe",
+            "resources/libjxl.dll",
+            "resources/libjxl_cms.dll",
+            "resources/libjxl_threads.dll",
+            "resources/libhwy.dll",
+            "resources/libbrotlicommon.dll",
+            "resources/libbrotlidec.dll",
+            "resources/libbrotlienc.dll",
+            "resources/libstdc++-6.dll",
+            "resources/libgcc_s_seh-1.dll",
+            "resources/libwinpthread-1.dll",
+            "resources/liblcms2-2.dll",
         };
         foreach (string path in excluded)
             Assert.False(paths.Contains(path), $"{path} 必须被排除出载荷");
@@ -168,8 +196,8 @@ public class PayloadTests : IClassFixture<TestTemp>
         {
             "resources/jsr_backend.exe",
             "resources/licenses/notice.txt",
-            "resources/_internal/cv2/__init__.py",
-            "resources/_internal/keep.dll",
+            "resources/jsr_backend_manifest.json",
+            "resources/jsr_options.json",
         };
         Assert.Equal(kept.Length, paths.Length); // nothing else snuck in or out
         foreach (string path in kept)
@@ -183,7 +211,9 @@ public class PayloadTests : IClassFixture<TestTemp>
 
         // Seam contract: either separator style, case-insensitive match (Windows source trees).
         Assert.True(PayloadPacker.IsExcluded("resources\\_internal\\_Tcl_Data\\x.enc"));
-        Assert.False(PayloadPacker.IsExcluded("resources/_internal/cv2/opencv_world4700.dll"));
+        // _internal 整树规则：不再有逐文件例外——任意 _internal 内容均被前缀排除。
+        Assert.True(PayloadPacker.IsExcluded("resources/_internal/cv2/opencv_world4700.dll"));
+        Assert.True(PayloadPacker.IsExcluded("resources\\_internal\\numpy\\core\\_multiarray.pyd"));
     }
 
     [Fact]

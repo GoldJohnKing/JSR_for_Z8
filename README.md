@@ -11,13 +11,13 @@ Jiangtherapee Python 后端（stormer7 引擎，V15.3.5 Transformer），在 GPU
 - 内存：重建与 DNG 完整化峰值内存占用约 2 GB，建议 8 GB 以上内存。
 - 支持 Vulkan 的 GPU（计算经 wgpu 走 Vulkan）。不设显存预算，由显卡驱动自行分配；
   建议 8GB+ 显存获得合理速度
-- 磁盘：程序本体约 **312 MB**（单文件 exe）；首次运行释放约 406 MB 载荷到
+- 磁盘：程序本体约 **235 MB**（单文件 exe）；首次运行释放约 202 MB 载荷到
   `%LOCALAPPDATA%\JSR4Z8`；每个任务另需约 1–2 GB 临时空间。失败/停止的任务
   会立即清理其临时目录；启动时自动清扫上次残留
 
 ## 使用说明
 
-1. 运行 `Jsr4Z8_v0.1.0.exe`。首次启动校验并释放后端载荷（约 406 MB，仅一次；
+1. 运行 `Jsr4Z8_v0.1.0.exe`。首次启动校验并释放后端载荷（约 202 MB，仅一次；
    之后每次启动只做哈希校验，秒级完成）。程序为单实例运行（重复启动会提示已运行）。
 2. 新建任务：拖放或点选同一场景的 **7 张 NEF**，直接在主界面创建任务组
    （无弹窗）。七帧必须在
@@ -61,11 +61,14 @@ build.bat
 打包后端载荷（`tools\pack-payload`，自动选 `reference\` 下版本号最高的
 Jiangtherapee 发布；载荷仅含 `resources\` 引擎树——直调 `jsr_backend.exe`，
 顶层 `Bridge.exe` 壳不打包），最后单文件自包含发布（原生 DLL 压缩内嵌）。
-打包器会自动裁剪不需要的后端文件（顶层 Bridge.exe、K14 引擎、Tcl/Tk、
-ffmpeg 视频 DLL 等）——裁剪后的载荷已通过真 GPU E2E 全流程验证；每次构建
+打包器会自动裁剪不需要的后端文件（顶层 Bridge.exe、K14 引擎、`_internal`
+整树、raw_bridge/jxl_worker 工具与其 libjxl-DLL 家族、z8_presets 等）——
+`_internal` 整树剥离基于 onefile 自解压实证（引擎每次启动自行把内嵌档案
+解压到 `%TEMP%`，从不读盘上 `_internal`；探针 2026-10-16），裁剪后的载荷已
+通过真 GPU E2E 全流程直调验证；每次构建
 都重新比对 manifest 哈希，载荷有更新即自动换入（无需手动删 `payload.bin`）。
 注意：发布后请删除 `src\Jsr4Z8.Core\Payload\Embedded\payload.bin`（及同名
-`.manifest.json`），否则此后每次 Core 构建/测试都会重新内嵌 ~268 MB 载荷，
+`.manifest.json`），否则此后每次 Core 构建/测试都会重新内嵌 ~191 MB 载荷，
 显著拖慢开发构建（详见 `build.bat` 尾部说明）。
 
 ## 致谢与许可

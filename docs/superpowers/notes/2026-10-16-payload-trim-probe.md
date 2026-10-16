@@ -33,7 +33,7 @@
 | rawpy | 2,330,240 | sensor、v15_2.raw_input、color_profile、profile_metadata、batch_bridge | — | **必需（解码）** |
 | exifread | （PYZ 内） | 入口、backend、v15_2.raw_input 等 6 处 | — | 必需（元数据；无独立盘目录） |
 | tifffile | （PYZ 内） | color_profile、output_chain、v15_2.industrial_tiff 等 | imagecodecs | 必需（间接） |
-| cv2 | 85,862,273 | **11 处**：v15_2.registration/scene_policy/industrial_tiff、output_chain、color_profile、selftest、v124_dng、batch_bridge、bridge_preview、v82_lca | — | 有引用（但见 §3：全为懒加载/非本路径） |
+| cv2 | 85,862,273 | **10 处**：v15_2.registration/scene_policy/industrial_tiff、output_chain、color_profile、selftest、v124_dng、batch_bridge、bridge_preview、v82_lca | — | 有引用（但见 §3：全为懒加载/非本路径） |
 | PIL | 11,251,712 | output_chain、v15_2.industrial_tiff | pip（文档串） | 有引用（同上） |
 | imagecodecs（盘上仅 _imcd/_jpeg8/_shared） | 1,393,152 | dng_repack、native_dng、v82_lossless_dng | tifffile | 有引用（dng_repack 由入口引用） |
 | psutil | 70,656 | v15_2.gui/memory/pipeline | numpy.testing | 有引用（内存预算） |
@@ -66,7 +66,7 @@
 4. 顺带解释：上轮 tcl/ffmpeg 裁剪"无碍"并非因为引擎读裁剪后的 `_internal`，而是引擎从不读它；`_internal` 里仅 `ptc_index.csv`、`wgpu_reconstruction\` 两处不在 exe 档案内（源分发补充文件），r10（见下）证明本路径也用不到。
 5. TOC 中 `pyi-contents-directory _internal` 选项条目存在但本构建/环境下引导器未启用盘上复用（16/16 观测均走 `_MEI`）；机制层面无需深究——对裁剪而言"自解压恒发生"即充分事实。
 
-**修正后的冒烟矩阵**（6 跑；"结构一致"= 与 r00 控制组逐行同型，仅时间/计数数值不同，均推进至 `SRHQ_V12_PROGRESS|40|Transformer 恢复`）：
+**修正后的冒烟矩阵**（6 跑；"结构一致"= 与 r00 控制组逐行同型，仅时间/计数数值不同；控制组推进至 `SRHQ_V12_PROGRESS|39|Transformer 恢复`，其余五跑均至 `|40|`）：
 
 | 跑 | 隐藏集 | 结果 | 分级 |
 |---|---|---|---|

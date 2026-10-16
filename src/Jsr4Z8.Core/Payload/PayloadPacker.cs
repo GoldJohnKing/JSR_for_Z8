@@ -37,11 +37,12 @@ public sealed record PayloadPackResult(
 /// engine resources\jsr_backend.exe is the required entry point (the top-level
 /// "Jiangtherapee Bridge.exe" shell is not shipped; it is kept as an ExactPath
 /// exclusion so a whitelist regression cannot smuggle it back in). assistant 单形态 7 帧锁定 →
-/// K14 引擎不携带；manual 标定 → z8_presets 不携带；Tcl/Tk、ffmpeg 视频 DLL、
-/// wgpu/__pyinstaller 测试残留剥离；THIRD_PARTY_NOTICES.md 不再打包（许可仍随
-/// resources/licenses 分发）。Everything else in the source package (README.md,
-/// DeepSeek助手使用说明.md, FILES-SHA256.json, ThirdPartySources/, THIRD_PARTY_NOTICES.md,
-/// the Bridge shell) is not part of the payload.
+/// K14 引擎不携带；manual 标定 → z8_presets 不携带；onefile 自解压实证后 _internal 整树
+/// 剥离（含先前单列的 Tcl/Tk、ffmpeg 视频 DLL、wgpu 测试残留），连同从未 spawn 的
+/// raw_bridge/jxl_worker 工具及其 libjxl/mingw DLL 家族（探针 2026-10-16 §3/§4）；
+/// THIRD_PARTY_NOTICES.md 不再打包（许可仍随 resources/licenses 分发）。Everything else in
+/// the source package (README.md, DeepSeek助手使用说明.md, FILES-SHA256.json,
+/// ThirdPartySources/, THIRD_PARTY_NOTICES.md, the Bridge shell) is not part of the payload.
 ///
 /// payload.bin layout (all integers little-endian):
 ///   u32  magic 0x3142504A (bytes spell "JPB1")
@@ -94,15 +95,28 @@ public static class PayloadPacker
         // dead weight here.
         (ExclusionKind.ExactPath, "resources/jsr_v98_k14_backend.exe"),
         (ExclusionKind.ExactPath, "resources/jsr_fast_k14_backend.exe"),
-        // Tcl/Tk are GUI libraries the CLI compute path never loads.
-        (ExclusionKind.DirectoryPrefix, "resources/_internal/_tcl_data/"),
-        (ExclusionKind.DirectoryPrefix, "resources/_internal/_tk_data/"),
-        (ExclusionKind.ExactPath, "resources/_internal/tcl86t.dll"),
-        (ExclusionKind.ExactPath, "resources/_internal/tk86t.dll"),
-        // cv2's video ffmpeg DLL: a video-I/O library, unused by the CLI compute path.
-        (ExclusionKind.PrefixSuffix, "resources/_internal/cv2/opencv_videoio_ffmpeg*.dll"),
-        // wgpu/__pyinstaller holds test/conftest residue from the backend's own packaging.
-        (ExclusionKind.DirectoryPrefix, "resources/_internal/wgpu/__pyinstaller/"),
+        // The ENTIRE on-disk _internal tree (subsumes the earlier Tcl/Tk, cv2-ffmpeg-DLL
+        // and wgpu-test-residue entries): jsr_backend.exe is a PyInstaller onefile build
+        // that self-extracts its full embedded archive to %TEMP%\_MEI* on every launch
+        // and never reads the on-disk tree (r03 numpy negative control + 16/16 _MEI
+        // observations + r10 whole-tree smoke; probe 2026-10-16-payload-trim-probe.md §3).
+        (ExclusionKind.DirectoryPrefix, "resources/_internal/"),
+        // Never-spawned tools and their libjxl/mingw DLL family: zero literal references
+        // in the engine's PYZ, our C# side never spawns the exes, and the DLL family's
+        // only importers were these two tool exes (probe doc §2/§4; r11/r12 smoke).
+        (ExclusionKind.ExactPath, "resources/raw_bridge.exe"),
+        (ExclusionKind.ExactPath, "resources/jxl_worker.exe"),
+        (ExclusionKind.ExactPath, "resources/libjxl.dll"),
+        (ExclusionKind.ExactPath, "resources/libjxl_cms.dll"),
+        (ExclusionKind.ExactPath, "resources/libjxl_threads.dll"),
+        (ExclusionKind.ExactPath, "resources/libhwy.dll"),
+        (ExclusionKind.ExactPath, "resources/libbrotlicommon.dll"),
+        (ExclusionKind.ExactPath, "resources/libbrotlidec.dll"),
+        (ExclusionKind.ExactPath, "resources/libbrotlienc.dll"),
+        (ExclusionKind.ExactPath, "resources/libstdc++-6.dll"),
+        (ExclusionKind.ExactPath, "resources/libgcc_s_seh-1.dll"),
+        (ExclusionKind.ExactPath, "resources/libwinpthread-1.dll"),
+        (ExclusionKind.ExactPath, "resources/liblcms2-2.dll"),
         // The 205 MB preset-dark DNGs are only consulted by the backend's own
         // auto-matching, which manual-calibration requests never trigger.
         (ExclusionKind.DirectoryPrefix, "resources/z8_presets/"),
