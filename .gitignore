@@ -1,4 +1,5 @@
 .superpowers/
+.worktrees
 
 # Build outputs (normalized by Directory.Build.props)
 build/
