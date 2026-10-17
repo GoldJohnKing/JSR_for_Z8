@@ -1,76 +1,65 @@
 # JSR for Z8
 
-Nikon Z8 七帧 RAW 超分辨率桌面客户端：.NET 8 + Avalonia 前端，内嵌原版
-Jiangtherapee Python 后端（stormer7 引擎，V15.3.5 Transformer），在 GPU 上完成
-对齐与重建，输出 16560×11040 的 16bit 线性 RGB DNG（`JSR_*.dng`，无损 JPEG 压缩，
-约为未压缩体积的 1/3）。
+![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
+[![release](https://img.shields.io/github/v/release/GoldJohnKing/JSR_for_Z8)](https://github.com/GoldJohnKing/JSR_for_Z8/releases/latest)
+![GPU](https://img.shields.io/badge/GPU-Vulkan-orange)
+
+**Nikon Z8 专用七帧 RAW 超分辨率桌面客户端** —— 把同一场景手持连拍的 7 张 RAW 拖进窗口，一键合成一张 **16560×11040 的线性 RAW**，可直接在 ACR / Lightroom 中打开。
+
+## 功能特性
+
+- **一键开始** —— 拖入 7 张 RAW 即可开始，无需额外设置
+- **无缝的编辑体验** —— 输出无损继承原片拍摄参数（曝光/白平衡、镜头畸变与暗角校正、机型色彩匹配等），Adobe CameraRaw 可正确识别，与超分前的编辑体验完全一致，无需手动重调参数
+- **曝光包围支持** —— 七帧仅快门速度不同也能合成+
+- **全格式 NEF 支持** —— 无损压缩 / 高压缩★ / 高压缩 全格式支持
+- **实时进度、随时停止** —— 重建进度全程可见，可随时停止
+- **批量队列** —— 多组任务依次执行，互不影响
+- **开箱即用** —— 单文件 exe，免安装
+
+![重建中的多组任务](docs/images/readme/running.png)
 
 ## 系统要求
 
-- Windows 10/11 x64
-- 内存：重建与 DNG 完整化峰值内存占用约 2 GB，建议 8 GB 以上内存。
-- 支持 Vulkan 的 GPU（计算经 wgpu 走 Vulkan）。不设显存预算，由显卡驱动自行分配；
-  建议 8GB+ 显存获得合理速度
-- 磁盘：程序本体约 **249 MB**（单文件 exe，精确字节数见 AGENT.md §2）；首次运行释放约
-  588 MB 载荷（1,444 个文件，含预解包引擎运行时树）到 `%LOCALAPPDATA%\JSR4Z8`，
-  实测秒级完成；每个任务另需约 1–2 GB 临时空间。失败/停止的任务
-  会立即清理其临时目录；启动时自动清扫上次残留
+| 项目 | 要求 |
+| --- | --- |
+| 系统 | Windows 10 / 11 x64 |
+| 显卡 | 支持 Vulkan 的显卡（建议 8 GB 以上显存） |
+| 内存 | 建议 8 GB 以上 |
+
+## 下载与运行
+
+从 [Releases](https://github.com/GoldJohnKing/JSR_for_Z8/releases/latest) 下载 `JSR4Z8_v1.0.0.exe`，双击运行即可，无需安装。
 
 ## 使用说明
 
-1. 运行 `JSR4Z8_v1.0.0.exe`（首次启动释放后端载荷，之后每次启动只做哈希校验）。程序为单实例运行（重复启动会提示已运行）。
-2. 新建任务：拖放或点选同一场景的 **7 张 NEF**，直接在主界面创建任务组
-   （无弹窗）。七帧必须在
-   **机型 / ISO / 位深 / 压缩格式 / 画幅** 五个维度完全一致，任一不一致都会
-   拦截。黑场标定无需任何文件：按基准帧的 RAW 压缩类型与 ISO 自动匹配内置
-   预置参数（无损/HE/HE* 三种压缩各覆盖 Z8 全部标准 ISO 64–102400；画幅
-   无需匹配——实测读噪与画幅无关）。仅支持 14bit 读出——12bit 等格式会提示
-   "拍摄格式不支持"。
-   七帧支持曝光包围（仅快门速度不同）——默认以中间曝光帧为基准帧。也可以
-   先拖入少于 7 张（卡片显示「帧数不符」等待补齐），之后在卡片上补齐
-   （「添加 RAW…」按钮或再拖放到卡）；点击文件名旁的星标可手动指定基准帧
-   （移除该帧后回退自动选取）；悬浮文件名可查看机型/快门/光圈/ISO 等拍摄
-   参数。校验失败时仅在卡片内显示原因（机型/ISO/位深/压缩/画幅
-   不一致或不受支持的拍摄格式）。拖入或添加 RAW 后任务组立即出现并显示
-   "校验中"，校验完成后自动进入就绪或提示原因；包围曝光（快门不同）的组内
-   每帧显示 ±EV 偏差，点击偏差标签可设为基准帧（等曝光组使用星标）。
-3. 开始后卡片实时显示后端进度（对齐 → Transformer 重建 → DNG 导出），可随时
-   停止——后端进程树随即终止，临时文件随即删除。
-4. 完成后在样张目录得到 `JSR_DSC_7576.dng`（实测约 358 MB）。
-5. 输出写入基准帧所在目录；临时文件在 %TEMP% 下。样张路径含中文与空格完全支持。
+1. **拖入 7 张 RAW** —— 同一场景连拍的 7 张 RAW 拖进窗口：七帧须在机型 / ISO / 压缩格式 / 画幅上一致，不符合时界面会直接提示。
+2. **开始重建** —— 点「开始」。如需更改基准帧，可点击「★」或「±EV」标签；进度实时可见，可随时停止。
+3. **取回结果** —— 在基准帧目录输出 `JSR_<基准帧名>.dng`，点卡片上的「打开」直达。
 
-## SmartScreen 与杀毒软件说明
+## 常见问题
 
-本程序未购买代码签名证书，首次运行可能触发 Windows SmartScreen
-（“Windows 已保护你的电脑”）——点击 **更多信息 → 仍要运行** 即可。
-单文件内嵌完整的 Python 运行时与模型（PyInstaller 风格载荷），部分杀软可能对
-`jsr_backend.exe` 等载荷进程误报：如被隔离，请将程序所在目录与
-`%LOCALAPPDATA%\JSR4Z8` 加入信任/排除后重试。载荷具备自愈能力——载荷目录中
-任何文件缺失或损坏都会在下次启动时被哈希校验发现并完整重新释放。
+**Q：重建一张要多久？**
+取决于显卡；AMD 7900XTX 实测全幅七帧一组约 5 分钟。
 
-## 构建
+**Q：输出有多大？**
+16560×11040 / 1.8 亿像素，约 358 MB/张。
 
-一键脚本，产出 `out\JSR4Z8_v<版本>.exe`：
+**Q：杀毒软件误报怎么办？**
+如遇杀软误报，将程序所在目录与 `%LOCALAPPDATA%\JSR4Z8` 加入信任，重试即可。
 
-```bat
-build.bat
-```
+## 参考项目与致谢
 
-前置：VS 2022/2026（VC/NMake 工具链）+ .NET 8 SDK + git 子模块 + CMake。
-脚本依次构建 LibRaw（JO nikon-he-production fork）与 libjpeg-turbo 原生库、
-打包后端载荷（`tools\pack-payload`：自动选 `reference\` 下版本号最高的
-Jiangtherapee 发布；载荷 = `resources\` 引擎树 + 打包期预解包的引擎运行时树
-`resources\jsr_backend_runtime\`——运行时直调树内 `jsr_backend.exe`（引导器
-环境注入，引擎原地运行，不向 `%TEMP%` 自解压）；排除清单裁掉顶层 Bridge.exe、
-K14 引擎、`_internal` 整树、raw_bridge/jxl_worker 工具与其 libjxl-DLL 家族、
-z8_presets 等），最后单文件自包含发布（原生 DLL 压缩内嵌）。每次构建都重新
-比对 manifest 哈希，载荷有更新即自动换入（无需手动删 `payload.bin`）。
-注意：发布后请删除 `src\Jsr4Z8.Core\Payload\Embedded\payload.bin`（及同名
-`.manifest.json`），否则此后每次 Core 构建/测试都会重新内嵌 ~202 MB 载荷，
-显著拖慢开发构建（详见 `build.bat` 尾部说明）。
+本仓库只做 Windows 图形界面与发布打包，超分辨率算法与计算引擎来自：
 
-## 致谢与许可
+| 项目 | 说明 |
+| --- | --- |
+| [y-g-jiang/Jiangtherapee-Super-Resolution-World-Best](https://github.com/y-g-jiang/Jiangtherapee-Super-Resolution-World-Best) | 七帧 RAW 超分辨率算法与计算引擎 |
+| [y-g-jiang/LibRaw](https://github.com/y-g-jiang/LibRaw)（`nikon-he-production` 分支） | 支持尼康 HE / HE* 压缩 NEF 的 RAW 解码 |
+| [GoldJohnKing/Save_Z8](https://github.com/GoldJohnKing/Save_Z8) | 导出 DNG 无损保留 NEF 原始拍摄参数 |
+| [libjpeg-turbo](https://github.com/libjpeg-turbo/libjpeg-turbo) | 通用 JPEG 编解码库 |
 
-- 超分辨率后端与算法来自 **y-g-jiang** 的 Jiangtherapee 项目，本仓库仅做
-  打包与 GUI 集成。第三方许可随载荷在 `resources\licenses\` 目录内分发。
-- LibRaw、libjpeg-turbo 等原生组件的权利声明见上述许可目录内文件。
+第三方许可文件随程序分发（`resources\licenses\`）。
+
+---
+
+开发者信息（构建方式、架构设计）见 [AGENT.md](AGENT.md)。

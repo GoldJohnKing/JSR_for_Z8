@@ -13,6 +13,8 @@
 
 ## 2. 构建与测试
 
+构建前置：VS 2022/2026（VC/NMake 工具链）+ .NET 8 SDK + git 子模块（`external/` 两个）+ CMake；之后 `build.bat` 一键完成全部步骤（原生库 → 载荷打包 → 单文件发布）。
+
 | 动作 | 命令（Windows host） |
 |---|---|
 | 全量测试 | `dotnet test --nologo`（当前 **304/304 全绿**；黑场标定恒为预置表匹配——见 §5 决策 3） |
@@ -23,6 +25,8 @@
 | 诊断工具 | `tools/finalize-variant/`（离线调用融合器：crop/passthrough/featureSet 剥离矩阵，ACR 排障利器） |
 
 版本号在 `src/Jsr4Z8.UI/Jsr4Z8.UI.csproj` `<Version>`（当前 **1.0.0**；2026-10-17 用户裁定首个 GitHub Release 用 1.0.0，取代早先“不用 1.x”的限制）。
+
+发布后例行：删除 `src\Jsr4Z8.Core\Payload\Embedded\payload.bin` 及同名 `.manifest.json`——否则此后每次 Core 构建/测试都会重新内嵌 ~202 MB 载荷，显著拖慢开发构建（`build.bat` 尾部同款提示；下次打包自动重新生成）。
 
 ## 3. 架构
 
