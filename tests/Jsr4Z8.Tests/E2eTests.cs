@@ -16,9 +16,9 @@ namespace Jsr4Z8.Tests;
 /// real extracted backend payload, a real GPU run and the real finalizer
 /// product. Opt-in via environment variable JSR4Z8_E2E=1; with it unset every
 /// test returns early and passes (normal CI stays fast and GPU-free). With it
-/// set, the three tests of this class run sequentially (single xUnit class =
-/// single collection) and cost ~11-12 min of GPU time: two full ~5.5 min runs
-/// plus one 30 s cancel.
+/// set, the tests of this class run sequentially (single xUnit class =
+/// single collection): four full ~5.5 min runs — one per sample group
+/// (lossless / HE / HE* / bracketed) — plus one 30 s cancel, ~24 min total.
 ///
 /// Payload note: the queue's payload phase is pointed at the payload the
 /// release exe's --selftest extracted into %LOCALAPPDATA%\JSR4Z8\backend\
@@ -55,8 +55,11 @@ public class E2eTests
         File.AppendAllText(EvidencePath, stamped + Environment.NewLine, Encoding.UTF8);
     }
 
-    private static string[] FramesFor(string samplesDir) =>
-        Enumerable.Range(7576, 7).Select(i => Path.Combine(samplesDir, "test_frames", "lossless", $"DSC_{i}.NEF")).ToArray();
+    private static string[] FramesFor(string samplesDir) => FramesFor(samplesDir, "lossless", 7576);
+
+    /// <summary>七帧组选取（等间隔编号）；首帧即基准帧（TaskGroup.ReferencePath = FramePaths[0]）。</summary>
+    private static string[] FramesFor(string samplesDir, string groupDir, int firstFrame) =>
+        Enumerable.Range(firstFrame, 7).Select(i => Path.Combine(samplesDir, "test_frames", groupDir, $"DSC_{i}.NEF")).ToArray();
 
     /// <summary>The payload the release selftest extracted; asserts the operator ran it first.
     /// Returns the direct-invoke engine executable (resources\jsr_backend_runtime\jsr_backend.exe
@@ -102,15 +105,15 @@ public class E2eTests
     }
 
     private static (TaskGroup Group, PtcMatch Ptc, DarkMatch Dark, TaskQueueRunner Engine, RunCapture Capture) PrepareRun(
-        string samplesDir)
+        string[] frames)
     {
-        var group = new TaskGroup(FramesFor(samplesDir));
+        var group = new TaskGroup(frames);
         var validation = TaskGroupValidator.Validate(group);
         Assert.True(validation.CanRun, string.Join("；", validation.Issues.Select(i => i.MessageZh)));
         Assert.NotNull(validation.Ptc);
         PtcMatch ptc = validation.Ptc!;
-        Ev($"校验: Z8 · ISO3200 · 满阱 {ptc.FullwellE:0.0} e⁻（{(ptc.Exact ? "表值" : ptc.Source)}）" +
-           $" · 黑场预置匹配（black {validation.Dark!.BlackDn} DN · RN {validation.Dark.ReadNoiseDn} DN）");
+        Ev($"校验: Z8 · ISO{validation.Dark!.Iso:0} · 满阱 {ptc.FullwellE:0.0} e⁻（{(ptc.Exact ? "表值" : ptc.Source)}）" +
+           $" · 黑场预置匹配（black {validation.Dark.BlackDn} DN · RN {validation.Dark.ReadNoiseDn} DN）");
 
         var engine = new TaskQueueRunner
         {
@@ -161,32 +164,65 @@ public class E2eTests
         return clock.Elapsed.TotalSeconds;
     }
 
-    // ---- Step 1 + 2: full run on the real samples + full product DNG check ----
+    // ---- full runs: one per sample group (compression format × bracketing) ----
 
-    [Fact]
+    /// <summary>LibRaw 直读基准帧：钉死压缩格式（无损=3 / HE=13 / HE*=14），并取 ISO 与
+    /// AsShotNeutral 期望值（=1/cam_mul，终化器写入值的同源推导）。</summary>
+    private static (int Iso, double AsnR, double AsnB) ProbeReference(string nefPath, int expectedCompression)
+    {
+        IntPtr h = LibRawNative.OpenRaw(nefPath, out int error);
+        Assert.True(h != IntPtr.Zero, $"LibRaw 打开失败: {nefPath} (error={error})");
+        try
+        {
+            Assert.Equal(expectedCompression, LibRawNative.GetNefCompression(h));
+            float[] cam = LibRawNative.GetCamMul(h);
+            return ((int)LibRawNative.GetIso(h), 1.0 / cam[0], 1.0 / cam[2]);
+        }
+        finally
+        {
+            LibRawNative.Close(h);
+        }
+    }
+
+    [Theory]
     [Trait("Category", "E2E")]
-    public async Task FullRun_NoDarkFile_PresetAutoMatch_ProducesValidJsrDng()
+    [InlineData("lossless", 7576, 3)]            // 无损压缩
+    [InlineData("he_compressed", 7652, 13)]      // 高压缩 HE
+    [InlineData("he_star_compressed", 7863, 14)] // 高压缩★ HE*
+    [InlineData("unequal_exposure", 7855, 3)]    // 曝光包围（无损压缩；中间曝光 1/100s 为基准帧）
+    public async Task FullRun_NoDarkFile_PresetAutoMatch_ProducesValidJsrDng(
+        string groupDir, int firstFrame, int nefCompression)
     {
         if (!Enabled)
         {
-            Ev("skipped (set JSR4Z8_E2E=1 to run)");
+            Ev($"skipped ({groupDir}; set {EnvVar}=1 to run)");
+            return;
+        }
+        string[] frames = FramesFor(SamplesDir(), groupDir, firstFrame);
+        if (!frames.All(File.Exists))
+        {
+            Ev($"skipped (样本组缺失: {groupDir})");
             return;
         }
 
-        var (group, ptc, dark, engine, capture) = PrepareRun(SamplesDir());
+        (int iso, double asnR, double asnB) = ProbeReference(frames[0], nefCompression);
+
+        var (group, ptc, dark, engine, capture) = PrepareRun(frames);
         Assert.NotNull(dark);
-        Assert.Equal(3200d, dark!.Iso);
+        Assert.Equal((double)iso, dark!.Iso);
         TaskRunOutcome outcome = await engine
             .RunAsync(group, ptc, dark, CancellationToken.None, capture.OnEvent);
-        ReportOutcome(outcome, capture, "全流程·预置黑场");
+        ReportOutcome(outcome, capture, $"全流程·预置黑场·{groupDir}");
 
         Assert.True(outcome.Success, outcome.Message);
-        string expected = Path.Combine(SamplesDir(), "test_frames", "lossless", "JSR_DSC_7576.dng");
+        string expected = Path.Combine(Path.GetDirectoryName(frames[0])!,
+            $"JSR_{Path.GetFileNameWithoutExtension(frames[0])}.dng"); // 输出目录=基准帧所在目录
+        Assert.Equal(Path.GetFullPath(expected), Path.GetFullPath(outcome.OutputPath!));
         Assert.True(File.Exists(expected), $"最终 DNG 缺失: {expected}");
-        AssertFinalDng(expected);
+        AssertFinalDng(expected, new[] { asnR, 1.0, asnB }, iso);
     }
 
-    private static void AssertFinalDng(string dngPath, double[]? expectedAsShotNeutral = null)
+    private static void AssertFinalDng(string dngPath, double[] expectedAsShotNeutral, int expectedIso)
     {
         long size = new FileInfo(dngPath).Length;
         long uncompressed = 16560L * 11040 * 3 * 2;
@@ -237,21 +273,18 @@ public class E2eTests
         Assert.True(ifd0.Tags.ContainsKey(50731), "BaselineNoise missing");
         Assert.True(ifd0.Tags.ContainsKey(50732), "BaselineSharpness missing");
 
-        // AsShotNeutral = 1/cam_mul of the reference frame
-        // (DSC_7576 values [0.560175, 1.0, 0.557734]; captures with their own as-shot
-        // WB pass the expectation in).
+        // AsShotNeutral = 1/cam_mul of the reference frame (expected values are
+        // derived from the same LibRaw read the finalizer uses).
         var asn = ifd0.Tags[50728].Value;
         Assert.Equal(3u, ifd0.Tags[50728].Count);
-        double e0 = expectedAsShotNeutral?[0] ?? 0.560175;
-        double e2 = expectedAsShotNeutral?[2] ?? 0.557734;
-        Assert.InRange(TestTiff.U32(asn, 0) / 1e6, e0 - 1e-4, e0 + 1e-4);
+        Assert.InRange(TestTiff.U32(asn, 0) / 1e6, expectedAsShotNeutral[0] - 1e-4, expectedAsShotNeutral[0] + 1e-4);
         Assert.InRange(TestTiff.U32(asn, 8) / 1e6, 1.0 - 1e-4, 1.0 + 1e-4);
-        Assert.InRange(TestTiff.U32(asn, 16) / 1e6, e2 - 1e-4, e2 + 1e-4);
+        Assert.InRange(TestTiff.U32(asn, 16) / 1e6, expectedAsShotNeutral[2] - 1e-4, expectedAsShotNeutral[2] + 1e-4);
 
         // EXIF carried from the reference NEF
         Assert.True(ifd0.Tags.ContainsKey(0x8769), "ExifIFD pointer missing");
         var exif = TestTiff.ParseIfd(file, TestTiff.U32(ifd0.Tags[0x8769].Value, 0));
-        Assert.Equal(3200, TestTiff.U16(exif.Tags[0x8827].Value, 0)); // ISOSpeedRatings
+        Assert.Equal(expectedIso, TestTiff.U16(exif.Tags[0x8827].Value, 0)); // ISOSpeedRatings
         Assert.True(exif.Tags.ContainsKey(0x829A), "ExposureTime missing");
         Assert.True(exif.Tags.ContainsKey(0x920A), "FocalLength missing");
         Assert.True(exif.Tags.ContainsKey(0x927C), "MakerNote not preserved");
@@ -330,7 +363,7 @@ public class E2eTests
             return;
         }
 
-        var (group, ptc, dark, engine, capture) = PrepareRun(SamplesDir());
+        var (group, ptc, dark, engine, capture) = PrepareRun(FramesFor(SamplesDir()));
         using var cts = new CancellationTokenSource();
         Task<TaskRunOutcome> run = engine
             .RunAsync(group, ptc, dark, cts.Token, capture.OnEvent);
@@ -392,7 +425,7 @@ public class E2eTests
         }
         Ev($"中文+空格路径副本: {samplesCopy}");
 
-        var (group, ptc, dark, engine, capture) = PrepareRun(samplesCopy);
+        var (group, ptc, dark, engine, capture) = PrepareRun(FramesFor(samplesCopy));
         TaskRunOutcome outcome = await engine
             .RunAsync(group, ptc, dark, CancellationToken.None, capture.OnEvent);
         ReportOutcome(outcome, capture, "中文路径全流程");

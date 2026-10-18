@@ -17,7 +17,7 @@
 
 | 动作 | 命令（Windows host） |
 |---|---|
-| 全量测试 | `dotnet test --nologo`（当前 **304/304 全绿**；黑场标定恒为预置表匹配——见 §5 决策 3） |
+| 全量测试 | `dotnet test --nologo`（当前 **307/307 全绿**；黑场标定恒为预置表匹配——见 §5 决策 3） |
 | 一键发布 | `build.bat` → `out\JSR4Z8_v<版本>.exe`（单文件实测 249,602,260 B=打包含 Step 3b/3d 捆绑 VC 运行库；Step 4 恒跑 pack-payload：预解包 onefile 引擎入 `resources\jsr_backend_runtime\`，自动选 reference/ 下最高版本，manifest 哈希比对自决换入，无需手动删 payload.*） |
 | 载荷实测 | 预解包载荷：**1,444 文件/原始 587,974,158 B/payload.bin 202,208,052 B/manifest hash 5c78910676d79955**；构成=引擎本体**薄拷贝** 201,243,142 B（b 体清零的打包期变换，长度不变、盘上树零影响；原件=reference/ onefile 未动；无三变量 spawn 即响亮失败）+CArchive 树余 1,416 文件 386,096,731 B→压缩 193,108,942 B+licenses/元数据 27 文件 634,285 B；薄档案评估与端到端实证 docs/superpowers/notes/2026-10-16-thin-archive-probe.md（注入契约实证 …/2026-10-16-meipass2-experiment.md） |
 | 无头自检 | `out\JSR4Z8_v*.exe --selftest [file.nef]`（释放/校验载荷+验树内引擎 `resources\jsr_backend_runtime\jsr_backend.exe`+LibRaw 冒烟） |
@@ -95,4 +95,4 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐)
 - 活性契约参考（argv 探测/裸行协议/直调实证，硬契约的事实出处）：`docs/superpowers/notes/2026-10-15-jsr-backend-argv-probe.md`
 - 注入契约/预解包实证（_PYI_* 三元组机制、零 _MEI、持久目录只读性）：`docs/superpowers/notes/2026-10-16-meipass2-experiment.md`
 - 排障/修复记录（ACR 攻坚全程）：作者本地 `.superpowers/sdd-postrelease-fix*.md`（fix1-11，未入库；可执行结论已浓缩进 §6 经验教训）
-- 样例：`samples/test_frames/`（`lossless`=DSC_7576-7582 七帧无损等曝光组；`he_compressed`=DSC_7652-7658 七帧 HE 组；`unequal_exposure`=DSC_7855-7861 七帧不等曝光/包围组（1/3EV 快门梯 1/200…1/50，中间曝光 1/100 为基准帧），均未入 git；黑场标定无样本文件——预置黑场表来源为后端 z8_presets manifest 离线导出，见 §5 决策 3）；后端原包：`reference/` 下仅 2.3.27 一树在（2.3.25 已移除）；勿改一字节；载荷取 2.3.27（build.bat 自动选最高版本；黑场表/argv 契约随版重验）
+- 样例：`samples/test_frames/`（`lossless`=DSC_7576-7582 七帧无损等曝光组；`he_compressed`=DSC_7652-7658 七帧 HE 等曝光组；`he_star_compressed`=DSC_7863-7869 七帧 HE★ 等曝光组（ISO1600）；`unequal_exposure`=DSC_7855-7861 七帧不等曝光/包围组（1/3EV 快门梯 1/200…1/50，中间曝光 1/100 为基准帧）；四组均未入 git，E2E FullRun 为 Theory 全覆盖（钉死 NEFCompression 3/13/14）；黑场标定无样本文件——预置黑场表来源为后端 z8_presets manifest 离线导出，见 §5 决策 3）；后端原包：`reference/` 下仅 2.3.27 一树在（2.3.25 已移除）；勿改一字节；载荷取 2.3.27（build.bat 自动选最高版本；黑场表/argv 契约随版重验）
