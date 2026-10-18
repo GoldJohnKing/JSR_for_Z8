@@ -24,7 +24,7 @@
 | E2E（真 GPU，~6min/全幅） | cmd 脚本内 `set JSR4Z8_E2E=1` + `dotnet test --filter FullyQualifiedName~E2eTests.<名>`；门控规则见 §4 硬契约末条 |
 | 诊断工具 | `tools/finalize-variant/`（离线调用融合器：crop/passthrough/featureSet 剥离矩阵，ACR 排障利器） |
 
-版本号在 `src/Jsr4Z8.UI/Jsr4Z8.UI.csproj` `<Version>`（当前 **1.0.0**；2026-10-17 用户裁定首个 GitHub Release 用 1.0.0，取代早先“不用 1.x”的限制）。
+版本号在 `src/Jsr4Z8.UI/Jsr4Z8.UI.csproj` `<Version>`（当前 **1.1.0**）。
 
 发布后例行：删除 `src\Jsr4Z8.Core\Payload\Embedded\payload.bin` 及同名 `.manifest.json`——否则此后每次 Core 构建/测试都会重新内嵌 ~202 MB 载荷，显著拖慢开发构建（`build.bat` 尾部同款提示；下次打包自动重新生成）。
 
