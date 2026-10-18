@@ -54,7 +54,7 @@
 | 项目 | 说明 |
 | --- | --- |
 | [y-g-jiang/Jiangtherapee-Super-Resolution-World-Best](https://github.com/y-g-jiang/Jiangtherapee-Super-Resolution-World-Best) | 七帧 RAW 超分辨率算法与计算引擎 |
-| [y-g-jiang/LibRaw](https://github.com/y-g-jiang/LibRaw)（`nikon-he-production` 分支） | 支持尼康 HE / HE* 压缩 NEF 的 RAW 解码 |
+| [pdcgomes/redlamp-libraw](https://github.com/pdcgomes/redlamp-libraw) | 支持解码 Nikon HE / HE* 压缩格式 RAW |
 | [GoldJohnKing/Save_Z8](https://github.com/GoldJohnKing/Save_Z8) | 导出 DNG 无损保留 NEF 原始拍摄参数 |
 | [libjpeg-turbo](https://github.com/libjpeg-turbo/libjpeg-turbo) | 通用 JPEG 编解码库 |
 

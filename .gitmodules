@@ -1,7 +1,7 @@
 [submodule "external/libraw"]
 	path = external/libraw
-	url = https://github.com/y-g-jiang/LibRaw.git
-	branch = nikon-he-production
+	url = https://github.com/pdcgomes/redlamp-libraw.git
+	branch = redlamp
 [submodule "external/libjpeg-turbo"]
 	path = external/libjpeg-turbo
 	url = https://github.com/libjpeg-turbo/libjpeg-turbo

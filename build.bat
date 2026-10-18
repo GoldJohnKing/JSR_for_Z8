@@ -4,7 +4,7 @@ REM ============================================================
 REM JSR for Z8 - One-Shot Build Script (Steps 0-6)
 REM Usage: build.bat
 REM
-REM Produces: libs\libraw.dll          (LibRaw, JO fork nikon-he-production)
+REM Produces: libs\libraw.dll          (LibRaw, pdcgomes/redlamp-libraw @ pin-3b20539)
 REM           libs\libraw.lib          (import lib for the wrapper)
 REM           libs\libraw_wrapper.dll  (C wrapper for P/Invoke)
 REM           libs\jpeg-static.lib     (libjpeg-turbo static, linked into dng_ljpeg.dll)
@@ -76,7 +76,7 @@ if exist "%LIBS%\libraw.dll" (
     goto :wrapper
 )
 
-echo [2/6] Building LibRaw (JO fork)...
+echo [2/6] Building LibRaw (redlamp fork)...
 call "!VCVARS!" x64 >nul 2>&1
 cd /d %EXT%
 if not exist bin mkdir bin
