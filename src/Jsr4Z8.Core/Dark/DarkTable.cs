@@ -4,12 +4,11 @@ namespace Jsr4Z8.Core.Dark;
 
 /// <summary>One row of the embedded Nikon Z8 dark preset table: RAW compression type
 /// (MakerNote NEFCompression), nominal ISO, and the two quantities a dark file
-/// contributes to the reconstruction — the black pedestal (DN, nominal) and the
-/// read-noise floor (DN, √mean of the 4 CFA phases' temporal variances).
-/// Lossless/HE/HE* carry separate rows (lossy codecs add quantization noise:
-/// HE +5..13% vs lossless, largest in the Lo band; HE* −1.5..+3%);
-/// crop is not a key — read noise is crop-independent (DX vs FX ≤1% at
-/// ISO ≥1000: crop is just a smaller window of the same readout).</summary>
+/// contributes to the reconstruction — the measured black pedestal (DN, 4-CFA-phase
+/// mean) and the read-noise floor (DN, √median of the 4 phase Haar variances).
+/// Lossless/HE/HE* are measured separately (+3..7% quantization noise on the lossy
+/// codecs); crop is deliberately NOT a key — measured crop-independence (DX vs FX
+/// ≤1% at ISO ≥1000, +0.03% overall) made it a non-dimension (2026-10-15 ruling).</summary>
 public sealed record DarkRow(int NefCompression, double Iso, double BlackDn, double ReadNoiseDn);
 
 /// <summary>Preset dark lookup result: the backend manual-calibration pair
@@ -17,18 +16,21 @@ public sealed record DarkRow(int NefCompression, double Iso, double BlackDn, dou
 public sealed record DarkMatch(double Iso, double BlackDn, double ReadNoiseDn, string Source);
 
 /// <summary>
-/// Nikon Z8 preset dark parameter table: the 102 rows exported offline from the
-/// backend's own dark library (reference/Jiangtherapee-Bridge-2.3.27-Windows-x64/
-/// resources/z8_presets/manifest.json via tools/regen-dark-table) into the embedded
-/// resource Jsr4Z8.Core.Dark.Embedded.dark_z8.csv — 34 ISOs (Lo 32 … Hi 102400) ×
-/// three compression types (NEFCompression 3 = lossless, 13 = HE, 14 = HE*),
-/// keyed by compression + ISO. black_dn is the nominal pedestal; read_noise_dn =
-/// √(mean of the four CFA phases' temporal_variance_dn2).
+/// Nikon Z8 preset dark parameter table: the 93 rows extracted from
+/// samples/dark_frames/FX/{Lossless,HE,HE Star} into the embedded resource
+/// Jsr4Z8.Core.Dark.Embedded.dark_z8.csv — 31 ISOs (64 … Hi 102400) × three
+/// compression types (NEFCompression 3 = lossless, 13 = HE, 14 = HE*), keyed by
+/// compression + ISO. Methodology (the backend's exact estimator, v15_2.dark
+/// .estimate_dark): per-CFA-phase non-overlapping 2x2 Haar h=(a-b-c+d)/2 robust
+/// variance (MAD*1.4826 seed + two 4.5σ-truncation rounds), read_noise_dn =
+/// √median(4 phase variances); pedestal = 4.5σ-clipped per-phase means,
+/// black_dn = the 4-phase mean. Cross-checked against an independent auditor's
+/// rawpy recomputation (max deviation 0.058 DN).
 /// Lookup is exact-match on both keys (1e-6 relative ISO tolerance) — deliberately
 /// NO interpolation, because ISO 500 is the sensor's dual conversion gain switch
-/// where the read-noise curve is discontinuous. Crop-blind: any crop window
-/// (FX/DX/5:4/16:9) takes these FX-measured values; the caller gates on the
-/// 14-bit readout before trusting a match.
+/// where the read-noise curve is discontinuous. Crop-blind by ruling: any crop
+/// window (FX/DX/5:4/16:9) takes these FX-measured values; the caller still gates
+/// on the 14-bit readout before trusting a match.
 /// </summary>
 public sealed class DarkTable
 {
