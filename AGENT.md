@@ -17,9 +17,9 @@
 
 | 动作 | 命令（Windows host） |
 |---|---|
-| 全量测试 | `dotnet test --nologo`（当前 **307/307 全绿**；黑场标定恒为预置表匹配——见 §5 决策 3） |
+| 全量测试 | `dotnet test --nologo`（当前 **312/312 全绿**；黑场标定恒为预置表匹配——见 §5 决策 3） |
 | 一键发布 | `build.bat` → `out\JSR4Z8_v<版本>.exe`（单文件实测 249,602,260 B=打包含 Step 3b/3d 捆绑 VC 运行库；Step 4 恒跑 pack-payload：预解包 onefile 引擎入 `resources\jsr_backend_runtime\`，自动选 reference/ 下最高版本，manifest 哈希比对自决换入，无需手动删 payload.*） |
-| 载荷实测 | 预解包载荷：**1,444 文件/原始 587,974,158 B/payload.bin 202,208,052 B/manifest hash 5c78910676d79955**；构成=引擎本体**薄拷贝** 201,243,142 B（b 体清零的打包期变换，长度不变、盘上树零影响；原件=reference/ onefile 未动；无三变量 spawn 即响亮失败）+CArchive 树余 1,416 文件 386,096,731 B→压缩 193,108,942 B+licenses/元数据 27 文件 634,285 B；薄档案评估与端到端实证 docs/superpowers/notes/2026-10-16-thin-archive-probe.md（注入契约实证 …/2026-10-16-meipass2-experiment.md） |
+| 载荷实测 | 预解包载荷：**1,413 文件/原始 587,198,913 B/payload.bin 202,084,799 B/manifest hash 1fd93ab0862c2064**；构成=引擎本体**薄拷贝** 201,094,290 B（b 体清零、x 体保留的打包期变换，长度不变、盘上树零影响；原件=reference/ onefile 未动；无三变量 spawn 即响亮失败）+CArchive 树余 1,385 文件（b 1,381+x 4，x=V18.1 masked 对齐模块，缺位即启动期 ModuleNotFoundError）385,398,318 B+licenses/元数据 27 文件 706,305 B；薄档案评估与端到端实证 docs/superpowers/notes/2026-10-16-thin-archive-probe.md（注入契约实证 …/2026-10-16-meipass2-experiment.md） |
 | 无头自检 | `out\JSR4Z8_v*.exe --selftest [file.nef]`（释放/校验载荷+验树内引擎 `resources\jsr_backend_runtime\jsr_backend.exe`+LibRaw 冒烟） |
 | E2E（真 GPU，~6min/全幅） | cmd 脚本内 `set JSR4Z8_E2E=1` + `dotnet test --filter FullyQualifiedName~E2eTests.<名>`；门控规则见 §4 硬契约末条 |
 | 诊断工具 | `tools/finalize-variant/`（离线调用融合器：crop/passthrough/featureSet 剥离矩阵，ACR 排障利器） |
@@ -34,13 +34,13 @@
 Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐)
    └─ QueueMediator(单飞+IDispatcher UI 线程编组+进度节流200ms)
         └─ TaskQueueRunner(顺序队列: 释放载荷→临时目录→BuildArguments argv→BackendRunner(直调)→JsrDngFinalizer)
-             ├─ PayloadManager: exe 内嵌载荷(裸DEFLATE+逐文件SHA-256 manifest) → %LOCALAPPDATA%\JSR4Z8\backend\<hash>\（resources\ 源树 27 文件+预解包引擎树 resources\jsr_backend_runtime\ 1,417 文件含引擎本体薄拷贝（b 体清零，长度不变），合计 1,444 文件/587,974,158 B）释放+逐文件SHA校验+自愈+旧版本目录清理（实测首释 2.3s/复验 0.8s）
+             ├─ PayloadManager: exe 内嵌载荷(裸DEFLATE+逐文件SHA-256 manifest) → %LOCALAPPDATA%\JSR4Z8\backend\<hash>\（resources\ 源树 27 文件+预解包引擎树 resources\jsr_backend_runtime\ 1,386 文件含引擎本体薄拷贝（b 体清零、x 体保留，长度不变），合计 1,413 文件/587,198,913 B）释放+逐文件SHA校验+自愈+旧版本目录清理（实测首释 2.3s/复验 0.8s）
              ├─ BackendRunner: 直调树内 resources\jsr_backend_runtime\jsr_backend.exe（注入 _PYI_* 三元组，见 §4）→ stdout 裸行协议解析(ProtocolParser) → taskkill /T 树杀取消
              └─ JsrDngFinalizer: 后端裸DNG → 解码像素 → DngComposer(复刻自Save_Z8) 重写
                   （EXIF/GPS/XMP/三级预览搬迁、镜头校正Opcode、无损JPEG Compress=7、LinearRaw 16bit×3通道）
 ```
 
-- `src/Jsr4Z8.Core`：RawMetadataReader(LibRaw)、NefAssetExtractor(TiffIfdExtractor 复刻)、Ptc(双段log-log拟合)、Dark(Embedded/dark_z8.csv 102行=34档ISO×3压缩（后端 z8_presets manifest 离线导出） 预置黑场表：双键(压缩,ISO)精确匹配不插值——ISO500=DCG切换点；画幅不参与匹配)、TaskGroupValidator(五维一致性：机型/ISO/位深/压缩/画幅 两两校验+预置黑场双键匹配，画像外=CaptureFormatUnsupported"拍摄格式不支持"；无手动黑场路径；曝光包围：仅快门速度不同的 7 帧合法，UI 层默认取中间曝光为基准帧)、Backend(argv 构建器 BuildArguments+裸行协议+直调执行器)、Dng(写盘器)、Payload(白名单=resources/ 树减排除清单+打包期预解包引擎树映射 resources\jsr_backend_runtime\（tools/pack-payload EnginePreextractor：CArchive b 条目→树+引擎本体薄拷贝（b 体清零，薄档案形态））；排除：顶层 Bridge.exe/K14 引擎/onefile 整体 jsr_backend.exe（ExactPath 防回潮）/_internal 整树（引擎从不读盘上树）/raw_bridge+jxl_worker 工具与其 libjxl-DLL 家族（从未 spawn）/z8_presets；THIRD_PARTY_NOTICES.md 不打包)、Queue。manifest 另带展示字段 backendVersion：pack-payload 从 reference 目录名解析（如 2.3.27），不入 payload hash，重打包自动更新；UI 右上角「Jiangtherapee Bridge v…」行的数据源（PayloadManager.TryReadBackendVersion，缺资源→隐藏整行）。
+- `src/Jsr4Z8.Core`：RawMetadataReader(LibRaw)、NefAssetExtractor(TiffIfdExtractor 复刻)、Ptc(双段log-log拟合)、Dark(Embedded/dark_z8.csv 93行=31档ISO×FX{无损,HE,HE*}实拍（自测：后端精确口径测算、双解码器互证≤0.058 DN） 预置黑场表：双键(压缩,ISO)精确匹配不插值——ISO500=DCG切换点；画幅不参与匹配)、TaskGroupValidator(五维一致性：机型/ISO/位深/压缩/画幅 两两校验+预置黑场双键匹配，画像外=CaptureFormatUnsupported"拍摄格式不支持"；无手动黑场路径；曝光包围：仅快门速度不同的 7 帧合法，UI 层默认取中间曝光为基准帧)、Backend(argv 构建器 BuildArguments+裸行协议+直调执行器)、Dng(写盘器)、Payload(白名单=resources/ 树减排除清单+打包期预解包引擎树映射 resources\jsr_backend_runtime\（tools/pack-payload EnginePreextractor：CArchive b+x 条目→树（引导器自解压的落盘集；V18.1 起 x 非空=masked 对齐模块）+引擎本体薄拷贝（b 体清零、x 体保留，薄档案形态））；排除：顶层 Bridge.exe/K14 引擎/传统3×引擎/onefile 整体 jsr_backend.exe（ExactPath 防回潮）/_internal 整树（引擎从不读盘上树）/raw_bridge+jxl_worker 工具与其 libjxl-DLL 家族（从未 spawn）/z8_presets；THIRD_PARTY_NOTICES.md 不打包)、Queue。manifest 另带展示字段 backendVersion：pack-payload 从 reference 目录名解析（JSR_V18.1\JSR_V18.1_Sharp→"18.1"、Jiangtherapee-Bridge-2.3.27→"2.3.27"），不入 payload hash，重打包自动更新；UI 右上角「JSR v…」行的数据源（PayloadManager.TryReadBackendVersion，缺资源→隐藏整行）。
 - `external/`：git submodule ×2（pdcgomes/redlamp-libraw@`redlamp`、libjpeg-turbo）——**唯一允许的源码依赖方式**；.NET 库一律 NuGet 锁版本（Avalonia 11.2.2 / Semi.Avalonia 11.2.1.10 / CT.Mvvm 8.3.2，与 Save_Z8 对齐）。
   - LibRaw 子模块 = redlamp-libraw `3b20539`（Redlamp 生产 pin，tag `pin-3b20539`）：尼康 HE/HE* 解码输出经 Adobe DNG Converter 逐像素验证；对上游的偏离与升级流程见子模块内 `REDLAMP.md`。LibRaw 官方 HE 解码器随公开快照发布后应重新评估是否切回上游。
 - 复刻纪律：Save_Z8 代码（`D:\GitRepos\Save_Z8`，作者自有项目）按「复刻源文件+保留头注」方式移植，**不**作为 submodule。参考产物：`D:\GitRepos\Save_Z8\samples\DSC_7576_fixed.dng`（ACR 实证可开的 CFA 对照基准）。
@@ -50,7 +50,8 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐)
 - **后端调用（直调）**：spawn 载荷内 `resources\jsr_backend_runtime\jsr_backend.exe`（预解包树内引擎，载荷唯一入口；onefile `resources\jsr_backend.exe` 与顶层 `Jiangtherapee Bridge.exe` 均不在载荷内，排除清单防回潮）。argv 模板一行化（`BackendRequest.BuildArguments`；探测实证 docs/superpowers/notes/2026-10-15-jsr-backend-argv-probe.md §2/§5/§7）：
   `jsr_backend.exe --output-dir <jobDir> --out-prefix <jobId> --dng-compression auto --raw-frame <f1> … --raw-frame <f7> --developer-mode --read-noise-dn <RN> --black-level-dn <BL> --full-well-electrons <FW> --deghost off --out-dng on --out-png off --out-tiff off --out-format jpeg --jpeg-quality 95 --camera-profile-source libraw`
   **无 request.json、无 cfg 目录、无预览链**（§7 无 cfg/无预览真机直调 exit 0 实证）；**memory 预算彻底不传 = 不限额**；FW=PTC 匹配值 1 位小数，RN/BL=预置黑场表值（`tests/…/ProtocolTests.cs` 逐开关锁定）。
-- **引擎注入契约（_PYI_* 三元组，2026-10-16 实证）**：spawn 树内引擎时必须整组字符级精确注入 `_PYI_ARCHIVE_FILE=<引擎 exe 全路径>`（它自身即 CArchive）、`_PYI_APPLICATION_HOME_DIR=<树目录>`（无尾分隔符）、`_PYI_PARENT_PROCESS_LEVEL=0`——引擎以「子实例」身份直跑树：**零 %TEMP% _MEI 自解压、单实例、树零写入**（端到端实测：全程 1s 轮询零 _MEI、单 pid 贯穿、树 1,444 文件前后零变化）。fallback 语义：缺 `_PYI_ARCHIVE_FILE` 时引导器复位块剥除另两个 → 静默回退 per-run 自解压（每跑泄一个 386MB `_MEI`+父子双实例）——`BackendRunnerTests` stub 回显逐字符锁三值，路径回退由 `QueueRunnerTests` 防退化锁拦截。
+- **V18.1 引擎运行期对齐替换（2026-10-27 升级实证）**：JSR_V18.1 引导器（backend.py 外层包装）启动时无条件 `v15_2.masked_alignment.install()` —— 把 `pipeline.align` 换成 CPU 曝光掩码四次项场对齐器（V12.1 fitter：BS192/stride128/search6/max_degree4/cap4，无 SPyNet）、`pipeline.Geometry` 换 MaskedGeometry（连续原生坐标+deghost 网格视图）；其余 1380 CArchive 条目+1440 PYZ 条目与 2.3.27 逐字节相同（融合网络权重 backend_*.npz/spynet.npz、全部管线模块、jsr_options.json），v15_2.dark 仅新增 S5II 实测 LUT `.json` 输入分支（argv 标量 BL/RN 路径不触达）。argv 模板与 stdout 协议不变，但**七帧输出与 2.3.27 不同**（对齐算法不同）；逐条目 SHA 证据 `docs/superpowers/notes/2026-10-27-v18.1-backend-diff.md`。
+- **引擎注入契约（_PYI_* 三元组，2026-10-16 实证）**：spawn 树内引擎时必须整组字符级精确注入 `_PYI_ARCHIVE_FILE=<引擎 exe 全路径>`（它自身即 CArchive）、`_PYI_APPLICATION_HOME_DIR=<树目录>`（无尾分隔符）、`_PYI_PARENT_PROCESS_LEVEL=0`——引擎以「子实例」身份直跑树：**零 %TEMP% _MEI 自解压、单实例、树零写入**（端到端实测：全程 1s 轮询零 _MEI、单 pid 贯穿、树 1,413 文件前后零变化）。fallback 语义：缺 `_PYI_ARCHIVE_FILE` 时引导器复位块剥除另两个 → 静默回退 per-run 自解压（每跑泄一个 386MB `_MEI`+父子双实例）——`BackendRunnerTests` stub 回显逐字符锁三值，路径回退由 `QueueRunnerTests` 防退化锁拦截。
 - **stdout 协议（裸行，无信封）**：引擎 stdout 即协议本体，零 `ASSISTANT_*` 信封（那是 Bridge 外加的，已随直调消失）；结构行仅 `SRHQ_V12_PROGRESS|int|阶段` 与导出期 `SRHQ_ETA_PROGRESS|dng|done|total`（映射 95+5*done/total，尾三行 = `SRHQ_V12_PROGRESS|100|导出完成` → `V12 output: <dir>` → `DONE total <s>s`，P100 恰一次）；其余（`PTC {…}` 回显、`SRHQ_V12_FRAME|…`、Proxy 噪声）按原文透传；stderr 不参与协议（诊断回溯走 stderr，成功时 0 字节）。夹具：`tests/Jsr4Z8.Tests/fixtures/protocol/direct_success.log`（真实直调日志）。
 - **取消**：注入生效后引擎单实例直跑（历史未注入形态每次自重复为父子双实例、~2s 间隔，实际工作在子进程，父转述退出码；树内还可能出现未名孙进程）——无论单双实例，都必须 `taskkill /T /F` 杀整棵树（持有自己 spawn 的父 pid 即可，防御性语义不变）。崩溃兜底：主进程启动即加入 kill-on-close Job Object，异常退出时 OS 自动终止全部子进程；正常取消仍为 taskkill /T 树杀。
 - **后端产物**：`<outputDir>/<prefix>_V15_3_5_K7_<ts>/<同名>.dng` + 辅助文件；失败残留 `.partial` 目录（成功 glob 需排除）。退出码取父实例（正常完成 0）。
@@ -62,7 +63,7 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐)
 
 1. **不传显存预算**（用户明确要求"始终不限制"）。**无设置功能**：恒默认行为——输出=基准帧同目录、临时=%TEMP%，无配置持久化。
 2. **最终 DNG 的 IFD0 无 Artist、Software="JSR for Z8"**——后端算法署名不进 IFD0（载荷不携带 THIRD_PARTY_NOTICES.md；第三方许可仍在 resources/licenses 内随载荷分发）；NEF EXIF 区内摄影者自有标签照常迁移。
-3. **黑场标定恒为预置自动匹配（无手动黑场文件路径）**。7 帧在 **机型/ISO/位深/压缩/画幅** 五维两两一致（机型逐文件验 Z8；位深=TIFF BitsPerSample、压缩=MakerNote NEFCompression、画幅=raw 尺寸；**陷阱**：Z8 全部 NEF 的 TIFF Compression 恒 34713，HE(13)/HE*(14) 与无损(3) 只能靠 NEFCompression 判别），任一不一致禁止执行。PTC 按机型+ISO 匹配（单像素参数，读出维度不影响归一化 shot 斜率）；预置黑场 `Dark/Embedded/dark_z8.csv`（102 行 = 34 档 ISO × 3 压缩，后端 2.3.27 z8_presets manifest 离线导出：black_dn 标称、RN=√四相位时域方差均值、映射 0→3/3→14/4→13；Lo 档 32/40/50 为完备性纳入）按 **(压缩,ISO) 双键**精确匹配——画幅不参与（读噪与画幅无关，DX vs FX ≤1%@高ISO，任意画幅取 FX 行）。画像外（12bit）或表外 ISO → `CaptureFormatUnsupported`"拍摄格式不支持"。物理事实（口径唯一来源 DarkTable.cs 类注释）：HE 读噪比无损 +5~13%（Lo 档最大），HE\* −1.5~+3%（有损编码量化噪声叠加）；ISO500=DCG 切换点故不插值；Lo 扩展档=假ISO（数据≡ISO64，自动命中 64 行）；常规快门不影响标定。
+3. **黑场标定恒为预置自动匹配（无手动黑场文件路径）**。7 帧在 **机型/ISO/位深/压缩/画幅** 五维两两一致（机型逐文件验 Z8；位深=TIFF BitsPerSample、压缩=MakerNote NEFCompression、画幅=raw 尺寸；**陷阱**：Z8 全部 NEF 的 TIFF Compression 恒 34713，HE(13)/HE*(14) 与无损(3) 只能靠 NEFCompression 判别），任一不一致禁止执行。PTC 按机型+ISO 匹配（单像素参数，读出维度不影响归一化 shot 斜率）；预置黑场 `Dark/Embedded/dark_z8.csv`（93 行 = 31 档 ISO × FX{无损,HE,HE\*} 实拍（samples/dark_frames/FX，2026-10-15 审计整改重测），后端 v15_2.dark.estimate_dark 精确算法逐式测算、与独立审计者 rawpy 重算双解码器互证 ≤0.058 DN；曾短暂换成上游 2.3.27 z8_presets 导出 102 行表，已按用户裁定改回自测值）按 **(压缩,ISO) 双键**精确匹配——画幅不参与（读噪与画幅无关，DX vs FX ≤1%@高ISO，任意画幅取 FX 行）。画像外（12bit）或表外 ISO → `CaptureFormatUnsupported`"拍摄格式不支持"。物理事实（口径唯一来源 DarkTable.cs 类注释）：HE/HE\* 有损编码使读噪比无损高 +3~7%（量化噪声叠加）；ISO500=DCG 切换点故不插值；Lo 扩展档=假ISO（数据≡ISO64，自动命中 64 行）；常规快门不影响标定。
 4. 输出名固定 `JSR_<基准帧名>.dng`；基准帧=等曝光时文件名自然排序第 1 张、曝光包围（仅快门不同）时按曝光升序取中间帧（第 4 张）。任务组可先少后补（卡内「添加 RAW…」按钮或再拖放到卡）；芯片★星标=手动基准（仅就绪/无法执行态可设，星标帧被移除则回退自动选取）；悬浮文件名显示关键参数（机型/快门/光圈/ISO/位深/压缩/画幅/拍摄时间）；>7 或 <7 帧均阻断为「帧数不符」。非等曝光组芯片显示 ±EV 偏差胶囊（点击设基准，等曝光组保留星标；EV 恒以中间曝光为 0EV 锚点，不随基准切换）；拖入/补齐即时建卡并显示校验中 Loading，校验由卡片自持（ValidateAsync），状态条随分组状态着色于卡底。
 5. 顺序队列一次一组；失败/停止不阻断后续；失败/停止立即删除本任务临时目录（不留诊断目录），启动时清扫临时根（TempBase）下 Jsr4Z8 的全部残留（应对崩溃残留；单实例互斥；清扫跳过 2 分钟内新写的目录）。
 6. 布局默认 **Tiles**（`DngWriteOptions.RawLayout` 的 Strips 选项为 ACR 排障变体，测试与 finalize-variant 工具在用）。
@@ -81,6 +82,7 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐)
 8. 运行期错误文案要人话化：直调引擎后直接从裸行提取 `SRHQ_NET_ABORT:stage|msg` / MemoryError 行（ASSISTANT_* 信封已随 Bridge 移除而消失，无需再跳信封行）。
 9. 进入 Running/Done 必须清 ErrorText（用户踩过"重试后旧失败提示不消失"）。
 10. **E2E 门控用例长期不跑会腐烂**：中文路径副本拍平、抓取流写句柄两缺陷即例（长期被 `JSR4Z8_E2E=1` 门控跳过所掩盖）——完整 E2E 仅用户明示时运行，该窗口到来时应全绿后再交付。
+11. **预解包契约必须完整镜像引导器自解压集**：CArchive 落盘集 = 'b'+'x'（m/s/z/o 才是内存读取）；仅凭旧版（2.3.27 无 x 条目）归纳出「b 即全部」在 V18.1（x=masked 对齐模块）上当场翻车——启动期 ModuleNotFoundError。且磁盘包遮蔽 PYZ：sys.path 指到磁盘树后子模块不会回退到 PYZ 副本。
 
 ## 7. 已知遗留（低风险，勿顺手重构）
 
@@ -93,6 +95,7 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐)
 ## 8. 文档地图
 
 - 活性契约参考（argv 探测/裸行协议/直调实证，硬契约的事实出处）：`docs/superpowers/notes/2026-10-15-jsr-backend-argv-probe.md`
+- V18.1 引擎差异实证（逐条目 SHA 对比、install() 对齐替换、dark/S5II 分支、净化重打包，升级载荷源的事实出处）：`docs/superpowers/notes/2026-10-27-v18.1-backend-diff.md`
 - 注入契约/预解包实证（_PYI_* 三元组机制、零 _MEI、持久目录只读性）：`docs/superpowers/notes/2026-10-16-meipass2-experiment.md`
 - 排障/修复记录（ACR 攻坚全程）：作者本地 `.superpowers/sdd-postrelease-fix*.md`（fix1-11，未入库；可执行结论已浓缩进 §6 经验教训）
-- 样例：`samples/test_frames/`（`lossless`=DSC_7576-7582 七帧无损等曝光组；`he_compressed`=DSC_7652-7658 七帧 HE 等曝光组；`he_star_compressed`=DSC_7863-7869 七帧 HE★ 等曝光组（ISO1600）；`unequal_exposure`=DSC_7855-7861 七帧不等曝光/包围组（1/3EV 快门梯 1/200…1/50，中间曝光 1/100 为基准帧）；四组均未入 git，E2E FullRun 为 Theory 全覆盖（钉死 NEFCompression 3/13/14）；黑场标定无样本文件——预置黑场表来源为后端 z8_presets manifest 离线导出，见 §5 决策 3）；后端原包：`reference/` 下仅 2.3.27 一树在（2.3.25 已移除）；勿改一字节；载荷取 2.3.27（build.bat 自动选最高版本；黑场表/argv 契约随版重验）
+- 样例：`samples/test_frames/`（`lossless`=DSC_7576-7582 七帧无损等曝光组；`he_compressed`=DSC_7652-7658 七帧 HE 等曝光组；`he_star_compressed`=DSC_7863-7869 七帧 HE★ 等曝光组（ISO1600）；`unequal_exposure`=DSC_7855-7861 七帧不等曝光/包围组（1/3EV 快门梯 1/200…1/50，中间曝光 1/100 为基准帧）；四组均未入 git，E2E FullRun 为 Theory 全覆盖（钉死 NEFCompression 3/13/14）；黑场标定样本 `samples/dark_frames/FX/`（93 行实测表来源，未入 git）；后端原包：`reference/` 下三树在——`JSR_V18.1/JSR_V18.1_Sharp`、`JSR_V17.2.1`、`Jiangtherapee-Bridge-2.3.27-Windows-x64`；勿改一字节；载荷取 V18.1（build.bat 自动选最高版本：JSR_V\*_Sharp 嵌套布局优先于 Bridge 平铺；argv/协议契约随版重验）

@@ -52,7 +52,7 @@ try
         Console.WriteLine(
             result.BackendVersion is { } v
                 ? $"后端版本: v{v}（已写入 manifest backendVersion，UI 右上角随构建自动更新）"
-                : "后端版本: 未能从源目录名解析（UI 右上角 Jiangtherapee Bridge 行将隐藏）");
+                : "后端版本: 未能从源目录名解析（UI 右上角 JSR 版本行将隐藏）");
 
         if (EmbeddedUpdater.Apply(embeddedDir, tempDir))
         {

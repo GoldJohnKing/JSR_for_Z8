@@ -75,7 +75,7 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Backend payload version as "v2.3.27" from the embedded manifest's
+    /// <summary>Backend payload version as "v18.1" from the embedded manifest's
     /// backendVersion (written by pack-payload at build time — repacking a new
     /// reference/ version updates it automatically); empty when absent/unreadable
     /// (fast dev builds) so the top-right line hides.</summary>

@@ -48,14 +48,17 @@ public class PayloadTests : IClassFixture<TestTemp>
     private static readonly byte[] BodyNestedBackslash = Encoding.ASCII.GetBytes("nested dll body reached via backslash TOC separator");
     private static readonly byte[] BodyNestedForward = Encoding.ASCII.GetBytes("nested data body reached via forward TOC separator");
     private static readonly byte[] BodyPlain = Encoding.ASCII.GetBytes("uncompressed body stored raw - cmprsFlag 0");
+    private static readonly byte[] BodyXData = Encoding.ASCII.GetBytes("masked alignment module body - x data entry (V18.1)");
 
-    /// <summary>标准微型档案：4 个 b 条目（根、'\' 子目录、'/' 子目录、原样体）+ z/m/s/o 各 1（留在 exe 内）。</summary>
+    /// <summary>标准微型档案：4 个 b 条目（根、'\' 子目录、'/' 子目录、原样体）+ 1 个 x 数据条目
+    /// （V18.1 形态：masked_*.pyc 落盘模块）+ z/m/s/o 各 1（留在 exe 内）。</summary>
     private static List<MiniArchiveEntry> StandardMiniEntries() => new()
     {
         new("b", "python310.dll", BodyPython),
         new("b", "torch\\lib\\fun.dll", BodyNestedBackslash),
         new("b", "cv2/x.dat", BodyNestedForward, Compressed: false, PadBytes: 3),
         new("b", "plain.dat", BodyPlain, Compressed: false),
+        new("x", "wgpu\\v15_2\\masked_alignment.pyc", BodyXData),
         new("z", "PYZ-00.pyz", Encoding.ASCII.GetBytes("pyz archive body")),
         new("m", "PIL._imaging", Encoding.ASCII.GetBytes("embedded pyd module body")),
         new("s", "pyi_rth_inspect", Encoding.ASCII.GetBytes("bootstrap script body")),
@@ -232,7 +235,7 @@ public class PayloadTests : IClassFixture<TestTemp>
         Directory.CreateDirectory(Path.Combine(root, "resources", "z8_presets"));
         Directory.CreateDirectory(Path.Combine(root, "ThirdPartySources"));
 
-        // 预解包夹具：合成微型 onefile 引擎（4 个 b 条目 + z/m/s/o 各 1）——
+        // 预解包夹具：合成微型 onefile 引擎（4 b + 1 x + z/m/s/o 各 1）——
         // PackTree 经 EnginePreextractor 解出 resources\jsr_backend_runtime\ 树入载荷。
         File.WriteAllBytes(Path.Combine(root, "resources", "jsr_backend.exe"), BuildMiniOnefile(StandardMiniEntries()));
         File.WriteAllText(Path.Combine(root, "resources", "licenses", "notice.txt"), "fake third-party license text");
@@ -302,8 +305,8 @@ public class PayloadTests : IClassFixture<TestTemp>
         Assert.True(File.Exists(payload.ManifestJson), "payload.manifest.json written");
 
         // 预解包形态：onefile exe 不整体入载荷，取而代之的是
-        // 预解包树 resources\jsr_backend_runtime\（4 个 b 条目 + 引擎 exe 本体拷贝）+ notice.txt。
-        Assert.Equal(6, payload.Manifest.Files.Count);
+        // 预解包树 resources\jsr_backend_runtime\（5 个落盘条目 b+x + 引擎 exe 本体拷贝）+ notice.txt。
+        Assert.Equal(7, payload.Manifest.Files.Count);
         Assert.Equal(
             new[]
             {
@@ -312,6 +315,7 @@ public class PayloadTests : IClassFixture<TestTemp>
                 "resources\\jsr_backend_runtime\\plain.dat",
                 "resources\\jsr_backend_runtime\\python310.dll",
                 "resources\\jsr_backend_runtime\\torch\\lib\\fun.dll",
+                "resources\\jsr_backend_runtime\\wgpu\\v15_2\\masked_alignment.pyc",
                 "resources\\licenses\\notice.txt",
             }.OrderBy(p => p, StringComparer.Ordinal),
             payload.Manifest.Files.Select(f => f.Path).OrderBy(p => p, StringComparer.Ordinal));
@@ -346,6 +350,7 @@ public class PayloadTests : IClassFixture<TestTemp>
         Directory.CreateDirectory(Path.Combine(root, "resources", "_internal", "_tk_data"));
         Directory.CreateDirectory(Path.Combine(root, "resources", "_internal", "wgpu", "__pyinstaller"));
         File.WriteAllText(Path.Combine(root, "resources", "jsr_fast_k14_backend.exe"), "fast k14 engine");
+        File.WriteAllText(Path.Combine(root, "resources", "jsr_traditional_3x_backend.exe"), "traditional 3x engine");
         File.WriteAllText(Path.Combine(root, "resources", "_internal", "tcl86t.dll"), "tcl");
         File.WriteAllText(Path.Combine(root, "resources", "_internal", "tk86t.dll"), "tk");
         File.WriteAllText(Path.Combine(root, "resources", "_internal", "_tk_data", "y.enc"), "tk data");
@@ -380,6 +385,7 @@ public class PayloadTests : IClassFixture<TestTemp>
             "resources/jsr_backend.exe",
             "resources/jsr_v98_k14_backend.exe",
             "resources/jsr_fast_k14_backend.exe",
+            "resources/jsr_traditional_3x_backend.exe",
             "resources/_internal/_tcl_data/x.enc",
             "resources/_internal/_tk_data/y.enc",
             "resources/_internal/tcl86t.dll",
@@ -415,6 +421,7 @@ public class PayloadTests : IClassFixture<TestTemp>
             "resources/jsr_backend_runtime/plain.dat",
             "resources/jsr_backend_runtime/python310.dll",
             "resources/jsr_backend_runtime/torch/lib/fun.dll",
+            "resources/jsr_backend_runtime/wgpu/v15_2/masked_alignment.pyc",
             "resources/licenses/notice.txt",
             "resources/jsr_backend_manifest.json",
             "resources/jsr_options.json",
@@ -467,9 +474,9 @@ public class PayloadTests : IClassFixture<TestTemp>
 
         int extracted = EnginePreextractor.Extract(exe, dest);
 
-        Assert.Equal(4, extracted); // 仅 b 条目；z/m/s/o 留在 exe 内（引导器内存读取）
+        Assert.Equal(5, extracted); // b+x 落盘（引导器自解压集）；z/m/s/o 留在 exe 内（引导器内存读取）
         Assert.Equal(
-            new[] { "cv2\\x.dat", "jsr_backend.exe", "plain.dat", "python310.dll", "torch\\lib\\fun.dll" }
+            new[] { "cv2\\x.dat", "jsr_backend.exe", "plain.dat", "python310.dll", "torch\\lib\\fun.dll", "wgpu\\v15_2\\masked_alignment.pyc" }
                 .OrderBy(p => p, StringComparer.Ordinal),
             Directory.EnumerateFiles(dest, "*", SearchOption.AllDirectories)
                 .Select(p => Path.GetRelativePath(dest, p))
@@ -477,11 +484,13 @@ public class PayloadTests : IClassFixture<TestTemp>
         // 树内引擎 exe 为薄化副本（打包期变换，评估 F1 形态）：b 体区间全零、其余逐字节原样、
         // 长度不变（区间级断言见 AssertThinF1Form；运行契约 _PYI_ARCHIVE_FILE=<树>\jsr_backend.exe 直跑）。
         AssertThinF1Form(File.ReadAllBytes(exe), File.ReadAllBytes(Path.Combine(dest, "jsr_backend.exe")));
-        // b 条目内容逐字节等于档案内的未压缩体（zlib 与 cmprsFlag=0 两路、'\' 与 '/' 两种名内分隔符）。
+        // b/x 条目内容逐字节等于档案内的未压缩体（zlib 与 cmprsFlag=0 两路、'\' 与 '/' 两种名内分隔符；
+        // x 数据条目与 b 同路落盘——V18.1 masked 模块缺位即启动崩溃的回归钉）。
         Assert.Equal(BodyPython, File.ReadAllBytes(Path.Combine(dest, "python310.dll")));
         Assert.Equal(BodyNestedBackslash, File.ReadAllBytes(Path.Combine(dest, "torch", "lib", "fun.dll")));
         Assert.Equal(BodyNestedForward, File.ReadAllBytes(Path.Combine(dest, "cv2", "x.dat")));
         Assert.Equal(BodyPlain, File.ReadAllBytes(Path.Combine(dest, "plain.dat")));
+        Assert.Equal(BodyXData, File.ReadAllBytes(Path.Combine(dest, "wgpu", "v15_2", "masked_alignment.pyc")));
     }
 
     [Fact]
@@ -491,7 +500,7 @@ public class PayloadTests : IClassFixture<TestTemp>
         string exe = Path.Combine(TempDir(), "jsr_backend.exe");
         File.WriteAllBytes(exe, BuildMiniOnefile(StandardMiniEntries(), trailerLength: 512));
         string dest = TempDir();
-        Assert.Equal(4, EnginePreextractor.Extract(exe, dest));
+        Assert.Equal(5, EnginePreextractor.Extract(exe, dest));
         Assert.True(File.Exists(Path.Combine(dest, "python310.dll")));
 
         // 无 MEI cookie 的普通文件 → 明确拒绝（不是 PyInstaller onefile）。
@@ -536,7 +545,7 @@ public class PayloadTests : IClassFixture<TestTemp>
 
         // Extract 管线形态：树内拷贝即薄体（b 体零、其余原样、长度同）。
         string dest = TempDir();
-        Assert.Equal(4, EnginePreextractor.Extract(exe, dest));
+        Assert.Equal(5, EnginePreextractor.Extract(exe, dest));
         byte[] staged = File.ReadAllBytes(Path.Combine(dest, "jsr_backend.exe"));
         AssertThinF1Form(original, staged);
 
@@ -891,9 +900,10 @@ public class PayloadTests : IClassFixture<TestTemp>
         Assert.True(File.Exists(Path.Combine(fresh, PayloadPacker.PayloadFileName)));
     }
 
-    // ---------- 后端版本号（右上角 Jiangtherapee Bridge v… 显示的数据源） ----------
+    // ---------- 后端版本号（右上角 JSR v… 显示的数据源） ----------
 
-    /// <summary>reference\Jiangtherapee-Bridge-2.3.27-Windows-x64 目录名 → "2.3.27"；
+    /// <summary>reference\ 目录名 → 版本号（两种发行包形态：Jiangtherapee-Bridge-2.3.27-
+    /// Windows-x64 → "2.3.27"；JSR 独立包 JSR_V18.1\JSR_V18.1_Sharp → "18.1"）；
     /// 打包期解析、写入 manifest，运行时 PayloadManager 读嵌入 manifest 显示——
     /// reference/ 换新版后重打包即自动更新，无手填常量可漂移。</summary>
     [Theory]
@@ -902,12 +912,18 @@ public class PayloadTests : IClassFixture<TestTemp>
     [InlineData("Jiangtherapee-Bridge-10.1-Windows-x64", "10.1")]
     [InlineData("jiangtherapee-bridge-2.3.27-windows-x64", "2.3.27")]   // 大小写不敏感（Windows 目录）
     [InlineData("Jiangtherapee-Bridge-2.3.27.1-Windows-x64", "2.3.27.1")]
+    [InlineData("JSR_V18.1_Sharp", "18.1")]
+    [InlineData("JSR_V18.1", "18.1")]
+    [InlineData("jsr_v17.2.1_sharp", "17.2.1")]
+    [InlineData("JSR_V18.1.3_Sharp", "18.1.3")]
     public void ParseBackendVersion_ReferenceDirNames(string dirName, string expected)
         => Assert.Equal(expected, PayloadPacker.ParseBackendVersion(Path.Combine(@"D:\ref", dirName)));
 
     [Theory]
     [InlineData("Jiangtherapee-Bridge-v2.3.27-Windows-x64")]   // v 前缀不是数字段
     [InlineData("Jiangtherapee-Bridge-Windows-x64")]           // 无版本段
+    [InlineData("JSR_V_Sharp")]                                // 无版本段
+    [InlineData("JSRBridge-18.1")]                             // 前缀不带数字段
     [InlineData("some-random-guid-dir")]
     [InlineData("")]
     public void ParseBackendVersion_UnrecognizedNames_ReturnNull(string dirName)

@@ -137,7 +137,7 @@
                                    IsVisible="{Binding AppVersion, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}"
                                    FontSize="11" Foreground="{DynamicResource SemiColorText2}"
                                    TextAlignment="Right" />
-                        <TextBlock Text="{Binding BackendVersion, StringFormat='Jiangtherapee Bridge {0}'}"
+                        <TextBlock Text="{Binding BackendVersion, StringFormat='JSR {0}'}"
                                    IsVisible="{Binding BackendVersion, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}"
                                    FontSize="11" Foreground="{DynamicResource SemiColorText3}"
                                    TextAlignment="Right" />

@@ -15,7 +15,10 @@ namespace Jsr4Z8.Tools;
 /// - TOC 条目 18 B 大端头 structLen(u32) pos(u32) csize(u32) usize(u32) cmprsFlag(u8) type(1B)
 ///   + NUL 结尾名（Windows 构建名内分隔符 '\'，'/' 兼容采纳）；条目按 structLen 步进，
 ///   走完必须恰好落在 TOC 末；
-/// - 仅 'b'（binary）条目解包落盘——m/s/z/o 留在 exe 内由引导器内存读取；cmprsFlag=1 时
+/// - 仅 'b'（binary）与 'x'（data）条目解包落盘——这也是 onefile 引导器自解压的落盘集
+///   （m/s/z/o 留在 exe 内由引导器内存读取；V18.1 起 'x' 非空：v15_2.masked_*.pyc 四个对齐模块，
+///   引导器把 wgpu 目录插 sys.path 首位、包及子模块从磁盘树导入，x 条目缺位即启动期
+///   ModuleNotFoundError —— 2026-10-27 V18.1 升级 E2E 实证）；cmprsFlag=1 时
 ///   zlib（RFC 1950）解压，解压输出长度必须等于 TOC usize；
 /// - 目标布局 = 运行时契约：
 ///   b 文件按 TOC 名相对路径落盘，外加 onefile exe 本体拷贝进树根——拷贝随即施加薄档案变换
@@ -31,13 +34,13 @@ public static class EnginePreextractor
     private const int TocEntryHeaderSize = 18; // structLen/pos/csize/usize 4×u32 + cmprsFlag 1 + type 1
     private const int CookieSearchTail = 8192; // cookie 只在文件末 8 KB 内扫描（实验脚本同款）
 
-    /// <summary>TOC 'b' 条目：体窗口定位（pos/csize）+ 解包（usize/cmprsFlag/名）所需字段。</summary>
-    private sealed record BinaryEntry(long Offset, long CompressedLength, uint UncompressedLength, bool Compressed, string Name);
+    /// <summary>TOC 落盘条目（'b' binary / 'x' data）：体窗口定位（pos/csize）+ 解包（usize/cmprsFlag/名）所需字段。</summary>
+    private sealed record DiskEntry(long Offset, long CompressedLength, uint UncompressedLength, bool Compressed, char Type, string Name);
 
     /// <summary>
     /// 解包 <paramref name="onefileExe"/>（PyInstaller onefile exe）内嵌 CArchive 的全部 'b' 条目到
     /// <paramref name="destDir"/>（TOC 名即相对路径，含子目录），把 exe 本体拷贝到 destDir 根并随即
-    /// 施加薄档案变换（见 <see cref="ThinTransform"/>；源 onefile 永不改动）。返回解包的 b 条目数。
+    /// 施加薄档案变换（见 <see cref="ThinTransform"/>；源 onefile 永不改动）。返回解包的落盘条目数（b+x）。
     /// 同输入重跑得到逐字节相同的结果（确定性）。
     /// </summary>
     public static int Extract(string onefileExe, string destDir)
@@ -45,13 +48,13 @@ public static class EnginePreextractor
         ArgumentException.ThrowIfNullOrWhiteSpace(onefileExe);
         ArgumentException.ThrowIfNullOrWhiteSpace(destDir);
         byte[] data = File.ReadAllBytes(onefileExe);
-        (long archiveStart, _, long cookieOffset, List<BinaryEntry> binaries) =
+        (long archiveStart, _, long cookieOffset, List<DiskEntry> diskEntries) =
             ParseArchive(onefileExe, data.Length, (offset, length) => data[(int)offset..(int)(offset + length)]);
 
-        // b 条目落盘：数据窗口 [archiveStart+pos, +csize)，zlib 或原样，长度必须等于 usize
+        // b/x 条目落盘：数据窗口 [archiveStart+pos, +csize)，zlib 或原样，长度必须等于 usize
         // （从原档内存数据落盘——薄变换只作用于稍后的树内拷贝，不影响落盘内容）。
         Directory.CreateDirectory(destDir);
-        foreach (BinaryEntry entry in binaries)
+        foreach (DiskEntry entry in diskEntries)
         {
             long source = archiveStart + entry.Offset;
             if (source + entry.CompressedLength > cookieOffset)
@@ -70,7 +73,7 @@ public static class EnginePreextractor
         string stagedExe = Path.Combine(destDir, Path.GetFileName(onefileExe));
         File.Copy(onefileExe, stagedExe, overwrite: true);
         ThinTransform(stagedExe);
-        return binaries.Count;
+        return diskEntries.Count;
     }
 
     /// <summary>
@@ -85,14 +88,17 @@ public static class EnginePreextractor
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(exePath);
         using FileStream stream = File.Open(exePath, FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
-        (long archiveStart, long tocStart, _, List<BinaryEntry> binaries) =
+        (long archiveStart, long tocStart, _, List<DiskEntry> diskEntries) =
             ParseArchive(exePath, stream.Length, (offset, length) => ReadRange(stream, offset, length));
 
         // 流式覆写：按 TOC 区间 seek→写零；窗口严格限于数据区 [archiveStart, tocStart)——
-        // 越界侵入 TOC/cookie 即档案损坏（拒绝而非静默越写）。
+        // 越界侵入 TOC/cookie 即档案损坏（拒绝而非静默越写）。仅 b 体清零；'x' 体刻意保留
+        // （清零实证仅覆盖 b，而 V18.1 的 x 体合计 ~34 KB——保留换取零风险增量）。
         byte[] zeros = new byte[64 * 1024];
-        foreach (BinaryEntry entry in binaries)
+        foreach (DiskEntry entry in diskEntries)
         {
+            if (entry.Type != 'b')
+                continue;
             long source = archiveStart + entry.Offset;
             if (source + entry.CompressedLength > tocStart)
                 throw new InvalidDataException($"b 条目体区间越界（将侵入 TOC）: {entry.Name}");
@@ -109,11 +115,12 @@ public static class EnginePreextractor
 
     /// <summary>
     /// cookie + TOC 解析（Extract 与 ThinTransform 共用同一实现）：末 8 KB 定位 MEI cookie →
-    /// 大端字段 → archiveStart 与 TOC 自洽校验 → 条目 structLen 步进收集全部 'b' 条目。
+    /// 大端字段 → archiveStart 与 TOC 自洽校验 → 条目 structLen 步进收集全部 'b'/'x' 条目
+    /// （引导器自解压的落盘集）。
     /// <paramref name="readRange"/> 按需取字节区间——整档已入内存时切片，流式时按需 seek 读
     /// （薄变换只读末 8 KB + TOC 窗，不整档载入）。
     /// </summary>
-    private static (long ArchiveStart, long TocStart, long CookieOffset, List<BinaryEntry> Binaries)
+    private static (long ArchiveStart, long TocStart, long CookieOffset, List<DiskEntry> DiskEntries)
         ParseArchive(string path, long fileLength, Func<long, long, byte[]> readRange)
     {
         // 1) cookie 定位：末 8 KB 内最后一次出现（实验脚本 tail.rfind(MAGIC)）。
@@ -142,7 +149,7 @@ public static class EnginePreextractor
 
         // 3) TOC 解析：18 B 大端头 + NUL 结尾名，structLen 步进；仅收集 'b' 条目。
         byte[] toc = readRange(tocStart, tocLength);
-        var binaries = new List<BinaryEntry>();
+        var diskEntries = new List<DiskEntry>();
         long cursor = 0; // 相对 TOC 起点（诊断消息换算回绝对偏移）
         while (cursor < tocLength)
         {
@@ -157,11 +164,11 @@ public static class EnginePreextractor
             if (entryLength < TocEntryHeaderSize || cursor + entryLength > tocLength)
                 throw new InvalidDataException($"TOC 条目 structLen 异常: {entryLength} @0x{tocStart + cursor:X}");
             string name = DecodeName(toc, cursor + TocEntryHeaderSize, cursor + entryLength);
-            if (type == 'b')
-                binaries.Add(new(entryOffset, entryCompressedSize, entryUncompressedSize, compressedFlag != 0, name));
+            if (type is 'b' or 'x') // 落盘集：binary 与 data
+                diskEntries.Add(new(entryOffset, entryCompressedSize, entryUncompressedSize, compressedFlag != 0, type, name));
             cursor += entryLength; // 头 + 名 + 对齐填充；越界由下一轮守卫兜住（循环退出即恰好 tocEnd）
         }
-        return (archiveStart, tocStart, cookieOffset, binaries);
+        return (archiveStart, tocStart, cookieOffset, diskEntries);
     }
 
     /// <summary>流式取区间：seek 到 <paramref name="offset"/> 读满 <paramref name="length"/> 字节（短读即档案损坏）。</summary>
