@@ -57,7 +57,7 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐)
 - **后端产物**：`<outputDir>/<prefix>_V15_3_5_K7_<ts>/<同名>.dng` + 辅助文件；失败残留 `.partial` 目录（成功 glob 需排除）。退出码取父实例（正常完成 0）。
 - **后端 DNG 形态**：LinearRaw(34892) 16bit×3通道、无 EXIF/预览/校正、BL=0/WL=65535、尺寸=输入 raw 填充尺寸×2（8280×5520→16560×11040）。
 - **PTC**：`Ptc/Embedded/ptc_z8.csv`（自原包提取）；表内 ISO 直取 1/alpha，表外双段 **log-log 最小二乘**（<500 / ≥500 两段）——字面线性拟合违反计划自身留一检验且 ISO499 得负满阱，勿改回。
-- **E2E 门禁**：完整 E2E（使用 samples RAW 的 GPU 重建）默认不跑，仅用户明示要求时运行；例行验收 = 全量单测 + `build.bat` + `--selftest`（无 NEF 参数，仅载荷释放/校验）。
+- **E2E 门禁**：完整 E2E（使用 samples RAW 的 GPU 重建）默认不跑，仅用户明示要求时运行；例行验收 = 全量单测 + `build.bat` + `--selftest`（无 NEF 参数，仅载荷释放/校验）。E2E 内建双重断言：①**哈希基线**（`E2eBaselineStore`，fixtures/e2e/baselines.json 四格式最终 DNG 全文件 SHA——「我们的输出 vs 原引擎输出」逐字节谓词；引擎/算法/标定有意变更后以 `JSR4Z8_E2E_REGEN_BASELINES=1` 重建并随变更提交，基线文件由 FixtureIntegrityTests 二次锁哈希；无意识漂移=测试红）；②**分协议流进度单调**（V12/ETA 流各自不得回退；跨流尾部 100.0→96 为上游协议固有形状不计）。（方案①评审记录：docs/superpowers/notes/2026-10-28-pair-parallel-plan.md）
 
 ## 5. 关键决策（用户裁定，勿推翻）
 

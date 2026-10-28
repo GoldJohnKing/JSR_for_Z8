@@ -26,6 +26,11 @@ public class FixtureIntegrityTests
         { "protocol/direct_fail.log", "1c867d7279a2fbb37056c6c4b3cdfa1706d52f628f34ac2b8b98d06ee27dd288" },
         // real backend product DNG (foreign PIL/tifffile LJ stream)
         { "backend-dng/roi_sample.dng", "9d51d3b58756348bbdd8bc55dd04bbdc1eb52398b29eac0cfcffd9dd38db8127" },
+        // E2E final-DNG hash baselines (E2eBaselineStore / E2eTests FullRun): living
+        // file — regen (JSR4Z8_E2E_REGEN_BASELINES=1) rewrites it on INTENTIONAL
+        // engine/algorithm/calibration changes; this lock hash must ride along in
+        // the same commit (double speed bump against unnoticed drift).
+        { "e2e/baselines.json", "5b8ba0f947f9546cc99d14049633ec0caaf1ff57f3319018f432bc9b60cab048" },
         // stub backend engines (BackendRunnerTests; stub_dual_* replicate the
         // engine's same-argv child self-respawn of the non-injected spawn shape)
         { "stub_backend/stub_backend.bat", "a7717c7263a00e29fbc850a81d41ce609d4852e201b956f9c84e0375b47644c4" },

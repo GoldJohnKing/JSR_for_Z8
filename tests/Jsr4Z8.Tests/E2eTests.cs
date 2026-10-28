@@ -31,9 +31,17 @@ namespace Jsr4Z8.Tests;
 public class E2eTests
 {
     private const string EnvVar = "JSR4Z8_E2E";
+    private const string RegenBaselinesVar = "JSR4Z8_E2E_REGEN_BASELINES";
     private const string DngExportStage = "DNG 导出"; // ProtocolParser's mapped ETA stage label
 
     private static bool Enabled => Environment.GetEnvironmentVariable(EnvVar) == "1";
+
+    /// <summary>基线重建模式（有意变更后重建基线并随变更提交；默认断言模式拦无意识漂移）。</summary>
+    private static bool RegenBaselines => Environment.GetEnvironmentVariable(RegenBaselinesVar) == "1";
+
+    /// <summary>四格式 FullRun 的最终 DNG 哈希基线（「我们的输出 vs 原引擎输出」逐字节谓词）。</summary>
+    private static string BaselinePath => Path.Combine(
+        RepoRoot(), "tests", "Jsr4Z8.Tests", "fixtures", "e2e", "baselines.json");
 
     // ---- shared plumbing ----------------------------------------------------
 
@@ -82,6 +90,13 @@ public class E2eTests
         public int V12ProgressLines;
         public int EtaProgressLines;
         public int MaxPercent = -1;
+        /// <summary>分协议流单调性：V12 流与 ETA 流各自不得回退（跨流尾部 100.0→96 为上游协议
+        /// 固有形状——ETA 流先到 100.0、V12 流再 96→100 收尾——不计入；线程化对齐乱序发射
+        /// 进度行会在此暴露，见方案 docs/superpowers/notes/2026-10-28-pair-parallel-plan.md）。</summary>
+        public int V12PercentRegressions;
+        public int EtaPercentRegressions;
+        private int _lastV12 = -1;
+        private double _lastEta = -1;
         public JsrStart? Start;
 
         public void OnEvent(QueueEvent e)
@@ -95,8 +110,20 @@ public class E2eTests
                     lock (Lines) Lines.Add(l.Text);
                     if (l.Progress is { } p)
                     {
-                        if (p.Stage == DngExportStage) EtaProgressLines++;
-                        else V12ProgressLines++;
+                        if (p.Stage == DngExportStage)
+                        {
+                            EtaProgressLines++;
+                            if (p.Percent < _lastEta)
+                                EtaPercentRegressions++;
+                            _lastEta = p.Percent;
+                        }
+                        else
+                        {
+                            V12ProgressLines++;
+                            if (p.Percent < _lastV12)
+                                V12PercentRegressions++;
+                            _lastV12 = p.Percent;
+                        }
                         MaxPercent = Math.Max(MaxPercent, p.Percent);
                     }
                     break;
@@ -215,11 +242,18 @@ public class E2eTests
         ReportOutcome(outcome, capture, $"全流程·预置黑场·{groupDir}");
 
         Assert.True(outcome.Success, outcome.Message);
+        // 分流单调（V12/ETA 各自不得回退；跨流尾部 100.0→96 为协议固有形状，不计）。
+        Assert.Equal(0, capture.V12PercentRegressions);
+        Assert.Equal(0, capture.EtaPercentRegressions);
         string expected = Path.Combine(Path.GetDirectoryName(frames[0])!,
             $"JSR_{Path.GetFileNameWithoutExtension(frames[0])}.dng"); // 输出目录=基准帧所在目录
         Assert.Equal(Path.GetFullPath(expected), Path.GetFullPath(outcome.OutputPath!));
         Assert.True(File.Exists(expected), $"最终 DNG 缺失: {expected}");
         AssertFinalDng(expected, new[] { asnR, 1.0, asnB }, iso);
+
+        // 逐字节谓词：我们的构建产物 vs 原引擎输出基线（引擎/算法/标定有意变更后
+        // 以 JSR4Z8_E2E_REGEN_BASELINES=1 重建并随变更提交；其余漂移即回归）。
+        Ev(E2eBaselineStore.AssertOrRegen(BaselinePath, groupDir, expected, RegenBaselines));
     }
 
     private static void AssertFinalDng(string dngPath, double[] expectedAsShotNeutral, int expectedIso)
