@@ -28,7 +28,7 @@
 
 ## 下载与运行
 
-从 [Releases](https://github.com/GoldJohnKing/JSR_for_Z8/releases/latest) 下载 `JSR4Z8_v1.0.0.exe`，双击运行即可，无需安装。
+从 [Releases](https://github.com/GoldJohnKing/JSR_for_Z8/releases/latest) 下载 `JSR4Z8_v1.2.1.exe`，双击运行即可，无需安装。
 
 ## 使用说明
 
