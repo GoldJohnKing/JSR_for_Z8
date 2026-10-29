@@ -38,13 +38,17 @@ set PAYLOAD_EMBED=%ROOT%src\Jsr4Z8.Core\Payload\Embedded
 set PAYLOAD_SRC=
 rem Discovery (highest version wins; JSR standalone packages carry numerically higher
 rem versions than any 2.3.x Bridge release, so JSR wins whenever present):
-rem   1) JSR standalone: reference\JSR_V<ver>\JSR_V<ver>_Sharp (nested layout)
-rem   2) Bridge flat:    reference\Jiangtherapee-Bridge-<ver>-*
-rem dir /o-n = descending name order = highest version (same-length version prefix assumed)
+rem   1) JSR standalone nested:  reference\JSR_V<ver>\JSR_V<ver>_Sharp
+rem   2) JSR standalone flat:    reference\JSR_V<ver>            (V18.2.1+ layout)
+rem   3) Bridge flat:            reference\Jiangtherapee-Bridge-<ver>-*
+rem Within one JSR_V<ver> dir the nested _Sharp layout wins over flat; higher version
+rem dir wins over lower regardless of layout. dir /o-n = descending name order =
+rem highest version (same-length version prefix assumed)
 for /f "delims=" %%d in ('dir /b /ad /o-n "%ROOT%reference\JSR_V*" 2^>nul') do (
     for /f "delims=" %%s in ('dir /b /ad /o-n "%ROOT%reference\%%d\JSR_V*_Sharp" 2^>nul') do (
         if not defined PAYLOAD_SRC if exist "%ROOT%reference\%%d\%%s\resources\jsr_backend.exe" set "PAYLOAD_SRC=%ROOT%reference\%%d\%%s"
     )
+    if not defined PAYLOAD_SRC if exist "%ROOT%reference\%%d\resources\jsr_backend.exe" set "PAYLOAD_SRC=%ROOT%reference\%%d"
 )
 if not defined PAYLOAD_SRC for /f "delims=" %%d in ('dir /b /ad /o-n "%ROOT%reference\Jiangtherapee-Bridge-*" 2^>nul') do if not defined PAYLOAD_SRC set "PAYLOAD_SRC=%ROOT%reference\%%d"
 
@@ -171,7 +175,7 @@ echo      VC++ runtime DLLs staged OK
 
 REM --- Step 4: pack backend payload into Core embedded resources (pack-payload self-decides by manifest hash) ---
 if not defined PAYLOAD_SRC (
-    echo ERROR: no backend distribution found under reference\ - extract a JSR_V*_Sharp or Jiangtherapee-Bridge-* package there first.
+    echo ERROR: no backend distribution found under reference\ - extract a JSR_V*_Sharp nested, JSR_V* flat, or Jiangtherapee-Bridge-* package there first.
     exit /b 1
 )
 echo [4/6] Packing backend payload ~30-60 s (swaps in only if the manifest hash changed)...
