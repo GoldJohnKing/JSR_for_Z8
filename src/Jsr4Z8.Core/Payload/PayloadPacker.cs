@@ -16,9 +16,10 @@ public sealed record PayloadManifestEntry(string Path, string Sha256, long Lengt
 /// ordinal-path-sorted concatenation of "path\nsha256\n" lines; <see cref="PayloadManager"/>
 /// extracts into a directory named by its first 16 hex chars, so a new payload version
 /// never collides with an old extraction. <see cref="BackendVersion"/> is the release
-/// distribution's version parsed from the source directory name — either layout:
-/// reference\Jiangtherapee-Bridge-2.3.27-Windows-x64 → "2.3.27", or the JSR standalone
-/// package reference\JSR_V18.1\JSR_V18.1_Sharp → "18.1" — display metadata
+/// distribution's version parsed from the source directory name — any layout:
+/// reference\Jiangtherapee-Bridge-2.3.27-Windows-x64 → "2.3.27", the JSR standalone
+/// package reference\JSR_V18.1\JSR_V18.1_Sharp → "18.1" (nested) or
+/// reference\JSR_V18.2.1 → "18.2.1" (flat, V18.2.1+ layout) — display metadata
 /// only (the 右上角 JSR v… line); it takes no part in <see cref="Hash"/> and is
 /// omitted from the JSON when unrecognized (null).
 /// </summary>
@@ -89,9 +90,10 @@ public static class PayloadPacker
     };
 
     /// <summary>
-    /// 后端发行包版本号解析（目录名 → "x.y[.z]"，两种目录形态）：
-    /// Jiangtherapee-Bridge-&lt;x.y[.z[…]]&gt;-…（平铺）或 JSR_V&lt;x.y[.z]&gt;_Sharp（JSR 独立包，
-    /// 嵌套在同名外层目录下）。build.bat 自动选 reference\ 下最高版目录打包，版本随目录名
+    /// 后端发行包版本号解析（目录名 → "x.y[.z]"，三种目录形态）：
+    /// Jiangtherapee-Bridge-&lt;x.y[.z[…]]&gt;-…（平铺）、JSR_V&lt;x.y[.z]&gt;_Sharp（JSR 独立包，
+    /// 嵌套在同名外层目录下）或 JSR_V&lt;x.y[.z]&gt;（平铺，V18.2.1 起的独立包形态）。
+    /// build.bat 自动选 reference\ 下最高版目录打包，版本随目录名
     /// 无人工环节直达 manifest（展示元数据，不入 Hash）。
     /// </summary>
     private static readonly Regex BackendVersionPattern = new(

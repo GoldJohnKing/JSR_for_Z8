@@ -1,6 +1,6 @@
 # AGENT.md — JSR for Z8 项目接手指南
 
-尼康 Z8 专用的七帧 RAW 超分辨率 GUI 客户端：C#/.NET 8 + Avalonia 前端，内嵌 Jiangtherapee 2.3.27 的 Python 计算引擎（WGPU/Vulkan 计算；直调预解包树内 `resources\jsr_backend_runtime\jsr_backend.exe`，`_PYI_*` 三元组注入直跑——零 %TEMP% 自解压，载荷不携带顶层 `Jiangtherapee Bridge.exe` 壳与 onefile 整体引擎），以单文件 exe 分发。后端与前端仅通过 argv + stdout 裸行协议通信。
+尼康 Z8 专用的七帧 RAW 超分辨率 GUI 客户端：C#/.NET 8 + Avalonia 前端，内嵌 JSR V18.2.1（Jiangtherapee 谱系）的 Python 计算引擎（WGPU/Vulkan 计算；直调预解包树内 `resources\jsr_backend_runtime\jsr_backend.exe`，`_PYI_*` 三元组注入直跑——零 %TEMP% 自解压，载荷不携带顶层 `Jiangtherapee Bridge.exe` 壳与 onefile 整体引擎），以单文件 exe 分发。后端与前端仅通过 argv + stdout 裸行协议通信。
 
 ## 1. 环境与工作方式（必读）
 
@@ -17,8 +17,8 @@
 
 | 动作 | 命令（Windows host） |
 |---|---|
-| 全量测试 | `dotnet test --nologo`（当前 **312/312 全绿**；黑场标定恒为预置表匹配——见 §5 决策 3） |
-| 一键发布 | `build.bat` → `out\JSR4Z8_v<版本>.exe`（单文件实测 249,602,260 B=打包含 Step 3b/3d 捆绑 VC 运行库；Step 4 恒跑 pack-payload：预解包 onefile 引擎入 `resources\jsr_backend_runtime\`，自动选 reference/ 下最高版本，manifest 哈希比对自决换入，无需手动删 payload.*） |
+| 全量测试 | `dotnet test --nologo`（当前 **318/318 全绿**；黑场标定恒为预置表匹配——见 §5 决策 3） |
+| 一键发布 | `build.bat` → `out\JSR4Z8_v<版本>.exe`（单文件实测 249,527,560 B=打包含 Step 3b/3d 捆绑 VC 运行库；Step 4 恒跑 pack-payload：预解包 onefile 引擎入 `resources\jsr_backend_runtime\`，自动选 reference/ 下最高版本，manifest 哈希比对自决换入，无需手动删 payload.*） |
 | 载荷实测 | 预解包载荷：**1,413 文件/原始 587,208,644 B/payload.bin 202,090,115 B/manifest hash 2420e46c445fc6cc/backendVersion 18.2.1**；构成=引擎本体**薄拷贝** 201,097,686 B（b 体清零、x 体保留的打包期变换，长度不变、盘上树零影响；原件=reference/ onefile 未动；无三变量 spawn 即响亮失败）+CArchive 树余 1,385 文件（b 1,381+x 4，x=masked 对齐模块，缺位即启动期 ModuleNotFoundError）385,401,486 B+licenses/元数据 27 文件 709,472 B；薄档案评估与端到端实证 docs/superpowers/notes/2026-10-16-thin-archive-probe.md（注入契约实证 …/2026-10-16-meipass2-experiment.md） |
 | 无头自检 | `out\JSR4Z8_v*.exe --selftest [file.nef]`（释放/校验载荷+验树内引擎 `resources\jsr_backend_runtime\jsr_backend.exe`+LibRaw 冒烟） |
 | E2E（真 GPU，~6min/全幅） | cmd 脚本内 `set JSR4Z8_E2E=1` + `dotnet test --filter FullyQualifiedName~E2eTests.<名>`；门控规则见 §4 硬契约末条 |
@@ -40,7 +40,7 @@ Avalonia GUI(Jsr4Z8.UI: Save_Z8 风格卡片流/拖放内联建组/渐进补齐)
                   （EXIF/GPS/XMP/三级预览搬迁、镜头校正Opcode、无损JPEG Compress=7、LinearRaw 16bit×3通道）
 ```
 
-- `src/Jsr4Z8.Core`：RawMetadataReader(LibRaw)、NefAssetExtractor(TiffIfdExtractor 复刻)、Ptc(双段log-log拟合)、Dark(Embedded/dark_z8.csv 93行=31档ISO×FX{无损,HE,HE*}实拍（自测：后端精确口径测算、双解码器互证≤0.058 DN） 预置黑场表：双键(压缩,ISO)精确匹配不插值——ISO500=DCG切换点；画幅不参与匹配)、TaskGroupValidator(五维一致性：机型/ISO/位深/压缩/画幅 两两校验+预置黑场双键匹配，画像外=CaptureFormatUnsupported"拍摄格式不支持"；无手动黑场路径；曝光包围：仅快门速度不同的 7 帧合法，UI 层默认取中间曝光为基准帧)、Backend(argv 构建器 BuildArguments+裸行协议+直调执行器)、Dng(写盘器)、Payload(白名单=resources/ 树减排除清单+打包期预解包引擎树映射 resources\jsr_backend_runtime\（tools/pack-payload EnginePreextractor：CArchive b+x 条目→树（引导器自解压的落盘集；V18.1 起 x 非空=masked 对齐模块）+引擎本体薄拷贝（b 体清零、x 体保留，薄档案形态））；排除：顶层 Bridge.exe/K14 引擎/传统3×引擎/onefile 整体 jsr_backend.exe（ExactPath 防回潮）/_internal 整树（引擎从不读盘上树）/raw_bridge+jxl_worker 工具与其 libjxl-DLL 家族（从未 spawn）/z8_presets；THIRD_PARTY_NOTICES.md 不打包)、Queue。manifest 另带展示字段 backendVersion：pack-payload 从 reference 目录名解析（JSR_V18.1\JSR_V18.1_Sharp→"18.1"、Jiangtherapee-Bridge-2.3.27→"2.3.27"），不入 payload hash，重打包自动更新；UI 右上角「JSR v…」行的数据源（PayloadManager.TryReadBackendVersion，缺资源→隐藏整行）。
+- `src/Jsr4Z8.Core`：RawMetadataReader(LibRaw)、NefAssetExtractor(TiffIfdExtractor 复刻)、Ptc(双段log-log拟合)、Dark(Embedded/dark_z8.csv 93行=31档ISO×FX{无损,HE,HE*}实拍（自测：后端精确口径测算、双解码器互证≤0.058 DN） 预置黑场表：双键(压缩,ISO)精确匹配不插值——ISO500=DCG切换点；画幅不参与匹配)、TaskGroupValidator(五维一致性：机型/ISO/位深/压缩/画幅 两两校验+预置黑场双键匹配，画像外=CaptureFormatUnsupported"拍摄格式不支持"；无手动黑场路径；曝光包围：仅快门速度不同的 7 帧合法，UI 层默认取中间曝光为基准帧)、Backend(argv 构建器 BuildArguments+裸行协议+直调执行器)、Dng(写盘器)、Payload(白名单=resources/ 树减排除清单+打包期预解包引擎树映射 resources\jsr_backend_runtime\（tools/pack-payload EnginePreextractor：CArchive b+x 条目→树（引导器自解压的落盘集；V18.1 起 x 非空=masked 对齐模块）+引擎本体薄拷贝（b 体清零、x 体保留，薄档案形态））；排除：顶层 Bridge.exe/K14 引擎/传统3×引擎/onefile 整体 jsr_backend.exe（ExactPath 防回潮）/_internal 整树（引擎从不读盘上树）/raw_bridge+jxl_worker 工具与其 libjxl-DLL 家族（从未 spawn）/z8_presets；THIRD_PARTY_NOTICES.md 不打包)、Queue。manifest 另带展示字段 backendVersion：pack-payload 从 reference 目录名解析（JSR_V18.1\JSR_V18.1_Sharp→"18.1"（嵌套）、JSR_V18.2.1→"18.2.1"（平铺）、Jiangtherapee-Bridge-2.3.27→"2.3.27"），不入 payload hash，重打包自动更新；UI 右上角「JSR v…」行的数据源（PayloadManager.TryReadBackendVersion，缺资源→隐藏整行）。
 - `external/`：git submodule ×2（pdcgomes/redlamp-libraw@`redlamp`、libjpeg-turbo）——**唯一允许的源码依赖方式**；.NET 库一律 NuGet 锁版本（Avalonia 11.2.2 / Semi.Avalonia 11.2.1.10 / CT.Mvvm 8.3.2，与 Save_Z8 对齐）。
   - LibRaw 子模块 = redlamp-libraw `3b20539`（Redlamp 生产 pin，tag `pin-3b20539`）：尼康 HE/HE* 解码输出经 Adobe DNG Converter 逐像素验证；对上游的偏离与升级流程见子模块内 `REDLAMP.md`。LibRaw 官方 HE 解码器随公开快照发布后应重新评估是否切回上游。
 - 复刻纪律：Save_Z8 代码（`D:\GitRepos\Save_Z8`，作者自有项目）按「复刻源文件+保留头注」方式移植，**不**作为 submodule。参考产物：`D:\GitRepos\Save_Z8\samples\DSC_7576_fixed.dng`（ACR 实证可开的 CFA 对照基准）。

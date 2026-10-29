@@ -42,6 +42,11 @@ public class TaskGroupCreatorTests
     private static string[] Shuffled() => new[] { 7582, 7576, 7579, 7577, 7581, 7578, 7580 }
         .Select(i => $@"C:\Photos\DSC_{i}.NEF").ToArray();
 
+    /// <summary>注入式 read 缝：后台读取阻塞在门阀上，放行后返回 MockMeta 元数据
+    /// ——「即时建卡/校验飞行」类时序测试的公共样板（与卡片 VM 的 read 缝语义一致）。</summary>
+    private static Func<string, RawMetadata> GatedRead(TaskCompletionSource<bool> gate) =>
+        _ => { gate.Task.Wait(); return Meta(); };
+
     // ---- TaskGroupCreator: filter / order / reference pick ------------------------
 
     [Fact]
@@ -260,11 +265,7 @@ public class TaskGroupCreatorTests
     public async Task AddFiles_CardAppearsImmediately_ThenValidates()
     {
         var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Func<string, RawMetadata> read = _ =>
-        {
-            gate.Task.Wait();
-            return Meta();
-        };
+        Func<string, RawMetadata> read = GatedRead(gate);
         var main = new MainViewModel(read: read);
 
         Task flight = main.AddFilesAsync(Frames);
@@ -292,11 +293,7 @@ public class TaskGroupCreatorTests
     public async Task ValidatingCount_DerivedFromCards()
     {
         var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Func<string, RawMetadata> read = _ =>
-        {
-            gate.Task.Wait();
-            return Meta();
-        };
+        Func<string, RawMetadata> read = GatedRead(gate);
         var main = new MainViewModel(read: read);
 
         Task flight = main.AddFilesAsync(Frames);
@@ -338,11 +335,7 @@ public class TaskGroupCreatorTests
     public async Task AddFilesAsync_ConcurrentDrops_TwoCards()
     {
         var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Func<string, RawMetadata> read = _ =>
-        {
-            gate.Task.Wait();
-            return Meta();
-        };
+        Func<string, RawMetadata> read = GatedRead(gate);
         var main = new MainViewModel(read: read);
         string[] setA = Frames;
         string[] setB = Enumerable.Range(7652, 7).Select(i => $@"C:\Photos\DSC_{i}.NEF").ToArray();

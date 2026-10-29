@@ -42,6 +42,11 @@ public class TaskGroupVmTests
             new[] { new ValidationIssue("", IssueKind.FrameCount, "帧数不符：任务组需要 7 帧，实际 7 帧") },
             null));
 
+    /// <summary>注入式 read 缝：后台读取阻塞在门阀上，放行后返回 MockMeta 元数据
+    /// ——「即时建卡/校验飞行」类时序测试的公共样板（与卡片 VM 的 read 缝语义一致）。</summary>
+    private static Func<string, RawMetadata> GatedRead(TaskCompletionSource<bool> gate) =>
+        _ => { gate.Task.Wait(); return Meta(); };
+
     /// <summary>Drives a fresh Ready VM into the requested state through valid edges only.</summary>
     private static TaskGroupViewModel To(TaskState state)
     {
@@ -138,11 +143,7 @@ public class TaskGroupVmTests
     public async Task StartAll_CanExecuteNotified_WhenFastDroppedFlightsBothLandReady()
     {
         var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Func<string, RawMetadata> read = _ =>
-        {
-            gate.Task.Wait();
-            return Meta();
-        };
+        Func<string, RawMetadata> read = GatedRead(gate);
         var main = new MainViewModel(read: read);
 
         Task drop1 = main.AddFilesAsync(Frames);    // 卡 1 即时入列，校验飞行阻塞在 gate
@@ -575,11 +576,7 @@ public class TaskGroupVmTests
         string[] first3 = Frames.Take(3).ToArray();
         string[] rest = Frames.Skip(3).ToArray();
         var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Func<string, RawMetadata> read = _ =>
-        {
-            gate.Task.Wait();
-            return Meta();
-        };
+        Func<string, RawMetadata> read = GatedRead(gate);
         var vm = new TaskGroupViewModel(new TaskGroup(first3),
             new ValidationResult(false,
                 new[] { new ValidationIssue("", IssueKind.FrameCount,
@@ -758,11 +755,7 @@ public class TaskGroupVmTests
     public async Task IsEditable_FalseWhileValidating()
     {
         var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Func<string, RawMetadata> read = _ =>
-        {
-            gate.Task.Wait();
-            return Meta();
-        };
+        Func<string, RawMetadata> read = GatedRead(gate);
         var card = new TaskGroupViewModel(new TaskGroup(Frames), validation: null, read: read);
         Assert.True(card.IsEditable);                        // Blocked（尚未校验）仍可编辑
         Assert.Equal(string.Empty, card.IssuesText);         // 即时建卡初始态：空 issues

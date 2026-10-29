@@ -20,6 +20,23 @@ internal static class NefFiles
         e.Data.GetFiles() is { } items && items.Any(f =>
             f.TryGetLocalPath() is { } path && IsNef(path));
 
+    /// <summary>Shared NEF open-file picker (window empty-state/browse and card
+    /// top-up both funnel through here); returns the picked local paths, already
+    /// NEF-filtered.</summary>
+    internal static async Task<string[]> OpenNefPickerAsync(IStorageProvider storage, string title)
+    {
+        var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = true,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("Nikon RAW") { Patterns = new[] { "*.nef" } }
+            }
+        });
+        return FilterNefPaths(files.Select(f => f.TryGetLocalPath()));
+    }
+
     /// <summary>Extension test for .nef (case-insensitive).</summary>
     internal static bool IsNef(string path) =>
         string.Equals(Path.GetExtension(path), ".nef", StringComparison.OrdinalIgnoreCase);

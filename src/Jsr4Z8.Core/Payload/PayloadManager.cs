@@ -91,9 +91,9 @@ public sealed class PayloadManager
     internal Action<string, string>? DirectoryMoveHook { get; set; }
 
     /// <summary>
-    /// 嵌入载荷的后端版本号（右上角 JSR v… 行的数据源），如 "18.1"/"2.3.27"；
-    /// 版本由 pack-payload 从 reference\ 源目录名（JSR_V&lt;ver&gt;_Sharp 或
-    /// Jiangtherapee-Bridge-&lt;ver&gt;-…）解析写入 manifest（backendVersion 字段），
+    /// 嵌入载荷的后端版本号（右上角 JSR v… 行的数据源），如 "18.2.1"/"2.3.27"；
+    /// 版本由 pack-payload 从 reference\ 源目录名（JSR_V&lt;ver&gt;_Sharp 嵌套、JSR_V&lt;ver&gt;
+    /// 平铺或 Jiangtherapee-Bridge-&lt;ver&gt;-…）解析写入 manifest（backendVersion 字段），
     /// 重打包即自动更新。缺资源（快开发构建）或解析失败 → null（UI 整行隐藏），
     /// 永不抛——纯展示元数据不值得启动路径冒险。
     /// </summary>

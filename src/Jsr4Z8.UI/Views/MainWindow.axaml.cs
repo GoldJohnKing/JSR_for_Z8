@@ -75,7 +75,7 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Backend payload version as "v18.1" from the embedded manifest's
+    /// <summary>Backend payload version as "v18.2.1" from the embedded manifest's
     /// backendVersion (written by pack-payload at build time — repacking a new
     /// reference/ version updates it automatically); empty when absent/unreadable
     /// (fast dev builds) so the top-right line hides.</summary>
@@ -153,17 +153,9 @@ public partial class MainWindow : Window
 
     private async void OnBrowseFiles(object? sender, RoutedEventArgs e)
     {
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = "选择 7 张 RAW（Nikon NEF）",
-            AllowMultiple = true,
-            FileTypeFilter = new[]
-            {
-                new FilePickerFileType("Nikon RAW") { Patterns = new[] { "*.nef" } }
-            }
-        });
-
-        string[] paths = NefFiles.FilterNefPaths(files.Select(f => f.TryGetLocalPath()));
+        if (StorageProvider is not { } storage)
+            return;
+        string[] paths = await NefFiles.OpenNefPickerAsync(storage, "选择 7 张 RAW（Nikon NEF）");
         if (paths.Length > 0 && ViewModel is { } vm)
             await vm.AddFilesAsync(paths);
     }

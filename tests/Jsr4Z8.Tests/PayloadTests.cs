@@ -902,8 +902,9 @@ public class PayloadTests : IClassFixture<TestTemp>
 
     // ---------- 后端版本号（右上角 JSR v… 显示的数据源） ----------
 
-    /// <summary>reference\ 目录名 → 版本号（两种发行包形态：Jiangtherapee-Bridge-2.3.27-
-    /// Windows-x64 → "2.3.27"；JSR 独立包 JSR_V18.1\JSR_V18.1_Sharp → "18.1"）；
+    /// <summary>reference\ 目录名 → 版本号（三种发行包形态：Jiangtherapee-Bridge-2.3.27-
+    /// Windows-x64 → "2.3.27"；JSR 独立包 JSR_V18.1\JSR_V18.1_Sharp → "18.1"（嵌套）；
+    /// JSR_V18.2.1 → "18.2.1"（平铺，V18.2.1 起））；
     /// 打包期解析、写入 manifest，运行时 PayloadManager 读嵌入 manifest 显示——
     /// reference/ 换新版后重打包即自动更新，无手填常量可漂移。</summary>
     [Theory]

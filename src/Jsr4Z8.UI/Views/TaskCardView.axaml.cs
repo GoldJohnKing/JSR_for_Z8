@@ -75,17 +75,7 @@ public partial class TaskCardView : UserControl
         if (TopLevel.GetTopLevel(this)?.StorageProvider is not { } storage)
             return;
 
-        var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = "添加 RAW（Nikon NEF）",
-            AllowMultiple = true,
-            FileTypeFilter = new[]
-            {
-                new FilePickerFileType("Nikon RAW") { Patterns = new[] { "*.nef" } }
-            }
-        });
-
-        string[] paths = NefFiles.FilterNefPaths(files.Select(f => f.TryGetLocalPath()));
+        string[] paths = await NefFiles.OpenNefPickerAsync(storage, "添加 RAW（Nikon NEF）");
         if (paths.Length > 0)
             await vm.AddFilesAsync(paths);
     }
